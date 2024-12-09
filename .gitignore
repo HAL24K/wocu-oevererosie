@@ -1,0 +1,66 @@
+# Byte-compiled Python files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Environment and package files
+.env
+.venv/
+env/
+venv/
+*.egg-info/
+*.egg
+
+# Log files
+*.log
+*.out
+*.err
+
+# OS-generated files
+.DS_Store
+Thumbs.db
+
+# Data files
+*.csv
+*.tsv
+*.xls
+*.xlsx
+*.parquet
+*.hdf5
+*.h5
+*.feather
+*.pickle
+*.pkl
+*.json
+*.zip
+*.tar
+*.gz
+*.bz2
+*.7z
+*.npz
+*.npy
+*.sqlite
+
+# Model files
+*.h5
+*.ckpt
+*.pt
+*.onnx
+*.sav
+
+# Large raw or intermediate files
+data/
+*.tmp
+
+# Results or output directories
+results/
+output/
+plots/
+figures/
+
+# Cache files
+.cache/
+*.ipynb_cache

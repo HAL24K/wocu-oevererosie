@@ -12,6 +12,9 @@ pytest = "*"
 pytest-cov = "*"
 folium = "*"
 black = "*"
+jupyterlab = "*"
+matplotlib = "*"
+ipykernel = "*"
 
 [requires]
 python_version = "3.12"
