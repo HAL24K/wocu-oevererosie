@@ -10,6 +10,7 @@ geopandas = "*"
 [dev-packages]
 pytest = "*"
 folium = "*"
+black = "*"
 
 [requires]
 python_version = "3.12"
