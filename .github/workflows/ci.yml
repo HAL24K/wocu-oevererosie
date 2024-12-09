@@ -1,0 +1,29 @@
+on:
+  push:
+    tags:
+      - "**"
+    branches:
+      - "**"
+jobs:
+  test:
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12.4"
+      - run: pip install pipenv
+      - run: |
+          pipenv sync --dev
+          pipenv run black src --check
+          PYTHONPATH=. pipenv run pytest --log-cli-level=DEBUG --cov src --cov-report term --junitxml=pytest.xml --cov-report xml:coverage.xml
+      - name: Pytest coverage comment
+        if: ${{ ! startsWith(github.ref, 'refs/tags/') }}
+        uses: MishaKav/pytest-coverage-comment@main
+        with:
+          pytest-xml-coverage-path: ./${{ matrix.context }}/coverage.xml
+          junitxml-path: ./${{ matrix.context }}/pytest.xml
+          unique-id-for-comment: ${{ matrix.context }}
+          title: "Coverage for ${{ matrix.context }}"
