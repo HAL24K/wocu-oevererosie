@@ -9,6 +9,7 @@ geopandas = "*"
 
 [dev-packages]
 pytest = "*"
+pytest-cov = "*"
 folium = "*"
 black = "*"
 
