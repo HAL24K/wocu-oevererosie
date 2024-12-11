@@ -5,7 +5,9 @@ name = "pypi"
 
 [packages]
 pandas = "*"
+pyproj = "*"
 geopandas = "*"
+owslib = "*"
 
 [dev-packages]
 pytest = "*"
