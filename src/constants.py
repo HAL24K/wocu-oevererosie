@@ -13,7 +13,11 @@ EPSG_RD = 28992
 DEFAULT_COLLECTOR_BUFFER = 0.0  # metres around the input shape
 
 # WFS sources
-WFS_LAND_USE = "https://service.pdok.nl/rvo/brpgewaspercelen/wfs/v1_0"
-WFS_BUILDING_LOCATION = "https://service.pdok.nl/lv/bag/wfs/v2_0"
+DEFAULT_WFS_VERSION = "1.0.0"
 
-WFS_SERVICES = [WFS_LAND_USE, WFS_BUILDING_LOCATION]
+WFS_LAND_USE = "land_use"
+WFS_BUILDING_LOCATION = "building_location"
+
+WFS_JSON_OUTPUT_FORMAT = "json"
+
+EPSG_REGEX = r"(?<=EPSG\:\:)[0-9]{4,5}"
