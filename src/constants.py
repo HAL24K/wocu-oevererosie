@@ -21,9 +21,5 @@ WFS_VEGETATION = "vegetation"
 
 WFS_JSON_OUTPUT_FORMAT = "json"
 WFS_MAX_FEATURES_TO_REQUEST = 10_000  # a big number to get all the features available
-# TODO: replace the below with an automated way of determining
-# some of the WFS appear to have a limit of 1000 features that are to be returned
-# here we download the features in a loop until we have them all
-WFS_MAX_RETURNABLE_FEATURES = 1_000
 
 EPSG_REGEX = r"(?<=EPSG\:\:)[0-9]{4,5}"
