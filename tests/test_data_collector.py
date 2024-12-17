@@ -1,4 +1,7 @@
-"""Tests for the DataCollector class."""
+"""Tests for the DataCollector class.
+
+TODO: explicitly test various WFS versions whether the API is the same
+"""
 
 import geopandas as gpd
 import pytest
@@ -12,7 +15,7 @@ def data_collector_around_fake_eroded_bank(fake_eroded_bank_wgs84):
     return DC.DataCollector(
         source_shape=fake_eroded_bank_wgs84,
         source_epsg_crs=CONST.EPSG_WGS84,
-        buffer_in_metres=500,  # metres, known to contain data
+        buffer_in_metres=1_000,  # metres, known to contain data
     )
 
 

@@ -2,6 +2,7 @@
 import json
 import logging
 
+import pandas as pd
 from owslib.wfs import WebFeatureService
 import geopandas as gpd
 import shapely
@@ -78,14 +79,46 @@ class DataCollector:
                 relevant_layers = raw_wfs.relevant_layers
                 break
 
-        raw_data = self.wfs_services[wfs_name].getfeature(typename=relevant_layers, bbox=bounding_box, outputFormat=CONST.WFS_JSON_OUTPUT_FORMAT)
-        raw_data = raw_data.read()
-        data_as_json = json.loads(raw_data)
+        starting_index = 0
+        geospatial_data = []
+        crs_info = None
 
-        geospatial_data = gpd.GeoDataFrame.from_features(data_as_json["features"])
+        # TODO: figure this out automatically from the WFS
+        max_features_to_be_returned = CONST.WFS_MAX_RETURNABLE_FEATURES
+        while True:
+            raw_data = self.wfs_services[wfs_name].getfeature(
+                typename=relevant_layers,
+                bbox=bounding_box,
+                outputFormat=CONST.WFS_JSON_OUTPUT_FORMAT,
+                maxfeatures=max_features_to_be_returned,
+                startindex=starting_index
+            )
+            raw_data = raw_data.read()
+            data_as_json = json.loads(raw_data)
+
+            if len(data_as_json["features"]) == 0:
+                break
+
+            logger.info(
+                f"Getting features {starting_index} to {starting_index + max_features_to_be_returned} from {wfs_name}"
+            )
+
+            if crs_info is None:
+                # store the crs info string
+                crs_info = data_as_json["crs"]
+
+            starting_index += max_features_to_be_returned
+            geospatial_data.append(gpd.GeoDataFrame.from_features(data_as_json["features"]))
+
+        if not geospatial_data:
+            # if we don't get any data back, just return an empty geodataframe
+            # TODO: is this the best way to do it? Maybe return none?
+            return gpd.GeoDataFrame()
+
+        geospatial_data = gpd.GeoDataFrame(pd.concat(geospatial_data, ignore_index=True))
 
         # TODO: make the reading from the dictionary safe
-        epsg_code = U.get_epsg_from_urn(data_as_json["crs"]["properties"]["name"])
+        epsg_code = U.get_epsg_from_urn(crs_info["properties"]["name"])
         if epsg_code is None:
             logger.warning(f"Could not extract EPSG code from the WFS data, assuming {CONST.EPSG_RD}")
             epsg_code = CONST.EPSG_RD
