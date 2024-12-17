@@ -20,7 +20,10 @@ KNOWN_WFS_SERVICES = [
         name=CONST.WFS_VEGETATION,
         url="https://geo.rijkswaterstaat.nl/services/ogc/gdr/rws_vegetatielegger/ows?version=2.0.0",
         version="2.0.0",
-        relevant_layers=["rws_vegetatielegger:vegetatieklassen"],
-        # relevant_layers=["rws_vegetatielegger:bomen", "rws_vegetatielegger:heggen", "rws_vegetatielegger:vegetatieklassen"],
+        relevant_layers=[
+            "rws_vegetatielegger:bomen",
+            "rws_vegetatielegger:heggen",
+            "rws_vegetatielegger:vegetatieklassen",
+        ],
     ),
 ]
