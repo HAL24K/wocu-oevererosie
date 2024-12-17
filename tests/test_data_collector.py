@@ -46,8 +46,11 @@ def test_wfs_geodata(data_collector_around_fake_eroded_bank):
                 wfs_service.name
             )
         )
-        assert isinstance(geospatial_data, gpd.GeoDataFrame)
+        assert isinstance(geospatial_data, dict)
 
-        # TODO: this is a weird NL-centric assert
-        # also, comparing the .crs object (complicated) with just a string works for some reason?!
-        assert geospatial_data.crs == CONST.EPSG_RD
+        for layer in geospatial_data:
+            assert isinstance(geospatial_data[layer], gpd.GeoDataFrame)
+
+            # TODO: this is a weird NL-centric assert
+            # also, comparing the .crs object (complicated) with just a string works for some reason?!
+            assert geospatial_data[layer].crs == CONST.EPSG_RD

@@ -66,7 +66,7 @@ class DataCollector:
             CONST.EPSG_RD, self.source_epsg_crs, beefed_up_source_shape
         )
 
-    def load_data_from_single_wfs(self, wfs_name: str) -> gpd.GeoDataFrame:
+    def load_data_from_single_wfs(self, wfs_name: str) -> dict[gpd.GeoDataFrame]:
         """Get a geodataframe from the specified WFS service.
 
         :param wfs_name: The name of the WFS service known to the class to get the data from.
@@ -79,50 +79,57 @@ class DataCollector:
                 relevant_layers = raw_wfs.relevant_layers
                 break
 
-        starting_index = 0
-        geospatial_data = []
-        crs_info = None
+        geospatial_data = {}
+        for layer in relevant_layers:
+            logger.info(f"Getting data from the layer {layer} in {wfs_name}")
 
-        # TODO: figure this out automatically from the WFS
-        max_features_to_be_returned = CONST.WFS_MAX_RETURNABLE_FEATURES
-        while True:
-            raw_data = self.wfs_services[wfs_name].getfeature(
-                typename=relevant_layers,
-                bbox=bounding_box,
-                outputFormat=CONST.WFS_JSON_OUTPUT_FORMAT,
-                maxfeatures=max_features_to_be_returned,
-                startindex=starting_index
-            )
-            raw_data = raw_data.read()
-            data_as_json = json.loads(raw_data)
+            starting_index = 0
+            geospatial_data_single_layer = []
+            crs_info = None
 
-            if len(data_as_json["features"]) == 0:
-                break
+            # TODO: figure this out automatically from the WFS
+            max_features_to_be_returned = CONST.WFS_MAX_RETURNABLE_FEATURES
+            while True:
+                raw_data = self.wfs_services[wfs_name].getfeature(
+                    typename=[layer],
+                    bbox=bounding_box,
+                    outputFormat=CONST.WFS_JSON_OUTPUT_FORMAT,
+                    maxfeatures=max_features_to_be_returned,
+                    startindex=starting_index
+                )
+                raw_data = raw_data.read()
+                data_as_json = json.loads(raw_data)
 
-            logger.info(
-                f"Getting features {starting_index} to {starting_index + max_features_to_be_returned} from {wfs_name}"
-            )
+                if len(data_as_json["features"]) == 0:
+                    break
 
-            if crs_info is None:
-                # store the crs info string
-                crs_info = data_as_json["crs"]
+                logger.info(
+                    f"Getting features {starting_index} to {starting_index + max_features_to_be_returned}."
+                )
 
-            starting_index += max_features_to_be_returned
-            geospatial_data.append(gpd.GeoDataFrame.from_features(data_as_json["features"]))
+                if crs_info is None:
+                    # store the crs info string
+                    crs_info = data_as_json["crs"]
 
-        if not geospatial_data:
-            # if we don't get any data back, just return an empty geodataframe
-            # TODO: is this the best way to do it? Maybe return none?
-            return gpd.GeoDataFrame()
+                starting_index += max_features_to_be_returned
+                geospatial_data_single_layer.append(gpd.GeoDataFrame.from_features(data_as_json["features"]))
 
-        geospatial_data = gpd.GeoDataFrame(pd.concat(geospatial_data, ignore_index=True))
+            if not geospatial_data_single_layer:
+                # if we don't get any data back, just return an empty geodataframe
+                # TODO: is this the best way to do it? Maybe return none?
+                geospatial_data[layer] = gpd.GeoDataFrame()
+                continue
 
-        # TODO: make the reading from the dictionary safe
-        epsg_code = U.get_epsg_from_urn(crs_info["properties"]["name"])
-        if epsg_code is None:
-            logger.warning(f"Could not extract EPSG code from the WFS data, assuming {CONST.EPSG_RD}")
-            epsg_code = CONST.EPSG_RD
+            geospatial_data_single_layer = gpd.GeoDataFrame(pd.concat(geospatial_data_single_layer, ignore_index=True))
 
-        geospatial_data.crs = epsg_code
+            # TODO: make the reading from the dictionary safe
+            epsg_code = U.get_epsg_from_urn(crs_info["properties"]["name"])
+            if epsg_code is None:
+                logger.warning(f"Could not extract EPSG code from the WFS data, assuming {CONST.EPSG_RD}")
+                epsg_code = CONST.EPSG_RD
+
+            geospatial_data_single_layer.crs = epsg_code
+
+            geospatial_data[layer] = geospatial_data_single_layer
 
         return geospatial_data
