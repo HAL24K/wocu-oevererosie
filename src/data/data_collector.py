@@ -26,18 +26,24 @@ class DataCollector:
             source_epsg_crs: int = CONST.EPSG_RD,
             buffer_in_metres: float = CONST.DEFAULT_COLLECTOR_BUFFER,
             wfs_services: list[SWS.WfsService] = CONFIG.KNOWN_WFS_SERVICES,
+            local_geospatial_data: dict[str, gpd.GeoDataFrame] = None
     ):
         """Initializes the data collector.
 
         :param source_shape: The shape defining the area of interest.
         :param source_epsg_crs: The EPSG code of the source CRS, so that we know how to transform if needed.
         :param buffer_in_metres: The buffer in meters around the source shape from which to get the data.
+        :param wfs_services: The list of WFS services to get the data from.
+        :param local_geospatial_data: The local geospatial data to use (in addition to the WFS data).
         """
         self.source_shape_raw = source_shape
         self.source_epsg_crs = source_epsg_crs
         self.buffer = buffer_in_metres
         self.wfs_services_raw = wfs_services
         self.wfs_services = None
+
+        # TODO: We only transform the CRS - if needed - when processing the data. Should we do it here?
+        self.local_geospatial_data_raw = local_geospatial_data
 
         self.source_shape = self.define_source_shape()
 
@@ -168,3 +174,10 @@ class DataCollector:
         for wfs_service in self.wfs_services:
             logger.info(f"Getting data from the WFS service {wfs_service}.")
             self.relevant_geospatial_data[wfs_service] = self.load_data_from_single_wfs(wfs_service)
+
+    def get_local_geospatial_data(self):
+        """Process the local geospatial data to only include the relevant parts."""
+        for data_label, data in self.local_geospatial_data_raw.items():
+            data_with_correct_crs = data.to_crs(epsg=self.source_epsg_crs)
+            mask = data_with_correct_crs.intersects(self.source_shape)
+            self.relevant_geospatial_data[data_label] = data_with_correct_crs[mask].copy()
