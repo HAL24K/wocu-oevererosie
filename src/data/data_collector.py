@@ -4,7 +4,6 @@ import logging
 
 from owslib.wfs import WebFeatureService
 import geopandas as gpd
-import shapely
 from shapely.geometry.base import BaseGeometry
 
 import src.constants as CONST
@@ -43,6 +42,8 @@ class DataCollector:
         self.source_shape = self.define_source_shape()
 
         self.initialize_wfs_services()
+
+        self.relevant_geospatial_data = {}
 
 
     def initialize_wfs_services(self):
@@ -161,3 +162,9 @@ class DataCollector:
         crs_info = data_as_json["crs"]
 
         return data_as_json["features"], crs_info
+
+    def get_data_from_all_wfs(self):
+        """Loop through all the know WFS services and get data overlapping with the source shape."""
+        for wfs_service in self.wfs_services:
+            logger.info(f"Getting data from the WFS service {wfs_service}.")
+            self.relevant_geospatial_data[wfs_service] = self.load_data_from_single_wfs(wfs_service)

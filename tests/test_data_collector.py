@@ -8,6 +8,7 @@ import pytest
 
 import src.data.data_collector as DC
 import src.constants as CONST
+import src.config as CONFIG
 
 
 @pytest.fixture
@@ -55,3 +56,38 @@ def test_wfs_geodata(data_collector_around_fake_eroded_bank):
             # TODO: this is a weird NL-centric assert
             # also, comparing the .crs object (complicated) with just a string works for some reason?!
             assert geospatial_data[layer].crs == CONST.EPSG_RD
+
+
+def test_getting_all_wfs_data(fake_eroded_bank_wgs84):
+    # this is almost the same data collector as the one from the fixture, but this one knows fewer services
+    abridged_known_wfs_services = CONFIG.KNOWN_WFS_SERVICES[:1]
+    data_collector_single_wfs = DC.DataCollector(
+        source_shape=fake_eroded_bank_wgs84,
+        source_epsg_crs=CONST.EPSG_WGS84,
+        buffer_in_metres=1_000,
+        wfs_services=abridged_known_wfs_services,  # use only one service
+    )
+
+    # make sure we have no data ahead of time
+    assert not data_collector_single_wfs.relevant_geospatial_data
+
+    data_collector_single_wfs.get_data_from_all_wfs()
+
+    # check the structure of the data, which is a nested dictionary
+    assert isinstance(data_collector_single_wfs.relevant_geospatial_data, dict)
+    assert (
+        len(data_collector_single_wfs.relevant_geospatial_data) == 1
+    )  # we only use 1 WFS in this test
+
+    known_wfs_name = data_collector_single_wfs.wfs_services_raw[0].name
+    wfs_data_structure = data_collector_single_wfs.relevant_geospatial_data[
+        known_wfs_name
+    ]
+    assert isinstance(wfs_data_structure, dict)  # the dictionary is nested
+
+    assert len(wfs_data_structure) == len(
+        abridged_known_wfs_services[0].relevant_layers
+    )
+
+    layer_name = list(wfs_data_structure.keys())[0]
+    assert isinstance(wfs_data_structure[layer_name], gpd.GeoDataFrame)
