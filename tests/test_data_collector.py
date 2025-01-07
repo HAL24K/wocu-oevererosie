@@ -91,3 +91,39 @@ def test_getting_all_wfs_data(fake_eroded_bank_wgs84):
 
     layer_name = list(wfs_data_structure.keys())[0]
     assert isinstance(wfs_data_structure[layer_name], gpd.GeoDataFrame)
+
+
+def test_processing_local_geospatial_data(fake_eroded_bank_wgs84, sample_assets):
+    """Test the processing of local geospatial data."""
+    data_collector = DC.DataCollector(
+        source_shape=fake_eroded_bank_wgs84,
+        source_epsg_crs=CONST.EPSG_WGS84,
+        buffer_in_metres=1_000,  # metres, known to contain data
+        local_geospatial_data=sample_assets,
+    )
+
+    assert isinstance(data_collector.local_geospatial_data_raw, dict)
+    assert (
+        not data_collector.relevant_geospatial_data
+    )  # at first, we have no relevant data
+
+    data_collector.get_local_geospatial_data()
+
+    assert isinstance(
+        data_collector.relevant_geospatial_data, dict
+    )  # we have a dictionary of data
+    assert (
+        data_collector.relevant_geospatial_data.keys() == sample_assets.keys()
+    )  # the metadata is the same
+
+    for dataset_name in sample_assets:
+        # check that the relevant data is a subset of the complete data (as the shape is smaller)
+        assert len(data_collector.relevant_geospatial_data[dataset_name]) < len(
+            sample_assets[dataset_name]
+        )
+
+        # check that the CRS is the same as CRS of the source shape
+        assert (
+            data_collector.relevant_geospatial_data[dataset_name].crs
+            == CONST.EPSG_WGS84
+        )
