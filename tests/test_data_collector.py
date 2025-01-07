@@ -20,7 +20,7 @@ def data_collector_around_fake_eroded_bank(fake_eroded_bank_wgs84):
 
 
 def test_connect(data_collector_around_fake_eroded_bank):
-
+    # check that the buffer makes the shape bigger
     assert data_collector_around_fake_eroded_bank.source_shape_raw.within(
         data_collector_around_fake_eroded_bank.source_shape
     )
@@ -41,6 +41,7 @@ def test_connect(data_collector_around_fake_eroded_bank):
 def test_wfs_geodata(data_collector_around_fake_eroded_bank):
     # make sure that we can get some data
     for wfs_service in data_collector_around_fake_eroded_bank.wfs_services_raw:
+        # TODO: this calls an actual webservice, consider mocking it
         geospatial_data = (
             data_collector_around_fake_eroded_bank.load_data_from_single_wfs(
                 wfs_service.name

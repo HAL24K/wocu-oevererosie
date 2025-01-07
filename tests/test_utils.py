@@ -28,15 +28,18 @@ def test_transform_shape_crs(shapes_near_zaltbommel):
 
 def test_get_epsg_from_urn():
     """Test the extraction of EPSG from URN."""
+    # Case 1: URN strings with EPSG as expected
     urn = "urn:ogc:def:crs:EPSG::28992"
     assert U.get_epsg_from_urn(urn) == "28992"
 
     urn = "urn:ogc:def:crs:EPSG::4326"
     assert U.get_epsg_from_urn(urn) == "4326"
 
+    # Case 2: a string with no EPSG
     urn = "no_epsg_here"
     assert U.get_epsg_from_urn(urn) is None
 
+    # Case 3: a string with multiple EPSGs, which is forbidden
     urn = "urn:ogc:def:crs:EPSG::28992,urn:ogc:def:crs:EPSG::4326"
     with pytest.raises(AssertionError) as e:
         U.get_epsg_from_urn(urn)
