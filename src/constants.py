@@ -45,3 +45,7 @@ class AggregationOperations(Enum):
     TOTAL_AREA = "total_area"
     AREA_FRACTION = "area_fraction"
     MAJORITY_CLASS = "majority_class"
+
+
+DEFAULT_INCLUDE_TARGETS = False
+DEFAULT_PREDICTION_REGION_BUFFER = 10  # meters

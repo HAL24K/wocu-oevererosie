@@ -1,6 +1,12 @@
-"""Various configurations for the application."""
+"""Various configurations for the application.
+
+TODO: These should technically be user-provided, so place them as such
+"""
 
 import src.data.schema_wfs_service as SWS
+from src.data.feature_generation_config_schema import (
+    FeatureGenerationConfiguration as FGC,
+)
 import src.constants as CONST
 
 BRPGEWAS = "BrpGewas"
@@ -39,22 +45,14 @@ KNOWN_WFS_SERVICES = [
 # TODO: come up with more features
 AGGREGATION_COLUMNS = {
     # for the plants get some majority classes and also the fraction of the area taken by plants
-    BRPGEWAS: {
-        CONST.AggregationOperations.MAJORITY_CLASS.value: ["category", "gewas"],
-        CONST.AggregationOperations.AREA_FRACTION.value: True,
-    },
+    BRPGEWAS: FGC(majority_class=["category", "gewas"], area_fraction=True),
     # similarly for buildings get the majority class for the usage and the fraction of the area taken by buildings
-    BAG_PAND: {
-        CONST.AggregationOperations.MAJORITY_CLASS.value: ["gebruiksdoel"],
-        CONST.AggregationOperations.AREA_FRACTION.value: True,
-    },
+    BAG_PAND: FGC(majority_class=["gebruiksdoel"], area_fraction=True),
     # we count the tree density within our area
-    RWS_WL_BOMEN: {CONST.AggregationOperations.NUM_DENSITY.value: True},
+    RWS_WL_BOMEN: FGC(numerical_density=True),
     # (questionable) hedge density
     # TODO: hedges are linestrings so have length - would including that be helpful?
-    RWS_WL_HEGGEN: {CONST.AggregationOperations.NUM_DENSITY.value: True},
+    RWS_WL_HEGGEN: FGC(numerical_density=True),
     # we also get the majority class from the vegetatielegger
-    RWS_WL_VEGETATIEKLASSEN: {
-        CONST.AggregationOperations.MAJORITY_CLASS.value: ["vlklasse"]
-    },
+    RWS_WL_VEGETATIEKLASSEN: FGC(majority_class=["vlklasse"]),
 }
