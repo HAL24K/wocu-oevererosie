@@ -45,3 +45,121 @@ def test_get_epsg_from_urn():
         U.get_epsg_from_urn(urn)
 
     assert "More than one" in str(e.value)
+
+
+def test_get_object_density(fake_eroded_bank_rd, sample_assets):
+    """Check that the calculated object density is right."""
+    with pytest.raises(AssertionError):
+        # expecting this to fail as the raw sample assets are polygons
+        U.get_object_density(fake_eroded_bank_rd, sample_assets["sample_assets_rd"])
+
+    # make points out of the polygons, use the RC coords
+    sample_assets_as_points = sample_assets["sample_assets_rd"].copy()
+    sample_assets_as_points["geometry"] = sample_assets_as_points["geometry"].centroid
+
+    # TODO: turns out the sample data does not overlap/itersect much with the sample polygon, so we beef it up a bit
+    #   so that it works. This could be fixed and make less awkward by using better test data.
+    chubby_fake_eroded_bank = fake_eroded_bank_rd.buffer(500)
+
+    object_density = U.get_object_density(
+        chubby_fake_eroded_bank, sample_assets_as_points
+    )
+
+    assert object_density > 0  # make sure that SOME objects are inside the shape
+
+    # only include the points inside the source shape - our sample data is from a larger area
+    assert object_density < len(sample_assets_as_points) / chubby_fake_eroded_bank.area
+
+
+def test_get_object_intersects(fake_eroded_bank_rd, sample_assets):
+    """Check that we correctly get the intersected objects."""
+    no_of_true_intersects = U.get_count_object_intersects(
+        fake_eroded_bank_rd, sample_assets["sample_assets_rd"]
+    )
+
+    assert no_of_true_intersects > 0  # make sure that SOME objects are inside the shape
+
+    huge_buffer = 10_000  # get a buffer that for sure contains all the shapes (calculated with a buffer of 5_000)
+    no_of_all_objects = U.get_count_object_intersects(
+        fake_eroded_bank_rd.buffer(huge_buffer), sample_assets["sample_assets_rd"]
+    )
+
+    assert no_of_all_objects == len(
+        sample_assets["sample_assets_rd"]
+    )  # make sure that the buffer is huge enough
+
+    assert no_of_true_intersects < no_of_all_objects
+
+
+def test_get_total_area(fake_eroded_bank_rd, sample_assets):
+    """Check that we correctly get the total area of the intersected objects."""
+    total_area = U.get_total_area(
+        fake_eroded_bank_rd, sample_assets["sample_assets_rd"]
+    )
+
+    assert total_area > 0  # make sure that SOME objects are inside the shape
+
+    huge_buffer = 10_000  # get a buffer that for sure contains all the shapes (calculated with a buffer of 5_000)
+    total_area_all_objects = U.get_total_area(
+        fake_eroded_bank_rd.buffer(huge_buffer), sample_assets["sample_assets_rd"]
+    )
+
+    assert (
+        total_area_all_objects == sample_assets["sample_assets_rd"].area.sum()
+    )  # make sure that the buffer is huge enough
+
+    assert total_area < total_area_all_objects
+
+
+def test_get_area_fraction(fake_eroded_bank_rd, sample_assets):
+    """Check that we correctly get the area fraction of the intersected objects."""
+    area_fraction = U.get_area_fraction(
+        fake_eroded_bank_rd, sample_assets["sample_assets_rd"]
+    )
+
+    assert 0 < area_fraction < 1  # make sure that SOME objects are inside the shape
+
+    huge_buffer = 10_000  # get a buffer that for sure contains all the shapes (calculated with a buffer of 5_000)
+    area_fraction_all_objects = U.get_area_fraction(
+        fake_eroded_bank_rd, sample_assets["sample_assets_rd"].buffer(huge_buffer)
+    )
+
+    assert area_fraction_all_objects == pytest.approx(
+        1
+    )  # make sure that the buffer is huge enough
+
+    assert area_fraction < area_fraction_all_objects
+
+
+def test_get_majority_class(fake_eroded_bank_rd, sample_assets):
+    """Check that we get the majority class right."""
+    columns_to_use = ["category", "gewas"]
+
+    with pytest.raises(AssertionError):
+        # if we include some columns that don't exist, we want the thing to fail
+        columns_to_make_it_fail = columns_to_use + ["non_existent_column"]
+        U.get_majority_class(
+            fake_eroded_bank_rd,
+            sample_assets["sample_assets_rd"],
+            columns_to_make_it_fail,
+        )
+
+    majority_classes_simple = U.get_majority_class(
+        fake_eroded_bank_rd, sample_assets["sample_assets_rd"], columns_to_use
+    )
+
+    assert len(majority_classes_simple) == len(columns_to_use)
+
+    huge_buffer = 10_000  # get a buffer that for sure contains all the shapes (calculated with a buffer of 5_000)
+    majority_classes_all_objects = U.get_majority_class(
+        fake_eroded_bank_rd.buffer(huge_buffer),
+        sample_assets["sample_assets_rd"],
+        columns_to_use,
+    )
+
+    assert majority_classes_all_objects != majority_classes_simple
+
+    # test that it also works for only one column
+    _ = U.get_majority_class(
+        fake_eroded_bank_rd, sample_assets["sample_assets_rd"], columns_to_use[0]
+    )

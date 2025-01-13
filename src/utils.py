@@ -70,10 +70,10 @@ def get_object_density(base_shape: BaseGeometry, geo_data: gpd.GeoDataFrame) -> 
         geo_data.geometry.geom_type.unique()[0] == "Point"
     ), "Only Point geometry allowed"
 
-    return len(geo_data.within(base_shape)) / base_shape.area
+    return len(geo_data[geo_data.within(base_shape)]) / base_shape.area
 
 
-def get_count_inside_object(
+def get_count_object_intersects(
     base_shape: BaseGeometry, geo_data: gpd.GeoDataFrame
 ) -> int:
     """Get the count of objects inside the base_shape.
@@ -99,11 +99,11 @@ def get_area_fraction(base_shape: BaseGeometry, geo_data: gpd.GeoDataFrame) -> f
     :param base_shape: The shape of the area for which we are calculating the area fraction.
     :param geo_data: geospatial data
     """
-    return geo_data[geo_data.intersects(base_shape)].area.sum() / base_shape.area
+    return geo_data.union_all().intersection(base_shape).area / base_shape.area
 
 
 def get_majority_class(
-    base_shape: BaseGeometry, geo_data: gpd.GeoDataFrame, columns: list[str]
+    base_shape: BaseGeometry, geo_data: gpd.GeoDataFrame, columns: Union[list[str], str]
 ) -> dict[str, str]:
     """Get the majority class from each required column in the geo_data.
 
@@ -111,14 +111,18 @@ def get_majority_class(
     :param geo_data: geospatial data
     :param columns: The columns to get the majority class from
     """
+    if isinstance(columns, str):
+        columns = [columns]
+
     assert set(geo_data.columns).issuperset(
         columns
-    ), f"Columns {set(columns) - set(geo_data.columns)} not found in geo_data."
+    ), f"Columns {set(columns) - set(geo_data.columns)} not found in geo_data (it contains {geo_data.columns})."
 
-    majority_classes = {}
-    for column in columns:
-        majority_classes[column] = (
-            geo_data[geo_data.intersects(base_shape)][column].mode().values[0]
+    majority_classes = geo_data.loc[geo_data.intersects(base_shape), columns].mode()
+    if len(majority_classes) > 1:
+        logger.warning(
+            f"Multiple majority classes found in some of the columns, we only take the first one."
         )
+    majority_classes = majority_classes.iloc[0].to_dict()
 
     return majority_classes

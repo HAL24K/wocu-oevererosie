@@ -5,6 +5,7 @@ from shapely.geometry import Point, LineString, Polygon
 import pytest
 
 import src.paths as PATHS
+import src.utils as U
 
 
 def point_near_zaltbommel_wgs84():
@@ -64,6 +65,11 @@ def fake_eroded_bank_wgs84():
     return Polygon(
         [(5.4639, 51.8875), (5.4664, 51.8879), (5.4665, 51.8872), (5.4634, 51.8869)]
     )
+
+
+@pytest.fixture
+def fake_eroded_bank_rd(fake_eroded_bank_wgs84):
+    return U.transform_shape_crs(4326, 28992, fake_eroded_bank_wgs84)
 
 
 @pytest.fixture
