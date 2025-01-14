@@ -58,6 +58,31 @@ def get_epsg_from_urn(urn_string: str) -> str:
         return None
 
 
+def flatten_dictionary(input_dictionary: dict, key_separator: str = "_") -> dict:
+    """Flatten a nested dictionary.
+
+    :param input_dictionary: The dictionary to flatten.
+    :param key_separator: The separator to use between the flattened keys.
+
+    NOTE: In the feature creation, some features return dictionaries - e.g. the majority class can be calculated
+       for multiple columns. This makes for annoying feature dataframes, hence we flatten the dictionary here to end
+       up with single-element values. The keys of the new dictionary are a combination of the various level keys
+       joined by key_separator.
+    """
+
+    output_dict = {}
+    for key, value in input_dictionary.items():
+        if isinstance(value, dict):
+            for sub_key, sub_value in flatten_dictionary(value).items():
+                output_dict[key + key_separator + sub_key] = sub_value
+        elif isinstance(value, list):
+            raise NotImplementedError("Flattening lists is not implemented.")
+        else:
+            output_dict[key] = value
+
+    return output_dict
+
+
 def get_object_density(base_shape: BaseGeometry, geo_data: gpd.GeoDataFrame) -> float:
     """Calculate the density of objects in the target shape.
 
@@ -104,7 +129,7 @@ def get_area_fraction(base_shape: BaseGeometry, geo_data: gpd.GeoDataFrame) -> f
 
 def get_majority_class(
     base_shape: BaseGeometry, geo_data: gpd.GeoDataFrame, columns: Union[list[str], str]
-) -> dict[str, str]:
+) -> dict[str, str | None]:
     """Get the majority class from each required column in the geo_data.
 
     :param base_shape: The shape of the area for which we are calculating the majority class.
@@ -119,10 +144,15 @@ def get_majority_class(
     ), f"Columns {set(columns) - set(geo_data.columns)} not found in geo_data (it contains {geo_data.columns})."
 
     majority_classes = geo_data.loc[geo_data.intersects(base_shape), columns].mode()
-    if len(majority_classes) > 1:
+
+    if len(majority_classes) == 0:
+        # no data intersects the region
+        # TODO: do we return None here or some "none string" so that we don't have missing features?
+        return {col: None for col in columns}
+    elif len(majority_classes) > 1:
         logger.warning(
             f"Multiple majority classes found in some of the columns, we only take the first one."
         )
-    majority_classes = majority_classes.iloc[0].to_dict()
 
+    majority_classes = majority_classes.iloc[0].to_dict()
     return majority_classes

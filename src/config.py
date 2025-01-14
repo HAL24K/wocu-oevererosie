@@ -52,7 +52,8 @@ AGGREGATION_COLUMNS = {
     RWS_WL_BOMEN: FGC(numerical_density=True),
     # (questionable) hedge density
     # TODO: hedges are linestrings so have length - would including that be helpful?
-    RWS_WL_HEGGEN: FGC(numerical_density=True),
+    # TODO: numerical density of lines is forbidden, as we require points. Figure out and uncomment
+    # RWS_WL_HEGGEN: FGC(numerical_density=True),
     # we also get the majority class from the vegetatielegger
     RWS_WL_VEGETATIEKLASSEN: FGC(majority_class=["vlklasse"]),
 }

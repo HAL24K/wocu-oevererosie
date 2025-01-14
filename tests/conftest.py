@@ -6,6 +6,7 @@ import pytest
 
 import src.paths as PATHS
 import src.utils as U
+import src.data.config as DATA_CONFIG
 
 
 def point_near_zaltbommel_wgs84():
@@ -83,3 +84,8 @@ def sample_assets():
     )
 
     return assets
+
+
+@pytest.fixture
+def default_data_configuration():
+    return DATA_CONFIG.DataConfiguration()

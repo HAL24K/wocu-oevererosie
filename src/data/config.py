@@ -29,3 +29,13 @@ class DataConfiguration:
         default=CONFIG.KNOWN_WFS_SERVICES,
         description="The known WFS services to collect data from.",
     )
+
+    @model_validator(mode="after")
+    def check_feature_creation_config_nonempty(self):
+        if len(self.feature_creation_config) < 1:
+            raise ValueError(
+                "The attribute 'feature_creation_config' must contain at least one entry, "
+                "otherwise we create no features."
+            )
+
+        return self

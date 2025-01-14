@@ -1,6 +1,7 @@
 """This class takes in the shape data, enriches them and generates inputs for a machine learning model."""
 
 import logging
+import pandas as pd
 import geopandas as gpd
 import shapely.geometry.base
 
@@ -23,7 +24,6 @@ class DataHandler():
         config: DATA_CONFIG.DataConfiguration,
         prediction_regions: gpd.GeoDataFrame,
         local_data_for_enrichment: dict[str, gpd.GeoDataFrame] = None,
-        wfs_services: list[SWS.WfsService] = CONFIG.KNOWN_WFS_SERVICES,
         erosion_data: gpd.GeoDataFrame = None
     ):
         """Initialise the object.
@@ -39,15 +39,18 @@ class DataHandler():
         self.raw_enrichment_geospatial_data = local_data_for_enrichment
         self.raw_erosion_data = erosion_data
 
+        # TODO: we assume the features always start here - maybe there is a more elegant way of doing it
+        self.model_features = self.prediction_regions.copy()
 
-    def enrich_data_with_remote(self):
+
+    def create_features_from_remote(self):
         """For each prediction region, get the WFS data and calculate the features."""
         wfs_features = []
         for region in self.prediction_regions.geometry.values:
             data_collector = DC.DataCollector(
                 source_shape=region,
                 source_epsg_crs=self.prediction_regions.crs.to_epsg(),
-                buffer_in_metres=self.config.buffer_in_metres,
+                buffer_in_metres=self.config.prediction_region_buffer,
                 wfs_services=self.config.known_wfs_services,
             )
 
@@ -61,7 +64,7 @@ class DataHandler():
                     feature_config = self.config.feature_creation_config.get(layer_name)
                     if feature_config is None:
                         logger.warning(
-                            f"No feature configuration found for {layer_name} of the WFS {wfs_service.name}, skipping."
+                            f"No feature configuration found for {layer_name} of the WFS {wfs_service}, skipping."
                             f"Why are we downloading the data though?"
                         )
                         continue
@@ -78,8 +81,12 @@ class DataHandler():
 
                     single_region_features.update(single_layer_features)
 
-            # TODO: flatten the dictionary first? so that it can be transformed in a nice datafarme easily
+            # TODO: flatten the dictionary first? so that it can be transformed in a nice dataframe easily
+            single_region_features = UTILS.flatten_dictionary(single_region_features)
             wfs_features.append(single_region_features)
+        wfs_features = pd.DataFrame(wfs_features)
+
+        self.model_features = pd.concat([self.model_features, wfs_features], axis=1)
 
 
     @staticmethod
@@ -116,6 +123,8 @@ class DataHandler():
                         f"pick one of {[agg.value for agg in CONST.AggregationOperations]}. "
                         f"You might add the operation to the schema and add the implementation to utils."
                     )
+
+        return single_region_features
 
 
     def generate_prediction_region_features(self):

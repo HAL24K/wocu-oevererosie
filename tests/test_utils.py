@@ -163,3 +163,36 @@ def test_get_majority_class(fake_eroded_bank_rd, sample_assets):
     _ = U.get_majority_class(
         fake_eroded_bank_rd, sample_assets["sample_assets_rd"], columns_to_use[0]
     )
+
+
+def test_flatten_dictionary():
+    """Test that dictionaries flatten well."""
+    # CASE 1: a simple dictionary, no change
+    example_dictionary = {"a": 1, "b": 2, "c": True}
+    flattened_dictionary = U.flatten_dictionary(example_dictionary)
+    assert flattened_dictionary == example_dictionary
+
+    # CASE 2: an empty dictionary, no change
+    example_dictionary = {}
+    flattened_dictionary = U.flatten_dictionary(example_dictionary)
+    assert flattened_dictionary == example_dictionary
+
+    # CASE 3: an easily nested dictionary
+    example_dictionary = {"a": False, "b": {"c": 2, "d": 3}}
+    flattened_dictionary = U.flatten_dictionary(example_dictionary)
+    assert flattened_dictionary == {"a": False, "b_c": 2, "b_d": 3}
+
+    # CASE 4: multiple levels of nesting
+    example_dictionary = {"a": 1, "b": {"c": True, "d": {"e": 3, "f": 4}}}
+    flattened_dictionary = U.flatten_dictionary(example_dictionary)
+    assert flattened_dictionary == {"a": 1, "b_c": True, "b_d_e": 3, "b_d_f": 4}
+
+    # CASE 5: a list makes it fall over
+    example_dictionary = {"a": 1, "b": [1, 2, 3]}
+    with pytest.raises(NotImplementedError):
+        U.flatten_dictionary(example_dictionary)
+
+    # CASE 6: different separator
+    example_dictionary = {"mac": {"cheese": 42}}
+    flattened_dictionary = U.flatten_dictionary(example_dictionary, key_separator="&")
+    assert flattened_dictionary == {"mac&cheese": 42}
