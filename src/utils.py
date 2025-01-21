@@ -76,7 +76,7 @@ def flatten_dictionary(input_dictionary: dict, key_separator: str = "_") -> dict
             for sub_key, sub_value in flatten_dictionary(value).items():
                 output_dict[key + key_separator + sub_key] = sub_value
         elif isinstance(value, list):
-            raise NotImplementedError("Flattening lists is not implemented.")
+            raise NotImplementedError("Flattening of lists is not implemented.")
         else:
             output_dict[key] = value
 
