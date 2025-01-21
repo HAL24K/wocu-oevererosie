@@ -70,6 +70,12 @@ Follow general good coding practices, including, but not limited to:
 - don't commit any passwords or other secrets
 - always work on a feature branch and before merging make sure that all tests pass and someone else reviewed
   your changes
+- make errors, warnings and other messages verbose, informative and ideally leading the user to the solution. Don't say
+  `Unknown input.`, specify `Unknown fruit: 'dorian'. Please pick one of: 'apple', 'banana', 'cherry'.` Guide the user,
+  don't just say `Bad input dimension: 4`, but rather `Bad input dimension: 3. This typically happens when you accidentally label "year" as category in the configuration.` or something.
+- Log more than you'll need. Keep being verbose and don't shy away from interpreting the logs for the user:
+  `Number of data samples: 1000; number of samples in features: 900. We expect some samples to have missing data and thus be dropped from the feature calcualtion.`
+  Be reassuring where you can.
 
 ## TODOs
 
