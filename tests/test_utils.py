@@ -1,6 +1,8 @@
 """Test the utilites."""
 
+import numpy as np
 import pytest
+from shapely.geometry import Polygon, LineString
 
 import src.utils as U
 
@@ -196,3 +198,47 @@ def test_flatten_dictionary():
     example_dictionary = {"mac": {"cheese": 42}}
     flattened_dictionary = U.flatten_dictionary(example_dictionary, key_separator="&")
     assert flattened_dictionary == {"mac&cheese": 42}
+
+
+def test_cosine_similarity():
+    """Test that cosine similarity works"""
+    number_of_random_trials = 42  # more than 1 but not too many
+
+    for _ in range(number_of_random_trials):
+        multiplier1 = np.random.randint(1, 1000)  # enable coordinates to be big
+        multiplier2 = np.random.randint(1, 1000)
+        number_of_dimensions = np.random.randint(1, 42)
+
+        vector1 = np.random.rand(number_of_dimensions) * multiplier1
+        vector2 = np.random.rand(number_of_dimensions) * multiplier2
+
+        assert U.cosine_similarity(vector1, vector1) == pytest.approx(1, abs=1e-6)
+        assert U.cosine_similarity(vector2, vector2) == pytest.approx(1, abs=1e-6)
+        assert U.cosine_similarity(vector1, vector2) == U.cosine_similarity(
+            vector2, vector1
+        )
+        assert U.cosine_similarity(vector1, vector2) <= 1
+
+    example_vector = np.array([1, 0, 0])
+    orthogonal_vector = np.array([0, 1, 0])
+
+    assert U.cosine_similarity(example_vector, orthogonal_vector) == pytest.approx(
+        0, abs=1e-6
+    )
+
+
+def test_get_nearby_line_shape():
+    """Test that we get the nearby line shape correctly."""
+    # a square whose centroid lies on the X axis
+    example_shape = Polygon([(0.5, -0.5), (1.5, -0.5), (1.5, 0.5), (0.5, 0.5)])
+
+    # a vertical line
+    vertical_line = LineString([(0.0, -1.0), (0.0, 1.0)])
+
+    for example_radius in np.linspace(0.1, 0.9, 5):
+        line_shape_metric = U.get_nearby_linestring_shape(
+            base_shape=example_shape,
+            line=vertical_line,
+            neighbourhood_radius=example_radius,
+        )
+        assert line_shape_metric == 0.0  # straight line

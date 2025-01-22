@@ -9,7 +9,7 @@ import src.data.feature_generation_config_schema as FGCS
 def test_correct_definitions():
     # These should simply just run
     _ = FGCS.FeatureGenerationConfiguration(
-        majority_class=["colX", "colY"], area_fraction=True
+        majority_class={"columns": ["colX", "colY"]}, area_fraction=True
     )
 
 

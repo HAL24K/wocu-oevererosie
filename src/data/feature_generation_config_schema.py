@@ -16,7 +16,7 @@ aggregation_operations = {
     CONST.AggregationOperations.COUNT.value: (Optional[bool], Field(default=None, description="Whether to count the number of features within the prediction region.") ),
     CONST.AggregationOperations.TOTAL_AREA.value: (Optional[bool], Field(default=None, description="Whether to calculate the total area of the features within the prediction region.") ),
     CONST.AggregationOperations.AREA_FRACTION.value: (Optional[bool], Field(default=None, description="Whether to calculate the fraction of the prediction region covered by the features.") ),
-    CONST.AggregationOperations.MAJORITY_CLASS.value: (Optional[list[str]], Field(default=None, description="Whether to calculate the majority class of the specified features within the prediction region.") ),
+    CONST.AggregationOperations.MAJORITY_CLASS.value: (Optional[dict], Field(default=None, description="Which columns to create the majority class for.") ),
 }
 
 config_dict = {

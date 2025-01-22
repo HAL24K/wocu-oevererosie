@@ -3,9 +3,11 @@
 import geopandas as gpd
 import logging
 import pyproj
+import numpy as np
 import re
 from shapely.ops import transform
 from shapely.geometry.base import BaseGeometry
+from shapely.geometry import LineString
 from typing import Union
 
 import src.constants as CONST
@@ -156,3 +158,55 @@ def get_majority_class(
 
     majority_classes = majority_classes.iloc[0].to_dict()
     return majority_classes
+
+
+def get_nearby_linestring_shape(
+    base_shape: BaseGeometry,
+    line: LineString,
+    neighbourhood_radius: float = CONST.DEFAULT_NEIGHBOURHOOD_RADIUS,
+) -> float:
+    """Get a measure of the shape of the linestring near another object.
+
+    :param base_shape: The shape of the area that is next to the line.
+    :param line: The line to calculate the shape of
+    :param neighbourhood_radius: How far along the line to consider the neighbourhood shape
+
+    NOTES: The main application here is to provide a measure of the shape of the river near the center of the prediction
+       region. To account for the sides etc we:
+       * find the point along the line (river centerline) closest to the center of the region
+       * get the direction from that point to the center of the region (vector 1)
+       * get the direction from that point to the point the neighbourhood_radius up- and downstream (vectors 2 and 3)
+       * we calculate the cosine products of vecs 1 and 2 and vecs 1 and 3
+       * we take the mean of the two
+    """
+    base_shape_centroid = base_shape.centroid
+    distance_along_line = line.project(base_shape_centroid)
+    central_point_for_all_vectors = line.interpolate(distance_along_line)
+    vector_end_downstream = line.interpolate(distance_along_line - neighbourhood_radius)
+    vector_end_upstream = line.interpolate(distance_along_line + neighbourhood_radius)
+
+    direction_to_centroid = np.array(base_shape_centroid.coords[0]) - np.array(
+        central_point_for_all_vectors.coords[0]
+    )
+    direction_to_downstream = np.array(vector_end_downstream.coords[0]) - np.array(
+        central_point_for_all_vectors.coords[0]
+    )
+    direction_to_upstream = np.array(vector_end_upstream.coords[0]) - np.array(
+        central_point_for_all_vectors.coords[0]
+    )
+
+    cosine_similarity_downstream = cosine_similarity(
+        direction_to_centroid, direction_to_downstream
+    )
+    cosine_similarity_upstream = cosine_similarity(
+        direction_to_centroid, direction_to_upstream
+    )
+
+    return 0.5 * (cosine_similarity_downstream + cosine_similarity_upstream)
+
+
+def cosine_similarity(vector1: np.array, vector2: np.array) -> float:
+    """Calculate the cosine similarity between two vectors."""
+    return np.dot(vector1, vector2) / (
+        np.linalg.norm(vector1) * np.linalg.norm(vector2)
+    )

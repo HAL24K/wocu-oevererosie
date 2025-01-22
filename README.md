@@ -58,7 +58,7 @@ it's not too big (it's pushing to git)
 
 ## Good coding practices
 
-Follow general good coding practices, including, but not limited to:
+Follow general good coding practices, including, but very much not limited to:
 
 - DRY ("Don't Repeat Yourself") - if you are using the same functionality in multiple places, refactor it to a function 
 - don't hardcode anything you can avoid. Define constants and configurations in a single place, for instance 

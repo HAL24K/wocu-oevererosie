@@ -45,9 +45,11 @@ KNOWN_WFS_SERVICES = [
 # TODO: come up with more features
 AGGREGATION_COLUMNS = {
     # for the plants get some majority classes and also the fraction of the area taken by plants
-    BRPGEWAS: FGC(majority_class=["category", "gewas"], area_fraction=True),
+    BRPGEWAS: FGC(
+        majority_class={"columns": ["category", "gewas"]}, area_fraction=True
+    ),
     # similarly for buildings get the majority class for the usage and the fraction of the area taken by buildings
-    BAG_PAND: FGC(majority_class=["gebruiksdoel"], area_fraction=True),
+    BAG_PAND: FGC(majority_class={"columns": ["gebruiksdoel"]}, area_fraction=True),
     # we count the tree density within our area
     RWS_WL_BOMEN: FGC(numerical_density=True),
     # (questionable) hedge density
@@ -55,5 +57,5 @@ AGGREGATION_COLUMNS = {
     # TODO: numerical density of lines is forbidden, as we require points. Figure out and uncomment
     # RWS_WL_HEGGEN: FGC(numerical_density=True),
     # we also get the majority class from the vegetatielegger
-    RWS_WL_VEGETATIEKLASSEN: FGC(majority_class=["vlklasse"]),
+    RWS_WL_VEGETATIEKLASSEN: FGC(majority_class={"columns": ["vlklasse"]}),
 }

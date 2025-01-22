@@ -86,6 +86,8 @@ class DataHandler():
             wfs_features.append(single_region_features)
         wfs_features = pd.DataFrame(wfs_features)
 
+        # TODO: here we glue the old and the new features next to each other, ignoring the order. It **should** work
+        #   due to the for loop but should replace this with a proper merge
         self.model_features = pd.concat([self.model_features, wfs_features], axis=1)
 
 
@@ -115,7 +117,7 @@ class DataHandler():
                 case CONST.AggregationOperations.AREA_FRACTION.value:
                     single_region_features[agg_operation] = UTILS.get_area_fraction(region, geospatial_data)
                 case CONST.AggregationOperations.MAJORITY_CLASS.value:
-                    single_region_features[agg_operation] = UTILS.get_majority_class(region, geospatial_data, agg_params)
+                    single_region_features[agg_operation] = UTILS.get_majority_class(region, geospatial_data, **agg_params)
                 case _:
                     # this should not happen, since the config dict would not have been valid.
                     raise NotImplementedError(
