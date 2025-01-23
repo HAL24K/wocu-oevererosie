@@ -14,6 +14,7 @@ BAG_PAND = "bag:pand"
 RWS_WL_BOMEN = "rws_vegetatielegger:bomen"
 RWS_WL_HEGGEN = "rws_vegetatielegger:heggen"
 RWS_WL_VEGETATIEKLASSEN = "rws_vegetatielegger:vegetatieklassen"
+RIVER_CENTERLINE = "river_centerline"  # river centerline
 
 
 KNOWN_WFS_SERVICES = [
@@ -58,4 +59,5 @@ AGGREGATION_COLUMNS = {
     # RWS_WL_HEGGEN: FGC(numerical_density=True),
     # we also get the majority class from the vegetatielegger
     RWS_WL_VEGETATIEKLASSEN: FGC(majority_class={"columns": ["vlklasse"]}),
+    RIVER_CENTERLINE: FGC(centerline_shape={"neighbourhood_radius": 100}),
 }

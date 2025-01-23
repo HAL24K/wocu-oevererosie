@@ -210,3 +210,27 @@ def cosine_similarity(vector1: np.array, vector2: np.array) -> float:
     return np.dot(vector1, vector2) / (
         np.linalg.norm(vector1) * np.linalg.norm(vector2)
     )
+
+
+def get_relevant_centerline(
+    base_shape: BaseGeometry, geo_data: gpd.GeoDataFrame
+) -> LineString:
+    """If the centerline is provided as a GeoDataFrame with several lines, get the closest one.
+
+    :param base_shape: The shape of the area for which we are calculating the centerline.
+    :param geo_data: geospatial data with LineStrings in geometry
+    """
+    assert geo_data.geometry.geom_type.nunique() == 1, (
+        f"River centerline geodataframe must only have one geometery type, "
+        f"yours has {geo_data.geometry.geom_type.nunique()}"
+    )
+    assert (
+        geo_data.geometry.geom_type.unique()[0] == "LineString"
+    ), f"The river centerline must be a LineString, yours is {geo_data.geometry.geom_type.unique()[0]}"
+
+    # get the closest centerline
+    closest_centerline = geo_data.loc[
+        geo_data.distance(base_shape).idxmin(), "geometry"
+    ]
+
+    return closest_centerline

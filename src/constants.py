@@ -45,6 +45,7 @@ class AggregationOperations(Enum):
     TOTAL_AREA = "total_area"
     AREA_FRACTION = "area_fraction"
     MAJORITY_CLASS = "majority_class"
+    CENTERLINE_SHAPE = "centerline_shape"
 
 
 DEFAULT_INCLUDE_TARGETS = False

@@ -118,6 +118,9 @@ class DataHandler():
                     single_region_features[agg_operation] = UTILS.get_area_fraction(region, geospatial_data)
                 case CONST.AggregationOperations.MAJORITY_CLASS.value:
                     single_region_features[agg_operation] = UTILS.get_majority_class(region, geospatial_data, **agg_params)
+                case CONST.AggregationOperations.CENTERLINE_SHAPE.value:
+                    relevant_centerline = UTILS.get_relevant_centerline(region, geospatial_data)
+                    single_region_features[agg_operation] = UTILS.get_nearby_linestring_shape(region, relevant_centerline, **agg_params)
                 case _:
                     # this should not happen, since the config dict would not have been valid.
                     raise NotImplementedError(

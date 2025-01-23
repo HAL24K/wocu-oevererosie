@@ -1,5 +1,6 @@
 """Test the utilites."""
 
+import geopandas as gpd
 import numpy as np
 import pytest
 from shapely.geometry import Polygon, LineString
@@ -242,3 +243,20 @@ def test_get_nearby_line_shape():
             neighbourhood_radius=example_radius,
         )
         assert line_shape_metric == 0.0  # straight line
+
+
+def test_get_relevant_centerline():
+    """Test that we get the closest line"""
+    top_line = LineString([(-1, 1), (1, 1)])
+    bottom_line = LineString([(-1, -1), (1, -1)])
+    shape_closer_to_top_line = Polygon([(-1, 2), (1, 2), (0, 3)])
+
+    example_centerlines = gpd.GeoDataFrame(
+        [{"geometry": bottom_line}, {"geometry": top_line}]
+    )
+
+    closer_line = U.get_relevant_centerline(
+        shape_closer_to_top_line, example_centerlines
+    )
+
+    assert closer_line == top_line
