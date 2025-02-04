@@ -178,6 +178,7 @@ class DataCollector:
     def get_local_geospatial_data(self):
         """Process the local geospatial data to only include the relevant parts."""
         for data_label, data in self.local_geospatial_data_raw.items():
+            logger.info(f"Processing the local geospatial data {data_label}.")
             data_with_correct_crs = data.to_crs(epsg=self.source_epsg_crs)
             mask = data_with_correct_crs.intersects(self.source_shape)
             self.relevant_geospatial_data[data_label] = data_with_correct_crs[mask].copy()

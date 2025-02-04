@@ -1,2 +1,6 @@
-The sample files were created by getting the updated data_collector_around_fake_eroded_bank in tests, bumping
-its buffer to 5_000m and running the relevant to_crs calls. The data included is the same.
+The sample data files (`sample_data_*.geojson`) were created by getting the updated
+data_collector_around_fake_eroded_bank in tests, bumping its buffer to 5_000m and running the relevant to_crs calls.
+The data included is the same.
+
+The test_prediction_regions.geojson are two randomly selected regions from Luke's initial data geopackage, from
+the layer `vlakken_scope`.

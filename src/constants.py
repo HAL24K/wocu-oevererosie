@@ -1,5 +1,7 @@
 """All the hardcoded values live here. This is the place to change them if needed."""
 
+from enum import Enum
+
 # where the Netherlands is
 CENTRE_NL_LON = 5.2913
 CENTRE_NL_LAT = 52.1326
@@ -23,3 +25,32 @@ WFS_JSON_OUTPUT_FORMAT = "json"
 WFS_MAX_FEATURES_TO_REQUEST = 10_000  # a big number to get all the features available
 
 EPSG_REGEX = r"(?<=EPSG\:\:)[0-9]{4,5}"
+
+
+class ErosionShapeType(Enum):
+    """The type of the erosion shape."""
+
+    POINT = "Point"
+    POLYGON = "Polygon"
+
+
+DEFAULT_EROSION_SHAPE_TYPE = ErosionShapeType.POINT.value
+
+
+class AggregationOperations(Enum):
+    """Operations allowed to be performed on the geospatial data to get features."""
+
+    NUM_DENSITY = "numerical_density"
+    COUNT = "count"
+    TOTAL_AREA = "total_area"
+    AREA_FRACTION = "area_fraction"
+    MAJORITY_CLASS = "majority_class"
+    CENTERLINE_SHAPE = "centerline_shape"
+
+
+DEFAULT_INCLUDE_TARGETS = False
+DEFAULT_PREDICTION_REGION_BUFFER = 10  # metres
+
+# for generating the measure of the line shape at a given point, we need to have a neighbourhood in which to look,
+# this defines its size
+DEFAULT_NEIGHBOURHOOD_RADIUS = 100  # metres

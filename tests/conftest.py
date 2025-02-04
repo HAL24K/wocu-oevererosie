@@ -5,6 +5,8 @@ from shapely.geometry import Point, LineString, Polygon
 import pytest
 
 import src.paths as PATHS
+import src.utils as U
+import src.data.config as DATA_CONFIG
 
 
 def point_near_zaltbommel_wgs84():
@@ -67,6 +69,11 @@ def fake_eroded_bank_wgs84():
 
 
 @pytest.fixture
+def fake_eroded_bank_rd(fake_eroded_bank_wgs84):
+    return U.transform_shape_crs(4326, 28992, fake_eroded_bank_wgs84)
+
+
+@pytest.fixture
 def sample_assets():
     assets = {}
     assets["sample_assets_rd"] = gpd.read_file(
@@ -77,3 +84,8 @@ def sample_assets():
     )
 
     return assets
+
+
+@pytest.fixture
+def default_data_configuration():
+    return DATA_CONFIG.DataConfiguration()
