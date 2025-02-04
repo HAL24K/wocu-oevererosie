@@ -54,3 +54,21 @@ DEFAULT_PREDICTION_REGION_BUFFER = 10  # metres
 # for generating the measure of the line shape at a given point, we need to have a neighbourhood in which to look,
 # this defines its size
 DEFAULT_NEIGHBOURHOOD_RADIUS = 100  # metres
+
+DEFAULT_USE_ONLY_CERTAIN_RIVER_BANK_POINTS = (
+    True  # only use the OK data points, not the outliers
+)
+OK_POINT_LABEL = "OK"  # how are the OK points labelled in the data
+
+# when calculating the distance between the erosion limit line and the river bank, use the mean distance of this many
+# closest points as the true value
+DEFAULT_NO_OF_POINTS_FOR_DISTANCE_CALCULATION = 3
+
+# the input data should contain some standard column names
+PREDICTION_REGION_ID = "location_id"
+# TODO: get a real timestamp and rename the timestamp column!
+TIMESTAMP = "ahn_version"
+RIVER_BANK_POINT_STATUS = "status"
+
+# column names used in the processed data
+DISTANCE_TO_EROSION_BORDER = "distance_to_erosion_border"

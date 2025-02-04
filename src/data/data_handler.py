@@ -4,6 +4,7 @@ import logging
 import pandas as pd
 import geopandas as gpd
 import shapely.geometry.base
+from shapely.geometry import LineString
 
 import src.constants as CONST
 import src.utils as UTILS
@@ -24,7 +25,8 @@ class DataHandler():
         config: DATA_CONFIG.DataConfiguration,
         prediction_regions: gpd.GeoDataFrame,
         local_data_for_enrichment: dict[str, gpd.GeoDataFrame] = None,
-        erosion_data: gpd.GeoDataFrame = None
+        erosion_data: gpd.GeoDataFrame = None,
+        erosion_border: LineString = None,
     ):
         """Initialise the object.
 
@@ -33,14 +35,95 @@ class DataHandler():
         :param local_data_for_enrichment: a dictionary with geodataframes with the local data to enrich the erosion data with.
         :param wfs_services: a list of WFS services to collect remote data from
         :param erosion_data: a geodataframe with the erosion data to calculate targets (if required)
+        :param erosion_border: a linestring with how far the erosion can proceed
         """
         self.config = config
         self.prediction_regions = prediction_regions
         self.raw_enrichment_geospatial_data = local_data_for_enrichment
         self.raw_erosion_data = erosion_data
+        self.erosion_border = erosion_border
 
         # TODO: we assume the features always start here - maybe there is a more elegant way of doing it
         self.model_features = self.prediction_regions.copy()
+
+        self.processed_erosion_data = None
+
+    def process_erosion_features(self, reload=False):
+        """Process the erosion features into a usable format.
+
+        :param reload: whether to recalculate if self.processed_erosion_data already exists
+
+        NOTES: the goal here is to turn the erosion data, provided as a geodataframe with one river bank location per
+          a time stamp per row into a dataframe with multiindex and distances to the erosion border:
+
+                                           | distance_to_erosion_border
+          prediction_region_id | timestamp |
+          ---------------------+-----------+----------------------------
+            1                  | 1         | 100
+            1                  | 2         | 95
+            2                  | 1         | 50
+            2                  | 2         | 42
+            ...
+
+               we assume that both the erosion data and the prediction region data contain an ID column to be matched on
+
+        TODO: make this less point-centered
+        TODO: this assumes that the erosion border never changes - is this a valid assumption?
+        """
+
+        if self.processed_erosion_data is not None and not reload:
+            logger.warning("Erosion data already processed, skipping.")
+            return
+
+        processed_erosion_data = list()
+
+        available_region_ids = self.prediction_regions[self.config.prediction_region_id_column_name].unique()
+        internal_erosion_data = self.raw_erosion_data[
+            self.raw_erosion_data[self.config.prediction_region_id_column_name].isin(available_region_ids)
+        ].copy()
+        logger.info(
+            f"{len(internal_erosion_data)} lie within the specified prediction regions, "
+            f"hence we drop the rest {len(self.raw_erosion_data) - len(internal_erosion_data)} from further analysis."
+        )
+
+        if self.config.use_only_certain_river_bank_points:
+            ok_mask = internal_erosion_data[CONST.RIVER_BANK_POINT_STATUS] == CONST.OK_POINT_LABEL
+            logger.info(
+                f"Further, we only use the robustly detected river bank points (labeled {CONST.OK_POINT_LABEL}) "
+                f"and drop {~ok_mask.sum()} from the further analysis."
+            )
+            internal_erosion_data = internal_erosion_data[ok_mask]
+
+
+        for (prediction_region_id, timestamp), local_erosion_data in internal_erosion_data.groupby(
+                [self.config.prediction_region_id_column_name, self.config.timestamp_column_name]
+        ):
+            # TODO: distance is a metric that is always positive, so if we are a distance X from the line one year
+            #   and then cross and end up Y<X on the other side, the speed of erosion will be wrong!
+            local_distances_bank_to_border = local_erosion_data.distance(self.erosion_border)
+
+            # Calculate the mean distance of the self.config.no_of_points_for_distance_calculation closest points
+            # to the erosion border
+            # I know that pandas has a .nsmallest() method, but it handles duplicates in a way that is not right for us
+            # (it either drops them, or keeps more than N points, in any case messing up the average)
+            # TODO: make the below more configurable
+            local_distance_bank_to_border = local_distances_bank_to_border.sort_values().iloc[
+                                            :self.config.no_of_points_for_distance_calculation].mean()
+
+            processed_erosion_data.append(
+                {
+                    self.config.prediction_region_id_column_name: prediction_region_id,
+                    self.config.timestamp_column_name: timestamp,
+                    CONST.DISTANCE_TO_EROSION_BORDER: local_distance_bank_to_border,
+                }
+            )
+
+        processed_erosion_data = pd.DataFrame(processed_erosion_data)
+        processed_erosion_data.set_index(
+            [self.config.prediction_region_id_column_name, self.config.timestamp_column_name], inplace=True
+        )
+
+        self.processed_erosion_data = processed_erosion_data
 
 
     def create_features_from_remote(self):

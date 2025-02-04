@@ -29,6 +29,26 @@ class DataConfiguration:
         default=CONFIG.KNOWN_WFS_SERVICES,
         description="The known WFS services to collect data from.",
     )
+    no_of_points_for_distance_calculation: int = Field(
+        default=CONST.DEFAULT_NO_OF_POINTS_FOR_DISTANCE_CALCULATION,
+        description=(
+            "The mean of this many closest points within the scope polygon is used to calculate the distance"
+            "between the erosion limit line and the river bank."
+        ),
+        gt=0,
+    )
+    prediction_region_id_column_name: str = Field(
+        default=CONST.PREDICTION_REGION_ID,
+        description="The name of the column in the input dataframes that contains the ID of the region.",
+    )
+    timestamp_column_name: str = Field(
+        default=CONST.TIMESTAMP,
+        description="The name of the column in the input dataframes that contains the timestamp of the data.",
+    )
+    use_only_certain_river_bank_points: bool = Field(
+        default=CONST.DEFAULT_USE_ONLY_CERTAIN_RIVER_BANK_POINTS,
+        description="Whether to use only certain points (labelled OK or so) from the river bank data.",
+    )
 
     @model_validator(mode="after")
     def check_feature_creation_config_nonempty(self):
