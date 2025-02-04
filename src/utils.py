@@ -178,6 +178,7 @@ def get_nearby_linestring_shape(
        * get the direction from that point to the point the neighbourhood_radius up- and downstream (vectors 2 and 3)
        * we calculate the cosine products of vecs 1 and 2 and vecs 1 and 3
        * we take the mean of the two
+    # TODO: would it be better - and more elegant - to define this as a second derivative instead of what it is now?
     """
     base_shape_centroid = base_shape.centroid
     distance_along_line = line.project(base_shape_centroid)

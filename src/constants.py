@@ -51,4 +51,6 @@ class AggregationOperations(Enum):
 DEFAULT_INCLUDE_TARGETS = False
 DEFAULT_PREDICTION_REGION_BUFFER = 10  # metres
 
+# for generating the measure of the line shape at a given point, we need to have a neighbourhood in which to look,
+# this defines its size
 DEFAULT_NEIGHBOURHOOD_RADIUS = 100  # metres

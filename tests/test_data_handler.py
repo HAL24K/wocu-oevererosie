@@ -50,7 +50,7 @@ def test_generate_region_features(basic_beefed_up_data_handler):
 
     # check that there is at least one feature created from each data layer
     for wfs_layer in basic_beefed_up_data_handler.config.feature_creation_config:
-        # TODO: improve this so that it uses what's needed
+        # TODO: improve this so that it only checks the remote layers
         if wfs_layer == "river_centerline":
             continue
         feature_present = False
