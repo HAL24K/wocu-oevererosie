@@ -72,3 +72,4 @@ RIVER_BANK_POINT_STATUS = "status"
 
 # column names used in the processed data
 DISTANCE_TO_EROSION_BORDER = "distance_to_erosion_border"
+DIRECTION_FACTOR = "direction_factor"

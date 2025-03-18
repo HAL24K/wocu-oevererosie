@@ -90,7 +90,7 @@ class DataHandler():
             ok_mask = internal_erosion_data[CONST.RIVER_BANK_POINT_STATUS] == CONST.OK_POINT_LABEL
             logger.info(
                 f"Further, we only use the robustly detected river bank points (labeled {CONST.OK_POINT_LABEL}) "
-                f"and drop {~ok_mask.sum()} from the further analysis."
+                f"and drop {~ok_mask.sum()} points from the further analysis."
             )
             internal_erosion_data = internal_erosion_data[ok_mask]
 
@@ -100,7 +100,8 @@ class DataHandler():
         ):
             # TODO: distance is a metric that is always positive, so if we are a distance X from the line one year
             #   and then cross and end up Y<X on the other side, the speed of erosion will be wrong!
-            local_distances_bank_to_border = local_erosion_data.distance(self.erosion_border)
+            # local_distances_bank_to_border = local_erosion_data.distance(self.erosion_border)
+            local_distances_bank_to_border = self.calculate_river_bank_distances_to_erosion_border(local_erosion_data)
 
             # Calculate the mean distance of the self.config.no_of_points_for_distance_calculation closest points
             # to the erosion border
@@ -124,6 +125,49 @@ class DataHandler():
         )
 
         self.processed_erosion_data = processed_erosion_data
+
+
+    def calculate_river_bank_distances_to_erosion_border(self, erosion_data: gpd.GeoDataFrame) -> pd.Series:
+        """Calculate the distances between the existing river bank and the erosion border.
+
+        :param erosion_data: locations of the river bank (points
+        :return: a series with the distances between the individual points of the river bank and the erosion border
+
+        NOTE: the distances returned are positive if the river bank lies inside the erosion border (we want this),
+            negative if it lies outside (we don't want this).
+        """
+        assert self.raw_enrichment_geospatial_data is not None and self.raw_enrichment_geospatial_data.get(
+            CONST.AggregationOperations.CENTERLINE_SHAPE.value
+        ) is not None, (
+            f"Calculation of the distances of the river bank distances from the erosion border requires the "
+            f"centerline shape data, which is not available. Please provide the river centreline as a geodataframe "
+            f"inside the local_data_for_enrichment parameter "
+            f"with the key {CONST.AggregationOperations.CENTERLINE_SHAPE.value}."
+        )
+
+        direction_factors = list()
+        for _, row in erosion_data.iterrows():
+            # TODO: can this be vectorized for the love of god?!
+            local_point = row["geometry"]
+            local_centerline = UTILS.get_relevant_centerline(
+                local_point,
+                self.raw_enrichment_geospatial_data[CONST.AggregationOperations.CENTERLINE_SHAPE.value]
+            )
+
+            local_direction_factor = 1 if UTILS.is_point_between_two_lines(
+                local_point, local_centerline, self.erosion_border
+            ) else -1
+            direction_factors.append(local_direction_factor)
+
+        local_distances = pd.DataFrame(erosion_data.distance(self.erosion_border))
+        local_distances.columns = [CONST.DISTANCE_TO_EROSION_BORDER]
+
+        local_distances[CONST.DIRECTION_FACTOR] = direction_factors
+        local_distances[CONST.DISTANCE_TO_EROSION_BORDER] = (
+                local_distances[CONST.DISTANCE_TO_EROSION_BORDER] * local_distances[CONST.DIRECTION_FACTOR]
+        )
+
+        return local_distances[CONST.DISTANCE_TO_EROSION_BORDER]
 
 
     def create_features_from_remote(self):
