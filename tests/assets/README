@@ -4,3 +4,6 @@ The data included is the same.
 
 The test_prediction_regions.geojson are two randomly selected regions from Luke's initial data geopackage, from
 the layer `vlakken_scope`.
+
+The river centerline is taken directly from data provided by Etienne, simplified with a 20m tolerance
+(shrinks the file from 1.4MB to 29kB).

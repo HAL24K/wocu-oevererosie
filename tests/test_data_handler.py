@@ -3,6 +3,7 @@
 TODO: test for when there is no remote or other data nearby
 """
 
+import numpy as np
 import pandas as pd
 import pytest
 import geopandas as gpd
@@ -28,6 +29,18 @@ def erosion_data_for_test():
     return gpd.read_file(
         PATHS.TEST_DIR / "assets" / "river_bank_points_for_tests.geojson"
     )
+
+
+@pytest.fixture
+def local_enrichment_geodata():
+    """Local geodata for data enrichment."""
+    geodata = {}
+
+    geodata[CONST.AggregationOperations.CENTERLINE_SHAPE.value] = gpd.read_file(
+        PATHS.TEST_DIR / "assets" / "river_centerline.geojson"
+    )
+
+    return geodata
 
 
 @pytest.fixture
@@ -79,7 +92,7 @@ def test_generate_region_features(basic_beefed_up_data_handler):
 
 
 def test_erosion_data_processing(
-    prediction_regions_for_test, erosion_data_for_test, caplog
+    prediction_regions_for_test, erosion_data_for_test, local_enrichment_geodata, caplog
 ):
     """Test the processing of the erosion data."""
 
@@ -106,15 +119,43 @@ def test_erosion_data_processing(
                     CONST.PREDICTION_REGION_ID
                 ].iloc[0],
                 CONST.TIMESTAMP: 3,  # we know this is in the data
-                "geometry": Point(test_longitude_rd, test_latitude_rd, 0),
+                "geometry": Point(
+                    test_longitude_rd, test_latitude_rd, 0
+                ),  # we want the point to lie exactly on the erosion border
             }
         ]
     )
-    additional_nonrobust_points_df = gpd.GeoDataFrame(
+    additional_nonrobust_points_gdf = gpd.GeoDataFrame(
         additional_nonrobust_points, crs=internal_erosion_data.crs
     )
+
+    # add points that have negative distance to the erosion border, i.e. they lie over the erosion border
+    # note that this creation is a bit dodgy - we assign the prediction_region_id explicitly. If we did it by checking
+    # which point lies inside which scope polygon this may filter out these points as they lie far from everything
+    additional_robust_points = CONST.DEFAULT_NO_OF_POINTS_FOR_DISTANCE_CALCULATION * [
+        {
+            CONST.RIVER_BANK_POINT_STATUS: CONST.OK_POINT_LABEL,
+            CONST.PREDICTION_REGION_ID: prediction_regions_for_test[
+                CONST.PREDICTION_REGION_ID
+            ].iloc[0],
+            CONST.TIMESTAMP: 5,  # we know this is in the data
+            # the points lie a bit randomly below the erosion border
+            "geometry": Point(
+                test_longitude_rd, test_latitude_rd - np.random.randint(1, 10), 0
+            ),
+        }
+    ]
+    additional_robust_points_gdf = gpd.GeoDataFrame(
+        additional_robust_points, crs=internal_erosion_data.crs
+    )
+
     internal_erosion_data = pd.concat(
-        [internal_erosion_data, additional_nonrobust_points_df], ignore_index=True
+        [
+            internal_erosion_data,
+            additional_nonrobust_points_gdf,
+            additional_robust_points_gdf,
+        ],
+        ignore_index=True,
     )
 
     for filter_out_bad_points in [True, False]:
@@ -126,6 +167,7 @@ def test_erosion_data_processing(
         data_handler = DH.DataHandler(
             config=data_configuration,
             prediction_regions=prediction_regions_for_test,
+            local_data_for_enrichment=local_enrichment_geodata,
             erosion_data=internal_erosion_data,
             erosion_border=test_erosion_border,
         )
@@ -140,20 +182,20 @@ def test_erosion_data_processing(
             CONST.PREDICTION_REGION_ID
         ).nunique() == len(data_handler.prediction_regions)
 
+        assert (
+            data_handler.processed_erosion_data[CONST.DISTANCE_TO_EROSION_BORDER] < 0
+        ).any()
+
         if filter_out_bad_points:
             assert (
-                data_handler.processed_erosion_data[
-                    CONST.DISTANCE_TO_EROSION_BORDER
-                ].min()
-                > 0
-            )
+                data_handler.processed_erosion_data[CONST.DISTANCE_TO_EROSION_BORDER]
+                != 0
+            ).all()
         else:
             assert (
-                data_handler.processed_erosion_data[
-                    CONST.DISTANCE_TO_EROSION_BORDER
-                ].min()
+                data_handler.processed_erosion_data[CONST.DISTANCE_TO_EROSION_BORDER]
                 == 0
-            )
+            ).any()
 
     # check that we don't recompute if we don't need to
     data_handler.process_erosion_features()
