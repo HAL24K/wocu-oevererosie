@@ -110,21 +110,18 @@ def test_erosion_data_processing(
     # we also update the erosion data with nonrobust points that line on the line and in the nonfiltering case
     # should influence us a lot
     internal_erosion_data = erosion_data_for_test.copy()
-    additional_nonrobust_points = (
-        CONST.DEFAULT_NO_OF_POINTS_FOR_DISTANCE_CALCULATION
-        * [
-            {
-                CONST.RIVER_BANK_POINT_STATUS: "NON OK POINT",
-                CONST.PREDICTION_REGION_ID: prediction_regions_for_test[
-                    CONST.PREDICTION_REGION_ID
-                ].iloc[0],
-                CONST.TIMESTAMP: 3,  # we know this is in the data
-                "geometry": Point(
-                    test_longitude_rd, test_latitude_rd, 0
-                ),  # we want the point to lie exactly on the erosion border
-            }
-        ]
-    )
+    additional_nonrobust_points = CONST.DEFAULT_NO_OF_POINTS_FOR_DISTANCE_CALCULATION * [
+        {
+            CONST.RIVER_BANK_POINT_STATUS: "NON OK POINT",
+            CONST.PREDICTION_REGION_ID: prediction_regions_for_test[
+                CONST.PREDICTION_REGION_ID
+            ].iloc[0],
+            CONST.TIMESTAMP: 3,  # we know this is in the data
+            "geometry": Point(
+                test_longitude_rd, test_latitude_rd, 0
+            ),  # we want the point to lie exactly on the erosion border, that's how we know they are (not) there
+        }
+    ]
     additional_nonrobust_points_gdf = gpd.GeoDataFrame(
         additional_nonrobust_points, crs=internal_erosion_data.crs
     )
@@ -186,6 +183,9 @@ def test_erosion_data_processing(
             data_handler.processed_erosion_data[CONST.DISTANCE_TO_EROSION_BORDER] < 0
         ).any()
 
+        # again, bad points are the only ones directly at the erosion border:
+        # * if present, there arepoints with zero distance
+        # * if they are absent - not filterred out, we have data with zero distance
         if filter_out_bad_points:
             assert (
                 data_handler.processed_erosion_data[CONST.DISTANCE_TO_EROSION_BORDER]
