@@ -161,3 +161,11 @@ class BaselineErosionModel:
         if not keep_training_data:
             # restore the training data
             self.training_data = tmp_training_data
+
+    @staticmethod
+    def load_model(path_to_model):
+        """Load the model from the file."""
+        with open(path_to_model, "rb") as f:
+            model = pickle.load(f)
+
+        return model
