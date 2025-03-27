@@ -90,7 +90,7 @@ def prediction_data():
     return pred_data
 
 
-def test_train_baseline_model(baseline_model):
+def test_train_baseline_model(baseline_model, caplog):
     """Test training the baseline model."""
     assert not baseline_model.model_is_trained
     assert baseline_model.model is None
@@ -104,6 +104,10 @@ def test_train_baseline_model(baseline_model):
     assert set(baseline_model.model.keys()) == set(
         baseline_model.training_data.index.get_level_values(CONST.PREDICTION_REGION_ID)
     )
+
+    # retraining model does nothing
+    baseline_model.train()
+    assert "already trained" in caplog.text
 
 
 def test_predict_baseline_model(baseline_model, prediction_data):
@@ -146,6 +150,29 @@ def test_predict_baseline_model(baseline_model, prediction_data):
     assert prediction.empty
 
 
-def test_storing_baseline_model():
+def test_storing_baseline_model(baseline_model, tmp_path):
     """Test storing the baseline model."""
-    pass
+    baseline_model.train()
+
+    # make sure we have training data
+    assert baseline_model.training_data is not None
+
+    path_to_model_with_data = tmp_path / "model_with_data.pkl"
+    path_to_model_without_data = tmp_path / "model_without_data.pkl"
+
+    baseline_model.save_model(path_to_model_with_data, keep_training_data=True)
+    baseline_model.save_model(path_to_model_without_data, keep_training_data=False)
+
+    # make sure that the training data is still there
+    assert baseline_model.training_data is not None
+
+    # load the models
+    loaded_model_with_data = BM.BaselineErosionModel.load_model(path_to_model_with_data)
+    loaded_model_without_data = BM.BaselineErosionModel.load_model(
+        path_to_model_without_data
+    )
+
+    assert loaded_model_with_data.model == loaded_model_without_data.model
+    assert loaded_model_with_data.training_data.equals(baseline_model.training_data)
+
+    assert loaded_model_without_data.training_data is None
