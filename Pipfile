@@ -18,6 +18,7 @@ black = "*"
 jupyterlab = "*"
 matplotlib = "*"
 ipykernel = "*"
+altair = "*"
 
 [requires]
 python_version = "3.12"
