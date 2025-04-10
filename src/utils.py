@@ -5,9 +5,10 @@ import logging
 import pyproj
 import numpy as np
 import re
+
 from shapely.ops import transform
 from shapely.geometry.base import BaseGeometry
-from shapely.geometry import LineString
+from shapely.geometry import LineString, Point
 from typing import Union
 
 import src.constants as CONST
@@ -235,3 +236,31 @@ def get_relevant_centerline(
     ]
 
     return closest_centerline
+
+
+def is_point_between_two_lines(
+    point: Point, first_line: LineString, second_line: LineString
+) -> bool:
+    """Check that a point lies between two lines that don't cross.
+
+    :param point: the point in question
+    :param first_line: the first line (e.g. the river centerline)
+    :param second_line: the second line (e.g. the erosion border)
+    :return: a boolean flag
+
+    NOTE: this function projects the point onto the two lines and checks whether the angle projection1-point-projection2
+       is acute (point does not lie between the lines) or not (point lies between the lines).
+    TODO: check that the lines don't cross
+    """
+
+    first_projected_point = first_line.interpolate(first_line.project(point))
+    second_projected_point = second_line.interpolate(second_line.project(point))
+
+    first_vector = np.array(
+        [first_projected_point.x - point.x, first_projected_point.y - point.y]
+    )
+    second_vector = np.array(
+        [second_projected_point.x - point.x, second_projected_point.y - point.y]
+    )
+
+    return bool(np.dot(first_vector, second_vector) < 0)

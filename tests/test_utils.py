@@ -3,7 +3,7 @@
 import geopandas as gpd
 import numpy as np
 import pytest
-from shapely.geometry import Polygon, LineString
+from shapely.geometry import Polygon, LineString, Point
 
 import src.utils as U
 
@@ -260,3 +260,22 @@ def test_get_relevant_centerline():
     )
 
     assert closer_line == top_line
+
+
+def test_is_point_between_two_lines():
+    """Test that a point lies between two lines."""
+    line1 = LineString([(0, 0), (1, 0)])  # horizontal line with a length 1
+    line2 = LineString([(0, 1), (1, 1.25)])  # slightly tilted line
+
+    # point between lines
+    point_between = Point(0.5, 0.5)
+    assert U.is_point_between_two_lines(point_between, line1, line2)
+
+    # point not between lines
+    point_not_between = Point(0.5, 1.5)
+    assert not U.is_point_between_two_lines(point_not_between, line1, line2)
+
+    # the order of lines does not matter
+    # This cannot be checked deeply, as we only return the boolean, not the actual dot product
+    assert U.is_point_between_two_lines(point_between, line2, line1)
+    assert not U.is_point_between_two_lines(point_not_between, line2, line1)

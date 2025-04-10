@@ -17,3 +17,6 @@ def test_invalid_setup():
     # we need at least one feature creation config
     with pytest.raises(ValueError):
         _ = DATA_CONFIG.DataConfiguration(feature_creation_config={})
+
+    with pytest.raises(ValueError):
+        _ = DATA_CONFIG.DataConfiguration(no_of_points_for_distance_calculation=0)
