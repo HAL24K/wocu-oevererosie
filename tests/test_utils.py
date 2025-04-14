@@ -84,7 +84,8 @@ def test_get_object_intersects(fake_eroded_bank_rd, sample_assets):
 
     huge_buffer = 10_000  # get a buffer that for sure contains all the shapes (calculated with a buffer of 5_000)
     no_of_all_objects = U.get_count_object_intersects(
-        fake_eroded_bank_rd.buffer(huge_buffer), sample_assets["sample_assets_rd"]
+        fake_eroded_bank_rd.buffer(huge_buffer),
+        sample_assets["sample_assets_rd"],
     )
 
     assert no_of_all_objects == len(
@@ -104,7 +105,8 @@ def test_get_total_area(fake_eroded_bank_rd, sample_assets):
 
     huge_buffer = 10_000  # get a buffer that for sure contains all the shapes (calculated with a buffer of 5_000)
     total_area_all_objects = U.get_total_area(
-        fake_eroded_bank_rd.buffer(huge_buffer), sample_assets["sample_assets_rd"]
+        fake_eroded_bank_rd.buffer(huge_buffer),
+        sample_assets["sample_assets_rd"],
     )
 
     assert (
@@ -124,7 +126,8 @@ def test_get_area_fraction(fake_eroded_bank_rd, sample_assets):
 
     huge_buffer = 10_000  # get a buffer that for sure contains all the shapes (calculated with a buffer of 5_000)
     area_fraction_all_objects = U.get_area_fraction(
-        fake_eroded_bank_rd, sample_assets["sample_assets_rd"].buffer(huge_buffer)
+        fake_eroded_bank_rd,
+        sample_assets["sample_assets_rd"].buffer(huge_buffer),
     )
 
     assert area_fraction_all_objects == pytest.approx(
@@ -164,7 +167,9 @@ def test_get_majority_class(fake_eroded_bank_rd, sample_assets):
 
     # test that it also works for only one column
     _ = U.get_majority_class(
-        fake_eroded_bank_rd, sample_assets["sample_assets_rd"], columns_to_use[0]
+        fake_eroded_bank_rd,
+        sample_assets["sample_assets_rd"],
+        columns_to_use[0],
     )
 
 

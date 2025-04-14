@@ -73,3 +73,38 @@ RIVER_BANK_POINT_STATUS = "status"
 # column names used in the processed data
 DISTANCE_TO_EROSION_BORDER = "distance_to_erosion_border"
 DIRECTION_FACTOR = "direction_factor"
+
+DEFAULT_NUMBER_OF_LAGS = 1
+DEFAULT_NUMBER_OF_FUTURES = 1
+
+DEFAULT_KNOWN_NUMERICAL_COLUMNS = []
+DEFAULT_UNKNOWN_NUMERICAL_COLUMNS = [
+    DISTANCE_TO_EROSION_BORDER,
+]
+DEFAULT_KNOWN_CATEGORICAL_COLUMNS = []
+DEFAULT_UNKNOWN_CATEGORICAL_COLUMNS = []
+
+# some suffixes for creating temporary columns
+FLOAT = "float"
+AS_NUMBER = "as_number"
+
+
+class KnownColumnTypes(Enum):
+    NUMERIC = "numeric"
+    CATEGORICAL = "categorical"
+
+
+class KnownFutureFillOperations(Enum):
+    """For "know future" columns, these are the possible operations how the features evolve."""
+
+    FILL = "fill"  # propagate the last known value forever
+    INCREMENT = "increment"  # every time step (year) increment the previous value by 1
+
+
+KNOWN_CATEGORIES = {}
+
+NUMERICAL_COLUMNS_KEY = "numerical"
+CATEGORICAL_COLUMNS_KEY = "categorical"
+
+PREVIOUS = "past"
+UPCOMING = "future"

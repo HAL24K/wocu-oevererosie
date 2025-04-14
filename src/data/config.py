@@ -10,12 +10,42 @@ import src.constants as CONST
 import src.config as CONFIG
 import src.data.schema_wfs_service as SWS
 
+
 @dataclass
 class DataConfiguration:
     """Configuration for the data handler."""
-    include_targets: bool = Field(
-        default=CONST.DEFAULT_INCLUDE_TARGETS,
-        description="Whether to include the targets with the features - used in model training.",
+
+    number_of_lags: int = Field(
+        default=CONST.DEFAULT_NUMBER_OF_LAGS,
+        description=(
+            "Number of timesteps of the known (past) data to use. Setting to 1 only uses the most recent measurement."
+        ),
+        ge=1,
+    )
+    number_of_futures: int = Field(
+        default=CONST.DEFAULT_NUMBER_OF_FUTURES,
+        description=(
+            "Number of timesteps of future data to use. Setting to 0 means we have no targets "
+            "(i.e. ready for prediction)."
+        ),
+        ge=0,
+    )
+    known_numerical_columns: List[str] = Field(
+        default=CONST.DEFAULT_KNOWN_NUMERICAL_COLUMNS,
+        description="The names of the numerical columns where we know the future values.",
+    )
+    unknown_numerical_columns: List[str] = Field(
+        default=CONST.DEFAULT_UNKNOWN_NUMERICAL_COLUMNS,
+        description="The names of the numerical columns where we do not know the future values. "
+        "Should include the targets.",
+    )
+    known_categorical_columns: List[str] = Field(
+        default=CONST.DEFAULT_KNOWN_CATEGORICAL_COLUMNS,
+        description="The names of the categorical columns where we know the future values.",
+    )
+    unknown_categorical_columns: List[str] = Field(
+        default=CONST.DEFAULT_UNKNOWN_CATEGORICAL_COLUMNS,
+        description="The names of the categorical columns where we do not know the future values. ",
     )
     feature_creation_config: dict = Field(
         default=CONFIG.AGGREGATION_COLUMNS,

@@ -92,7 +92,10 @@ def test_generate_region_features(basic_beefed_up_data_handler):
 
 
 def test_erosion_data_processing(
-    prediction_regions_for_test, erosion_data_for_test, local_enrichment_geodata, caplog
+    prediction_regions_for_test,
+    erosion_data_for_test,
+    local_enrichment_geodata,
+    caplog,
 ):
     """Test the processing of the erosion data."""
 
@@ -138,7 +141,9 @@ def test_erosion_data_processing(
             CONST.TIMESTAMP: 5,  # we know this is in the data
             # the points lie a bit randomly below the erosion border
             "geometry": Point(
-                test_longitude_rd, test_latitude_rd - np.random.randint(1, 10), 0
+                test_longitude_rd,
+                test_latitude_rd - np.random.randint(1, 10),
+                0,
             ),
         }
     ]

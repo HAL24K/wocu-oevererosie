@@ -19,7 +19,9 @@ logger.setLevel(logging.INFO)
 
 
 def transform_shape_crs(
-    from_epsg: Union[int, str], to_epsg: Union[int, str], input_shape: BaseGeometry
+    from_epsg: Union[int, str],
+    to_epsg: Union[int, str],
+    input_shape: BaseGeometry,
 ) -> BaseGeometry:
     """Transforms the shape from one CRS to another.
 
@@ -143,7 +145,9 @@ def get_area_fraction(base_shape: BaseGeometry, geo_data: gpd.GeoDataFrame) -> f
 
 
 def get_majority_class(
-    base_shape: BaseGeometry, geo_data: gpd.GeoDataFrame, columns: Union[list[str], str]
+    base_shape: BaseGeometry,
+    geo_data: gpd.GeoDataFrame,
+    columns: Union[list[str], str],
 ) -> dict[str, str | None]:
     """Get the majority class from each required column in the geo_data.
 
@@ -284,3 +288,17 @@ def is_point_between_two_lines(
     )
 
     return bool(np.dot(first_vector, second_vector) < 0)
+
+
+def generate_shifted_column_name(
+    original_column: str, shift: int, past_shift: bool = True
+) -> str:
+    """Define the name of the shifted column.
+
+    :param original_column: the original column name
+    :param shift: the number of time steps to shift by
+    :param past_shift: whether the shift is in the past or future
+    """
+    return (
+        f"{CONST.PREVIOUS if past_shift else CONST.UPCOMING}_{original_column}_{shift}"
+    )
