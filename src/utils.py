@@ -93,6 +93,12 @@ def get_object_density(base_shape: BaseGeometry, geo_data: gpd.GeoDataFrame) -> 
     :param geo_data: geospatial data with Points in geometry
 
     """
+    if geo_data.empty:
+        logger.warning(
+            "The geodataframe is empty and thus the density cannot be calculated. It is assumed it would be 0."
+        )
+        return 0.0
+
     assert geo_data.geometry.geom_type.nunique() == 1, "Only one geometry type allowed"
     assert (
         geo_data.geometry.geom_type.unique()[0] == "Point"
@@ -127,6 +133,12 @@ def get_area_fraction(base_shape: BaseGeometry, geo_data: gpd.GeoDataFrame) -> f
     :param base_shape: The shape of the area for which we are calculating the area fraction.
     :param geo_data: geospatial data
     """
+    if geo_data.empty:
+        logger.warning(
+            "The geodataframe is empty and thus the area fraction cannot be calculated. It is assumed it would be 0."
+        )
+        return 0.0
+
     return geo_data.union_all().intersection(base_shape).area / base_shape.area
 
 
@@ -142,6 +154,12 @@ def get_majority_class(
     if isinstance(columns, str):
         columns = [columns]
 
+    if geo_data.empty:
+        logger.warning(
+            f"The geodataframe is empty and the majority class cannot be calculated for {columns}."
+        )
+        return {col: None for col in columns}
+
     assert set(geo_data.columns).issuperset(
         columns
     ), f"Columns {set(columns) - set(geo_data.columns)} not found in geo_data (it contains {geo_data.columns})."
@@ -153,6 +171,8 @@ def get_majority_class(
         # TODO: do we return None here or some "none string" so that we don't have missing features?
         return {col: None for col in columns}
     elif len(majority_classes) > 1:
+        # TODO: improve the log, so that it tells which columns and which values were dropped.
+        #   note: mode returns a new DF with multiple rows if at least one col has multiple modes; other cols have NaNs
         logger.warning(
             f"Multiple majority classes found in some of the columns, we only take the first one."
         )
