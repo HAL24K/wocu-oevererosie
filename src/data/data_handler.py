@@ -14,7 +14,6 @@ import src.config as CONFIG
 import src.data.schema_wfs_service as SWS
 import src.data.config as DATA_CONFIG
 import src.data.data_collector as DC
-from conftest import default_data_configuration
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -154,6 +153,33 @@ class DataHandler:
         )
 
         self.processed_erosion_data = processed_erosion_data
+
+        # TODO: decide whether this should come BEFORE we assign self.processed_erosion_data - perhaps more elegant,
+        #   but we'd need to pass the dataframe
+        self._enrich_processed_data_with_automated_features()
+
+    def _enrich_processed_data_with_automated_features(self):
+        """Add columns to the processed data that can be automatically calculated.
+
+        This includes:
+            - time since the last measurement
+        """
+        self._add_time_since_last_measurement()
+
+    def _add_time_since_last_measurement(self):
+        """Calculate the time since the last measurement and add it to the processed data.
+
+        TODO: refactor TIMESTEPS_... into YEARS_... or something like that, once we get rid of AHN
+        """
+        self.processed_erosion_data[CONST.TIMESTEPS_SINCE_LAST_MEASUREMENT] = (
+            self.processed_erosion_data.reset_index(level=CONST.TIMESTAMP)
+            .groupby(CONST.PREDICTION_REGION_ID)[CONST.TIMESTAMP]
+            .diff()
+            .fillna(
+                CONST.DEFAULT_LENGTH_OF_TIME_GAP_BETWEEN_MEASSUREMENTS
+            )  # for unknown assume a single year
+            .values
+        )
 
     def calculate_river_bank_distances_to_erosion_border(
         self, erosion_data: gpd.GeoDataFrame

@@ -188,9 +188,27 @@ def test_erosion_data_processing(
             data_handler.processed_erosion_data[CONST.DISTANCE_TO_EROSION_BORDER] < 0
         ).any()
 
+        assert (
+            CONST.TIMESTEPS_SINCE_LAST_MEASUREMENT
+            in data_handler.processed_erosion_data.columns
+        )
+        assert (
+            data_handler.processed_erosion_data[CONST.TIMESTEPS_SINCE_LAST_MEASUREMENT]
+            .notna()
+            .all()
+        )
+
+        # the first measurement for sure does not hape a previous one, so the time sine previous is the default one
+        assert (
+            data_handler.processed_erosion_data[
+                CONST.TIMESTEPS_SINCE_LAST_MEASUREMENT
+            ].values[0]
+            == CONST.DEFAULT_LENGTH_OF_TIME_GAP_BETWEEN_MEASSUREMENTS
+        )
+
         # again, bad points are the only ones directly at the erosion border:
-        # * if present, there arepoints with zero distance
-        # * if they are absent - not filterred out, we have data with zero distance
+        # * if present, there are points with zero distance
+        # * if they are absent - not filtered out, we have data with zero distance
         if filter_out_bad_points:
             assert (
                 data_handler.processed_erosion_data[CONST.DISTANCE_TO_EROSION_BORDER]

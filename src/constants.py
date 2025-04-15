@@ -108,3 +108,6 @@ CATEGORICAL_COLUMNS_KEY = "categorical"
 
 PREVIOUS = "past"
 UPCOMING = "future"
+
+TIMESTEPS_SINCE_LAST_MEASUREMENT = "timesteps_since_last_measurement"
+DEFAULT_LENGTH_OF_TIME_GAP_BETWEEN_MEASSUREMENTS = 1.0  # year
