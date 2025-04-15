@@ -1,4 +1,5 @@
 """A class for automatically collecting (geospatial) data from various sources."""
+
 import json
 import logging
 
@@ -14,6 +15,7 @@ import src.data.schema_wfs_service as SWS
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
+
 class DataCollector:
     """A class for automatically collecting (geospatial) data from various sources.
 
@@ -21,12 +23,12 @@ class DataCollector:
     """
 
     def __init__(
-            self,
-            source_shape: BaseGeometry,
-            source_epsg_crs: int = CONST.EPSG_RD,
-            buffer_in_metres: float = CONST.DEFAULT_COLLECTOR_BUFFER,
-            wfs_services: list[SWS.WfsService] = CONFIG.KNOWN_WFS_SERVICES,
-            local_geospatial_data: dict[str, gpd.GeoDataFrame] = None
+        self,
+        source_shape: BaseGeometry,
+        source_epsg_crs: int = CONST.EPSG_RD,
+        buffer_in_metres: float = CONST.DEFAULT_COLLECTOR_BUFFER,
+        wfs_services: list[SWS.WfsService] = CONFIG.KNOWN_WFS_SERVICES,
+        local_geospatial_data: dict[str, gpd.GeoDataFrame] = None,
     ):
         """Initializes the data collector.
 
@@ -51,11 +53,12 @@ class DataCollector:
 
         self.relevant_geospatial_data = {}
 
-
     def initialize_wfs_services(self):
         self.wfs_services = {}
         for service in self.wfs_services_raw:
-            self.wfs_services[service.name] = WebFeatureService(service.url, version=service.version)
+            self.wfs_services[service.name] = WebFeatureService(
+                service.url, version=service.version
+            )
 
     def define_source_shape(self) -> BaseGeometry:
         """Defines the source shape with the buffer.
@@ -84,7 +87,9 @@ class DataCollector:
         TODO: some WFS refuse to return data past a high starting index (we saw 50_000). Also keep that in mind
           and make the code robust against that.
         """
-        bounding_box = U.transform_shape_crs(self.source_epsg_crs, CONST.EPSG_RD, self.source_shape).bounds
+        bounding_box = U.transform_shape_crs(
+            self.source_epsg_crs, CONST.EPSG_RD, self.source_shape
+        ).bounds
 
         # TODO: horridly awkward for loop, connect self.wfs_services nad self.wfs_services_raw
         relevant_layers = None
@@ -109,7 +114,11 @@ class DataCollector:
 
             while True:
                 geo_features_batch, _ = self.load_data_from_single_wfs_layer(
-                    wfs_name, layer, bounding_box, max_features_to_be_returned, starting_index
+                    wfs_name,
+                    layer,
+                    bounding_box,
+                    max_features_to_be_returned,
+                    starting_index,
                 )
 
                 if not geo_features_batch:
@@ -129,7 +138,9 @@ class DataCollector:
             # TODO: make the reading from the dictionary safe
             epsg_code = U.get_epsg_from_urn(crs_info["properties"]["name"])
             if epsg_code is None:
-                logger.warning(f"Could not extract EPSG code from the WFS data, assuming {CONST.EPSG_RD}")
+                logger.warning(
+                    f"Could not extract EPSG code from the WFS data, assuming {CONST.EPSG_RD}"
+                )
                 epsg_code = CONST.EPSG_RD
 
             geospatial_data_single_layer.crs = epsg_code
@@ -139,12 +150,12 @@ class DataCollector:
         return geospatial_data
 
     def load_data_from_single_wfs_layer(
-            self,
-            wfs_service_name: str,
-            wfs_layer_name: str,
-            bounding_box: tuple = None,
-            number_of_requested_features: int = CONST.WFS_MAX_FEATURES_TO_REQUEST,
-            starting_index: int = 0
+        self,
+        wfs_service_name: str,
+        wfs_layer_name: str,
+        bounding_box: tuple = None,
+        number_of_requested_features: int = CONST.WFS_MAX_FEATURES_TO_REQUEST,
+        starting_index: int = 0,
     ) -> (list[dict], dict):
         """Get data from the specified WFS service layer."""
         raw_data = self.wfs_services[wfs_service_name].getfeature(
@@ -152,7 +163,7 @@ class DataCollector:
             bbox=bounding_box,
             outputFormat=CONST.WFS_JSON_OUTPUT_FORMAT,
             maxfeatures=number_of_requested_features,
-            startindex=starting_index
+            startindex=starting_index,
         )
         raw_data = raw_data.read()
         data_as_json = json.loads(raw_data)
@@ -173,7 +184,9 @@ class DataCollector:
         """Loop through all the know WFS services and get data overlapping with the source shape."""
         for wfs_service in self.wfs_services:
             logger.info(f"Getting data from the WFS service {wfs_service}.")
-            self.relevant_geospatial_data[wfs_service] = self.load_data_from_single_wfs(wfs_service)
+            self.relevant_geospatial_data[wfs_service] = self.load_data_from_single_wfs(
+                wfs_service
+            )
 
     def get_local_geospatial_data(self):
         """Process the local geospatial data to only include the relevant parts."""
@@ -181,4 +194,6 @@ class DataCollector:
             logger.info(f"Processing the local geospatial data {data_label}.")
             data_with_correct_crs = data.to_crs(epsg=self.source_epsg_crs)
             mask = data_with_correct_crs.intersects(self.source_shape)
-            self.relevant_geospatial_data[data_label] = data_with_correct_crs[mask].copy()
+            self.relevant_geospatial_data[data_label] = data_with_correct_crs[
+                mask
+            ].copy()
