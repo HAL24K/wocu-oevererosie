@@ -47,6 +47,10 @@ class DataConfiguration:
         default=CONST.DEFAULT_UNKNOWN_CATEGORICAL_COLUMNS,
         description="The names of the categorical columns where we do not know the future values. ",
     )
+    use_differences_in_features: bool = Field(
+        default=CONST.DEFAULT_USE_DIFFERENCES_IN_FEATURES,
+        description="Whether to use differences between the consecutive values as features.",
+    )
     feature_creation_config: dict = Field(
         default=CONFIG.AGGREGATION_COLUMNS,
         description="The details for how to process the input data into features.",

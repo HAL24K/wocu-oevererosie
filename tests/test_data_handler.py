@@ -13,6 +13,7 @@ import src.data.data_handler as DH
 import src.paths as PATHS
 import src.data.config as DATA_CONFIG
 import src.constants as CONST
+from conftest import real_erosion_border, default_data_configuration
 
 
 @pytest.fixture
@@ -223,6 +224,71 @@ def test_erosion_data_processing(
     # check that we don't recompute if we don't need to
     data_handler.process_erosion_features()
     assert "Erosion data already processed" in caplog.text
+
+
+def test_generate_model_features(
+    default_data_configuration,
+    prediction_regions_for_test,
+    erosion_data_for_test,
+    local_enrichment_geodata,
+    real_erosion_border,
+    caplog,
+):
+    """Test the feature creation from the processed data."""
+
+    for use_differences in [True, False]:
+        data_configuration = default_data_configuration
+        data_configuration.use_differences_in_features = use_differences
+
+        data_handler = DH.DataHandler(
+            config=data_configuration,
+            prediction_regions=prediction_regions_for_test,
+            local_data_for_enrichment=local_enrichment_geodata,
+            erosion_data=erosion_data_for_test,
+            erosion_border=real_erosion_border,
+        )
+
+        data_handler.process_erosion_features()
+
+        assert data_handler.erosion_features is None
+
+        data_handler.generate_erosion_features()
+
+        assert data_handler.erosion_features is not None
+
+        total_no_of_expected_features = (
+            default_data_configuration.number_of_lags
+            + default_data_configuration.number_of_futures
+        ) * (
+            len(default_data_configuration.unknown_numerical_columns)
+            + len(default_data_configuration.known_numerical_columns)
+            + len(default_data_configuration.unknown_categorical_columns)
+            + len(default_data_configuration.known_categorical_columns)
+        )
+        assert (
+            len(data_handler.erosion_features.columns) == total_no_of_expected_features
+        )
+
+        # the ends of the groupings get chopped off as there are no differences
+        expected_extra_nans = (
+            2
+            * data_handler.processed_erosion_data.index.get_level_values(
+                data_configuration.prediction_region_id_column_name
+            ).nunique()
+            if use_differences
+            else data_configuration.number_of_futures
+            * data_handler.processed_erosion_data.index.get_level_values(
+                data_configuration.prediction_region_id_column_name
+            ).nunique()
+        )
+
+        assert (
+            len(data_handler.erosion_features)
+            == len(data_handler.processed_erosion_data) - expected_extra_nans
+        )
+        assert len(data_handler.erosion_features_complete) == len(
+            data_handler.processed_erosion_data
+        )
 
 
 def test_enrichment_with_remote_data():

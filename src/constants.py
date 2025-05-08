@@ -55,6 +55,11 @@ DEFAULT_PREDICTION_REGION_BUFFER = 10  # metres
 # this defines its size
 DEFAULT_NEIGHBOURHOOD_RADIUS = 100  # metres
 
+# flag to whether to use absolute values as features (e.g. distance to the signalling line) or the differences between
+# them (e.g. how much erosion has happened). We lean towards using the differences, as e.g. the signalling line can
+# move arbitrarily but the erosion remains
+DEFAULT_USE_DIFFERENCES_IN_FEATURES = True
+
 DEFAULT_USE_ONLY_CERTAIN_RIVER_BANK_POINTS = (
     True  # only use the OK data points, not the outliers
 )
@@ -76,13 +81,6 @@ DIRECTION_FACTOR = "direction_factor"
 
 DEFAULT_NUMBER_OF_LAGS = 1
 DEFAULT_NUMBER_OF_FUTURES = 1
-
-DEFAULT_KNOWN_NUMERICAL_COLUMNS = []
-DEFAULT_UNKNOWN_NUMERICAL_COLUMNS = [
-    DISTANCE_TO_EROSION_BORDER,
-]
-DEFAULT_KNOWN_CATEGORICAL_COLUMNS = []
-DEFAULT_UNKNOWN_CATEGORICAL_COLUMNS = []
 
 # some suffixes for creating temporary columns
 FLOAT = "float"
@@ -111,3 +109,10 @@ UPCOMING = "future"
 
 TIMESTEPS_SINCE_LAST_MEASUREMENT = "timesteps_since_last_measurement"
 DEFAULT_LENGTH_OF_TIME_GAP_BETWEEN_MEASSUREMENTS = 1.0  # year
+
+DEFAULT_KNOWN_NUMERICAL_COLUMNS = [TIMESTEPS_SINCE_LAST_MEASUREMENT]
+DEFAULT_UNKNOWN_NUMERICAL_COLUMNS = [
+    DISTANCE_TO_EROSION_BORDER,
+]
+DEFAULT_KNOWN_CATEGORICAL_COLUMNS = []
+DEFAULT_UNKNOWN_CATEGORICAL_COLUMNS = []

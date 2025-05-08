@@ -35,7 +35,6 @@ class DataHandler:
         :param config: a DataConfig object with the configuration for the data handler.
         :param prediction_regions: a geodataframe with the regions (polygons) to predict for.
         :param local_data_for_enrichment: a dictionary with geodataframes with the local data to enrich the erosion data with.
-        :param wfs_services: a list of WFS services to collect remote data from
         :param erosion_data: a geodataframe with the erosion data to calculate targets (if required)
         :param erosion_border: a linestring with how far the erosion can proceed
         """
@@ -52,6 +51,12 @@ class DataHandler:
         self.erosion_features = None
 
         self.columns_added_in_feature_creation = defaultdict(list)
+
+        # TODO: define this correctly
+        logger.warning(
+            f"Setting the number extra features to 0, even though it should be automatically calculated."
+        )
+        self.number_of_extra_futures = 0
 
     def process_erosion_features(self, reload=False):
         """Process the erosion features into a usable format.
@@ -355,21 +360,21 @@ class DataHandler:
             logger.warning("Erosion features already present, nothing is changing.")
             return
 
-        for defect in (
+        for parameter in (
             self.config.known_numerical_columns
             + self.config.unknown_numerical_columns
             + self.config.known_categorical_columns
             + self.config.unknown_categorical_columns
         ):
-            missing_defects = []
-            if defect not in self.processed_erosion_data.columns:
-                missing_defects.append(defect)
+            missing_parameters = []
+            if parameter not in self.processed_erosion_data.columns:
+                missing_parameters.append(parameter)
 
-            if missing_defects:
+            if missing_parameters:
                 warning_message = (
-                    f"Column{'s' if len(missing_defects) > 1 else ''} {defect} not "
-                    f"present in the processed erosion data. Please add {'them' if len(missing_defects) > 1 else 'it'} "
-                    "or change the configuration."
+                    f"Column{'s' if len(missing_parameters) > 1 else ''} {parameter} not "
+                    f"present in the processed erosion data. Please add "
+                    f"{'them' if len(missing_parameters) > 1 else 'it'} or change the configuration."
                 )
 
                 logger.warning(warning_message)
@@ -378,9 +383,11 @@ class DataHandler:
 
         for column in self.config.known_numerical_columns:
             # TODO: define how to pass future operation
+            # TODO: things like the time since last operation is already a diff in the processed data, how to handle this here?
             self._prepare_single_feature(
                 column,
                 CONST.KnownColumnTypes.NUMERIC.value,
+                use_differences=False,
                 known_future=True,
             )
 
@@ -388,6 +395,7 @@ class DataHandler:
             self._prepare_single_feature(
                 column,
                 CONST.KnownColumnTypes.NUMERIC.value,
+                use_differences=self.config.use_differences_in_features,
                 known_future=False,
             )
 
@@ -428,6 +436,7 @@ class DataHandler:
         self,
         column: str,
         column_type: str,
+        use_differences: bool = False,
         known_future: bool = False,
         future_operation: str = CONST.KnownFutureFillOperations.FILL.value,
     ):
@@ -435,12 +444,19 @@ class DataHandler:
 
         :param column: the name of the column in the processed data
         :param column_type: the type of column defined in CONST.KnownColumnTypes
+        :param use_differences: if True, the feature is calculated as a difference between the current and the previous value
         :param known_future: a flag to see whether the future values are known (easily calculable)
         :param future_operation: if the future values are known, how to fill in the features
         """
         assert column_type in [
             col_type.value for col_type in CONST.KnownColumnTypes
         ], f"Unknown column type {column_type} for column {column}."
+
+        if use_differences and column_type != CONST.KnownColumnTypes.NUMERIC.value:
+            logger.warning(
+                f"The `use_differences` feature only works for numeric columns. "
+                f"You are trying to use it for {column_type} column {column}, where it will have no effect."
+            )
 
         if known_future:
             assert future_operation in [
@@ -453,6 +469,12 @@ class DataHandler:
             self.processed_erosion_data[temporary_column_name] = (
                 self.processed_erosion_data[column].astype(float)
             )
+            if use_differences:
+                self.processed_erosion_data[temporary_column_name] = (
+                    self.processed_erosion_data.groupby(
+                        self.config.prediction_region_id_column_name
+                    )[temporary_column_name].diff()
+                )
         elif column_type == CONST.KnownColumnTypes.CATEGORICAL.value:
             try:
                 category_ordering = CONST.KNOWN_CATEGORIES[column]
@@ -474,7 +496,8 @@ class DataHandler:
             ].unique()
             if categories_with_unknown_codes:
                 logger.warning(
-                    f"Entries {list(categories_with_unknown_codes)} in column {column} have an unknown mapping to numerical categories, please define."
+                    f"Entries {list(categories_with_unknown_codes)} in column {column} "
+                    f"have an unknown mapping to numerical categories, please define."
                 )
 
         else:
@@ -484,7 +507,8 @@ class DataHandler:
             )
 
         self._add_past_and_future_columns_for_feature(
-            temporary_column_name,
+            unique_grouping_id=self.config.prediction_region_id_column_name,
+            source_column=temporary_column_name,
             continuous=True,
             additional_futures=self.number_of_extra_futures,
         )

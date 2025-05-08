@@ -7,3 +7,7 @@ the layer `vlakken_scope`.
 
 The river centerline is taken directly from data provided by Etienne, simplified with a 20m tolerance
 (shrinks the file from 1.4MB to 29kB).
+
+The rover_bank_points.geojson contains real data for AND 3 and 5; for the later AHN we simply generated data
+by shifting each AHN point in a random direction by 1m sequentially one fake AHN at a time. NOTE: this might have
+moved some points outside their region ID, that's for later to deal with if need be.
