@@ -13,6 +13,7 @@ import src.data.data_handler as DH
 import src.paths as PATHS
 import src.data.config as DATA_CONFIG
 import src.constants as CONST
+from conftest import real_erosion_border, default_data_configuration
 
 
 @pytest.fixture
@@ -92,7 +93,10 @@ def test_generate_region_features(basic_beefed_up_data_handler):
 
 
 def test_erosion_data_processing(
-    prediction_regions_for_test, erosion_data_for_test, local_enrichment_geodata, caplog
+    prediction_regions_for_test,
+    erosion_data_for_test,
+    local_enrichment_geodata,
+    caplog,
 ):
     """Test the processing of the erosion data."""
 
@@ -138,7 +142,9 @@ def test_erosion_data_processing(
             CONST.TIMESTAMP: 5,  # we know this is in the data
             # the points lie a bit randomly below the erosion border
             "geometry": Point(
-                test_longitude_rd, test_latitude_rd - np.random.randint(1, 10), 0
+                test_longitude_rd,
+                test_latitude_rd - np.random.randint(1, 10),
+                0,
             ),
         }
     ]
@@ -183,9 +189,27 @@ def test_erosion_data_processing(
             data_handler.processed_erosion_data[CONST.DISTANCE_TO_EROSION_BORDER] < 0
         ).any()
 
+        assert (
+            CONST.TIMESTEPS_SINCE_LAST_MEASUREMENT
+            in data_handler.processed_erosion_data.columns
+        )
+        assert (
+            data_handler.processed_erosion_data[CONST.TIMESTEPS_SINCE_LAST_MEASUREMENT]
+            .notna()
+            .all()
+        )
+
+        # the first measurement for sure does not hape a previous one, so the time sine previous is the default one
+        assert (
+            data_handler.processed_erosion_data[
+                CONST.TIMESTEPS_SINCE_LAST_MEASUREMENT
+            ].values[0]
+            == CONST.DEFAULT_LENGTH_OF_TIME_GAP_BETWEEN_MEASSUREMENTS
+        )
+
         # again, bad points are the only ones directly at the erosion border:
-        # * if present, there arepoints with zero distance
-        # * if they are absent - not filterred out, we have data with zero distance
+        # * if present, there are points with zero distance
+        # * if they are absent - not filtered out, we have data with zero distance
         if filter_out_bad_points:
             assert (
                 data_handler.processed_erosion_data[CONST.DISTANCE_TO_EROSION_BORDER]
@@ -200,6 +224,71 @@ def test_erosion_data_processing(
     # check that we don't recompute if we don't need to
     data_handler.process_erosion_features()
     assert "Erosion data already processed" in caplog.text
+
+
+def test_generate_model_features(
+    default_data_configuration,
+    prediction_regions_for_test,
+    erosion_data_for_test,
+    local_enrichment_geodata,
+    real_erosion_border,
+    caplog,
+):
+    """Test the feature creation from the processed data."""
+
+    for use_differences in [True, False]:
+        data_configuration = default_data_configuration
+        data_configuration.use_differences_in_features = use_differences
+
+        data_handler = DH.DataHandler(
+            config=data_configuration,
+            prediction_regions=prediction_regions_for_test,
+            local_data_for_enrichment=local_enrichment_geodata,
+            erosion_data=erosion_data_for_test,
+            erosion_border=real_erosion_border,
+        )
+
+        data_handler.process_erosion_features()
+
+        assert data_handler.erosion_features is None
+
+        data_handler.generate_erosion_features()
+
+        assert data_handler.erosion_features is not None
+
+        total_no_of_expected_features = (
+            default_data_configuration.number_of_lags
+            + default_data_configuration.number_of_futures
+        ) * (
+            len(default_data_configuration.unknown_numerical_columns)
+            + len(default_data_configuration.known_numerical_columns)
+            + len(default_data_configuration.unknown_categorical_columns)
+            + len(default_data_configuration.known_categorical_columns)
+        )
+        assert (
+            len(data_handler.erosion_features.columns) == total_no_of_expected_features
+        )
+
+        # the ends of the groupings get chopped off as there are no differences
+        expected_extra_nans = (
+            2
+            * data_handler.processed_erosion_data.index.get_level_values(
+                data_configuration.prediction_region_id_column_name
+            ).nunique()
+            if use_differences
+            else data_configuration.number_of_futures
+            * data_handler.processed_erosion_data.index.get_level_values(
+                data_configuration.prediction_region_id_column_name
+            ).nunique()
+        )
+
+        assert (
+            len(data_handler.erosion_features)
+            == len(data_handler.processed_erosion_data) - expected_extra_nans
+        )
+        assert len(data_handler.erosion_features_complete) == len(
+            data_handler.processed_erosion_data
+        )
 
 
 def test_enrichment_with_remote_data():
