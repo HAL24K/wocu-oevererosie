@@ -2,6 +2,7 @@
 
 import geopandas as gpd
 from shapely.geometry import Point, LineString, Polygon
+from shapely.wkt import loads
 import pytest
 
 import src.paths as PATHS
@@ -64,7 +65,12 @@ def shapes_near_zaltbommel():
 @pytest.fixture
 def fake_eroded_bank_wgs84():
     return Polygon(
-        [(5.4639, 51.8875), (5.4664, 51.8879), (5.4665, 51.8872), (5.4634, 51.8869)]
+        [
+            (5.4639, 51.8875),
+            (5.4664, 51.8879),
+            (5.4665, 51.8872),
+            (5.4634, 51.8869),
+        ]
     )
 
 
@@ -89,3 +95,16 @@ def sample_assets():
 @pytest.fixture
 def default_data_configuration():
     return DATA_CONFIG.DataConfiguration()
+
+
+@pytest.fixture
+def real_erosion_border():
+    """An example of the erosion border (correctly called signaling line).
+
+    NOTE: This was creating from the signaling line from Etienne that I simplified to 50m;
+    signaling_line.simplify(50).wkt
+    """
+    signaling_line_wkt = "LINESTRING (130984.4804 425235.598700002, 131016.5234 425139.2277, 131674.09642773212 425252.9153294169, 132879.4983 425850.8068, 133854.863000002 426219.798099998)"
+    signaling_line = loads(signaling_line_wkt)
+
+    return signaling_line

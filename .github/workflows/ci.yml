@@ -18,7 +18,7 @@ jobs:
       - run: |
           pipenv sync --dev
           pipenv run black src --check
-          PYTHONPATH=. pipenv run pytest --log-cli-level=DEBUG --cov src --cov-report term --junitxml=pytest.xml --cov-report xml:coverage.xml
+          PYTHONPATH=. pipenv run pytest --log-cli-level=DEBUG -n auto --cov src --cov-report term --junitxml=pytest.xml --cov-report xml:coverage.xml
       - name: Pytest coverage comment
         if: ${{ ! startsWith(github.ref, 'refs/tags/') }}
         uses: MishaKav/pytest-coverage-comment@main

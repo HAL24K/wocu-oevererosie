@@ -23,7 +23,22 @@ def training_data():
     # region 4 is adding mass, region 5 does not have all measurements
     training_data = pd.DataFrame(
         {
-            CONST.PREDICTION_REGION_ID: [1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5],
+            CONST.PREDICTION_REGION_ID: [
+                1,
+                1,
+                1,
+                2,
+                2,
+                2,
+                3,
+                3,
+                3,
+                4,
+                4,
+                4,
+                5,
+                5,
+            ],
             CONST.TIMESTAMP: [1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 3],
             CONST.DISTANCE_TO_EROSION_BORDER: [
                 50,
