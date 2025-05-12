@@ -45,26 +45,37 @@ def local_enrichment_geodata():
 
 
 @pytest.fixture
-def basic_beefed_up_data_handler(prediction_regions_for_test):
+def basic_beefed_up_data_handler(
+    prediction_regions_for_test,
+    erosion_data_for_test,
+    local_enrichment_geodata,
+    real_erosion_border,
+):
     """Fixture for the basic data handler with defaults except for the big region buffer to have data."""
     big_buffer = 1_000  # metres, known to contain data
     data_configuration = DATA_CONFIG.DataConfiguration(
-        prediction_region_buffer=big_buffer
+        prediction_region_buffer=big_buffer,
     )
 
     return DH.DataHandler(
         config=data_configuration,
         prediction_regions=prediction_regions_for_test,
+        local_data_for_enrichment=local_enrichment_geodata,
+        erosion_data=erosion_data_for_test,
+        erosion_border=real_erosion_border,
     )
 
 
-def test_generate_region_features(basic_beefed_up_data_handler):
+def test_generate_region_features(basic_beefed_up_data_handler, caplog):
     """Test the generation of features for a region."""
     # at first, the features are just the prediction regions
     # TODO: make this just the geometry, so that other potential columns are not taken into account?
     assert basic_beefed_up_data_handler.prediction_regions.equals(
         basic_beefed_up_data_handler.model_features
     )
+
+    basic_beefed_up_data_handler.add_remote_data()
+    assert "not been downloaded" in caplog.text
 
     basic_beefed_up_data_handler.create_features_from_remote()
 
@@ -90,6 +101,35 @@ def test_generate_region_features(basic_beefed_up_data_handler):
                 break
 
         assert feature_present
+
+    basic_beefed_up_data_handler.add_remote_data()
+    assert "process the inspection" in caplog.text
+
+    basic_beefed_up_data_handler.process_erosion_features()
+
+    original_processed_columns = (
+        basic_beefed_up_data_handler.processed_erosion_data.columns
+    )
+    original_processed_data = basic_beefed_up_data_handler.processed_erosion_data.copy()
+
+    basic_beefed_up_data_handler.add_remote_data()
+    assert basic_beefed_up_data_handler.processed_erosion_data.index.equals(
+        original_processed_data.index
+    )
+
+    # make sure we added SOME columns
+    assert len(original_processed_columns) < len(
+        basic_beefed_up_data_handler.processed_erosion_data.columns
+    )
+
+    # check that repeated addition does not change the data
+    original_processed_data = basic_beefed_up_data_handler.processed_erosion_data.copy()
+    basic_beefed_up_data_handler.add_remote_data()
+
+    assert basic_beefed_up_data_handler.processed_erosion_data.equals(
+        original_processed_data
+    )
+    assert "already added" in caplog.text
 
 
 def test_erosion_data_processing(
@@ -226,7 +266,7 @@ def test_erosion_data_processing(
     assert "Erosion data already processed" in caplog.text
 
 
-def test_generate_model_features(
+def test_generate_model_features_local(
     default_data_configuration,
     prediction_regions_for_test,
     erosion_data_for_test,
@@ -234,7 +274,10 @@ def test_generate_model_features(
     real_erosion_border,
     caplog,
 ):
-    """Test the feature creation from the processed data."""
+    """Test the feature creation from the processed data using only the local data.
+
+    TODO: would it make more sense to also include the remotes here?
+    """
 
     for use_differences in [True, False]:
         data_configuration = default_data_configuration

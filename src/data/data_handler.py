@@ -58,6 +58,10 @@ class DataHandler:
         )
         self.number_of_extra_futures = 0
 
+        # tranck the remote status
+        self.remote_features_downloaded = False
+        self.remote_features_added = False
+
     def process_erosion_features(self, reload=False):
         """Process the erosion features into a usable format.
 
@@ -291,6 +295,37 @@ class DataHandler:
         # TODO: here we glue the old and the new features next to each other, ignoring the order. It **should** work
         #   due to the for loop but should replace this with a proper merge
         self.model_features = pd.concat([self.model_features, wfs_features], axis=1)
+
+        self.remote_features_downloaded = True
+
+    def add_remote_data(self):
+        """Add the downloaded data to the processed data."""
+        if not self.remote_features_downloaded:
+            logger.warning(
+                f"The remote data has not been downloaded yet, please do so first."
+            )
+            return
+
+        if self.processed_erosion_data is None:
+            logger.warning(
+                "No processed data present, please process the inspection data first."
+            )
+            return
+
+        if self.remote_features_added:
+            logger.warning("Remote features already added, nothing is changing.")
+            return
+
+        # TODO: is this too cautious with dropping the geometry?
+        internal_df = self.model_features.drop("geometry", axis=1).copy()
+
+        processed_data_index_names = self.processed_erosion_data.index.names
+        self.processed_erosion_data = self.processed_erosion_data.reset_index().merge(
+            internal_df, on=self.config.prediction_region_id_column_name, how="left"
+        )
+        self.processed_erosion_data.set_index(processed_data_index_names, inplace=True)
+
+        self.remote_features_added = True
 
     @staticmethod
     def _generate_region_features(
