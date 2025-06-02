@@ -99,13 +99,27 @@ class KnownFutureFillOperations(Enum):
     INCREMENT = "increment"  # every time step (year) increment the previous value by 1
 
 
-KNOWN_CATEGORIES = {}
+# WFS names
+BRPGEWAS = "BrpGewas"
+BAG_PAND = "bag:pand"
+RWS_WL_BOMEN = "rws_vegetatielegger:bomen"
+RWS_WL_HEGGEN = "rws_vegetatielegger:heggen"
+RWS_WL_VEGETATIEKLASSEN = "rws_vegetatielegger:vegetatieklassen"
+RIVER_CENTERLINE = "river_centerline"  # river centerline
+
+KNOWN_CATEGORIES = {
+    f"{BRPGEWAS}_majority_class_category": ["Grasland"],
+    f"{RWS_WL_VEGETATIEKLASSEN}_majority_class_vlklasse": ["Gras en Akker"],
+}
+
+DEFAULT_UNKNOWN_CATEGORY_LABEL = -1
 
 NUMERICAL_COLUMNS_KEY = "numerical"
 CATEGORICAL_COLUMNS_KEY = "categorical"
 
 PREVIOUS = "past"
 UPCOMING = "future"
+DIFFERENCE = "diff"
 
 TIMESTEPS_SINCE_LAST_MEASUREMENT = "timesteps_since_last_measurement"
 DEFAULT_LENGTH_OF_TIME_GAP_BETWEEN_MEASSUREMENTS = 1.0  # year

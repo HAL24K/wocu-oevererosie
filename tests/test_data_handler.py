@@ -71,21 +71,21 @@ def test_generate_region_features(basic_beefed_up_data_handler, caplog):
     # at first, the features are just the prediction regions
     # TODO: make this just the geometry, so that other potential columns are not taken into account?
     assert basic_beefed_up_data_handler.prediction_regions.equals(
-        basic_beefed_up_data_handler.model_features
+        basic_beefed_up_data_handler.scope_region_features
     )
 
-    basic_beefed_up_data_handler.add_remote_data()
+    basic_beefed_up_data_handler.add_remote_data_to_processed()
     assert "not been downloaded" in caplog.text
 
-    basic_beefed_up_data_handler.create_features_from_remote()
+    basic_beefed_up_data_handler.create_data_from_remote()
 
     # make sure that we don't increase the number of regions in the feature creation
-    assert len(basic_beefed_up_data_handler.model_features) == len(
+    assert len(basic_beefed_up_data_handler.scope_region_features) == len(
         basic_beefed_up_data_handler.prediction_regions
     )
 
     columns_added_in_feature_creation = list(
-        set(basic_beefed_up_data_handler.model_features.columns)
+        set(basic_beefed_up_data_handler.scope_region_features.columns)
         - set(basic_beefed_up_data_handler.prediction_regions.columns)
     )
 
@@ -102,7 +102,7 @@ def test_generate_region_features(basic_beefed_up_data_handler, caplog):
 
         assert feature_present
 
-    basic_beefed_up_data_handler.add_remote_data()
+    basic_beefed_up_data_handler.add_remote_data_to_processed()
     assert "process the inspection" in caplog.text
 
     basic_beefed_up_data_handler.process_erosion_features()
@@ -112,7 +112,7 @@ def test_generate_region_features(basic_beefed_up_data_handler, caplog):
     )
     original_processed_data = basic_beefed_up_data_handler.processed_erosion_data.copy()
 
-    basic_beefed_up_data_handler.add_remote_data()
+    basic_beefed_up_data_handler.add_remote_data_to_processed()
     assert basic_beefed_up_data_handler.processed_erosion_data.index.equals(
         original_processed_data.index
     )
@@ -124,7 +124,7 @@ def test_generate_region_features(basic_beefed_up_data_handler, caplog):
 
     # check that repeated addition does not change the data
     original_processed_data = basic_beefed_up_data_handler.processed_erosion_data.copy()
-    basic_beefed_up_data_handler.add_remote_data()
+    basic_beefed_up_data_handler.add_remote_data_to_processed()
 
     assert basic_beefed_up_data_handler.processed_erosion_data.equals(
         original_processed_data
@@ -333,8 +333,54 @@ def test_generate_model_features_local(
             data_handler.processed_erosion_data
         )
 
+        # test column naming
+        if use_differences:
+            assert np.any(
+                [
+                    CONST.DIFFERENCE in col
+                    for col in data_handler.erosion_features.columns
+                ]
+            )
+        else:
+            assert np.all(
+                [
+                    CONST.DIFFERENCE not in col
+                    for col in data_handler.erosion_features.columns
+                ]
+            )
 
-def test_enrichment_with_remote_data():
+
+def test_generate_features_with_remote_data(
+    default_data_configuration,
+    prediction_regions_for_test,
+    erosion_data_for_test,
+    local_enrichment_geodata,
+    real_erosion_border,
+    caplog,
+):
     """Test the enrichment of the data with remote data."""
-    # TODO: create this test
-    pass
+    data_configuration = default_data_configuration
+    data_configuration.known_categorical_columns = [
+        "BrpGewas_majority_class_category",
+        "rws_vegetatielegger:vegetatieklassen_majority_class_vlklasse",
+    ]
+
+    data_handler = DH.DataHandler(
+        config=data_configuration,
+        prediction_regions=prediction_regions_for_test,
+        local_data_for_enrichment=local_enrichment_geodata,
+        erosion_data=erosion_data_for_test,
+        erosion_border=real_erosion_border,
+    )
+
+    data_handler.process_erosion_features()
+
+    assert data_handler.erosion_features is None
+
+    data_handler.create_data_from_remote()
+    data_handler.add_remote_data_to_processed()
+
+    data_handler.generate_erosion_features()
+
+    # TODO: finish the test
+    print("bla")

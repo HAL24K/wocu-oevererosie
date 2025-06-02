@@ -45,9 +45,10 @@ class DataHandler:
         self.erosion_border = erosion_border
 
         # TODO: we assume the features always start here - maybe there is a more elegant way of doing it
-        self.model_features = self.prediction_regions.copy()
+        self.scope_region_features = self.prediction_regions.copy()
 
         self.processed_erosion_data = None
+        self.erosion_features_complete = None
         self.erosion_features = None
 
         self.columns_added_in_feature_creation = defaultdict(list)
@@ -58,8 +59,8 @@ class DataHandler:
         )
         self.number_of_extra_futures = 0
 
-        # tranck the remote status
-        self.remote_features_downloaded = False
+        # track the remote status
+        self.remote_data_downloaded = False
         self.remote_features_added = False
 
     def process_erosion_features(self, reload=False):
@@ -245,7 +246,7 @@ class DataHandler:
 
         return local_distances[CONST.DISTANCE_TO_EROSION_BORDER]
 
-    def create_features_from_remote(self):
+    def create_data_from_remote(self):
         """For each prediction region, get the WFS data and calculate the features."""
         wfs_features = []
         for region in self.prediction_regions.geometry.values:
@@ -294,13 +295,13 @@ class DataHandler:
 
         # TODO: here we glue the old and the new features next to each other, ignoring the order. It **should** work
         #   due to the for loop but should replace this with a proper merge
-        self.model_features = pd.concat([self.model_features, wfs_features], axis=1)
+        self.scope_region_features = pd.concat([self.scope_region_features, wfs_features], axis=1)
 
-        self.remote_features_downloaded = True
+        self.remote_data_downloaded = True
 
-    def add_remote_data(self):
+    def add_remote_data_to_processed(self):
         """Add the downloaded data to the processed data."""
-        if not self.remote_features_downloaded:
+        if not self.remote_data_downloaded:
             logger.warning(
                 f"The remote data has not been downloaded yet, please do so first."
             )
@@ -317,7 +318,7 @@ class DataHandler:
             return
 
         # TODO: is this too cautious with dropping the geometry?
-        internal_df = self.model_features.drop("geometry", axis=1).copy()
+        internal_df = self.scope_region_features.drop("geometry", axis=1).copy()
 
         processed_data_index_names = self.processed_erosion_data.index.names
         self.processed_erosion_data = self.processed_erosion_data.reset_index().merge(
@@ -500,6 +501,9 @@ class DataHandler:
 
         # make sure that you don't overwrite the existing column
         temporary_column_name = f"{column}_{CONST.FLOAT if column_type == CONST.KnownColumnTypes.NUMERIC.value else CONST.AS_NUMBER}"
+        if use_differences:
+            temporary_column_name = f"{CONST.DIFFERENCE}_{temporary_column_name}"
+
         if column_type == CONST.KnownColumnTypes.NUMERIC.value:
             self.processed_erosion_data[temporary_column_name] = (
                 self.processed_erosion_data[column].astype(float)
@@ -512,7 +516,8 @@ class DataHandler:
                 )
         elif column_type == CONST.KnownColumnTypes.CATEGORICAL.value:
             try:
-                category_ordering = CONST.KNOWN_CATEGORIES[column]
+                ordered_categories = CONST.KNOWN_CATEGORIES[column]
+                ordered_categories = {element: i for i, element in enumerate(ordered_categories)}
             except KeyError:
                 raise KeyError(
                     f"Unknown categories for {column}, please define them first."
@@ -520,18 +525,19 @@ class DataHandler:
 
             self.processed_erosion_data[temporary_column_name] = (
                 self.processed_erosion_data[column].map(
-                    lambda x: category_ordering.get(x, None)
+                    lambda x: ordered_categories.get(x, CONST.DEFAULT_UNKNOWN_CATEGORY_LABEL)
                 )
             )
 
             # bookkeep on unknown categories
-            categories_with_unknown_codes = self.processed_erosion_data.loc[
-                self.processed_erosion_data[temporary_column_name].isnull(),
-                column,
-            ].unique()
-            if categories_with_unknown_codes:
+            entries_with_unknown_codes = list(
+                set(self.processed_erosion_data[column].unique())
+                - set(ordered_categories.keys())
+            )
+
+            if entries_with_unknown_codes:
                 logger.warning(
-                    f"Entries {list(categories_with_unknown_codes)} in column {column} "
+                    f"Entries {list(entries_with_unknown_codes)} in column {column} "
                     f"have an unknown mapping to numerical categories, please define."
                 )
 
