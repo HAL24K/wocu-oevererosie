@@ -1,6 +1,8 @@
 """All the hardcoded values live here. This is the place to change them if needed."""
 
 from enum import Enum
+import torch.nn as nn
+
 
 # where the Netherlands is
 CENTRE_NL_LON = 5.2913
@@ -127,3 +129,12 @@ DEFAULT_UNKNOWN_NUMERICAL_COLUMNS = [
 ]
 DEFAULT_KNOWN_CATEGORICAL_COLUMNS = []
 DEFAULT_UNKNOWN_CATEGORICAL_COLUMNS = []
+
+### model constants
+DEFAULT_USE_BATCH_NORMALIZATION = (
+    False  # whether to use batch normalization in the model
+)
+DEFAULT_LINEAR_DROPOUT = 0.0  # default dropout for the linear layers in the model
+DEFAULT_NONLINEARITY_FUNCTION = (
+    nn.ReLU
+)  # default nonlinearity function for the linear layers in the model
