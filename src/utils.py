@@ -19,7 +19,9 @@ logger.setLevel(logging.INFO)
 
 
 def transform_shape_crs(
-    from_epsg: Union[int, str], to_epsg: Union[int, str], input_shape: BaseGeometry
+    from_epsg: Union[int, str],
+    to_epsg: Union[int, str],
+    input_shape: BaseGeometry,
 ) -> BaseGeometry:
     """Transforms the shape from one CRS to another.
 
@@ -93,6 +95,12 @@ def get_object_density(base_shape: BaseGeometry, geo_data: gpd.GeoDataFrame) -> 
     :param geo_data: geospatial data with Points in geometry
 
     """
+    if geo_data.empty:
+        logger.warning(
+            "The geodataframe is empty and thus the density cannot be calculated. It is assumed it would be 0."
+        )
+        return 0.0
+
     assert geo_data.geometry.geom_type.nunique() == 1, "Only one geometry type allowed"
     assert (
         geo_data.geometry.geom_type.unique()[0] == "Point"
@@ -127,11 +135,19 @@ def get_area_fraction(base_shape: BaseGeometry, geo_data: gpd.GeoDataFrame) -> f
     :param base_shape: The shape of the area for which we are calculating the area fraction.
     :param geo_data: geospatial data
     """
+    if geo_data.empty:
+        logger.warning(
+            "The geodataframe is empty and thus the area fraction cannot be calculated. It is assumed it would be 0."
+        )
+        return 0.0
+
     return geo_data.union_all().intersection(base_shape).area / base_shape.area
 
 
 def get_majority_class(
-    base_shape: BaseGeometry, geo_data: gpd.GeoDataFrame, columns: Union[list[str], str]
+    base_shape: BaseGeometry,
+    geo_data: gpd.GeoDataFrame,
+    columns: Union[list[str], str],
 ) -> dict[str, str | None]:
     """Get the majority class from each required column in the geo_data.
 
@@ -141,6 +157,12 @@ def get_majority_class(
     """
     if isinstance(columns, str):
         columns = [columns]
+
+    if geo_data.empty:
+        logger.warning(
+            f"The geodataframe is empty and the majority class cannot be calculated for {columns}."
+        )
+        return {col: None for col in columns}
 
     assert set(geo_data.columns).issuperset(
         columns
@@ -153,6 +175,8 @@ def get_majority_class(
         # TODO: do we return None here or some "none string" so that we don't have missing features?
         return {col: None for col in columns}
     elif len(majority_classes) > 1:
+        # TODO: improve the log, so that it tells which columns and which values were dropped.
+        #   note: mode returns a new DF with multiple rows if at least one col has multiple modes; other cols have NaNs
         logger.warning(
             f"Multiple majority classes found in some of the columns, we only take the first one."
         )
@@ -264,3 +288,17 @@ def is_point_between_two_lines(
     )
 
     return bool(np.dot(first_vector, second_vector) < 0)
+
+
+def generate_shifted_column_name(
+    original_column: str, shift: int, past_shift: bool = True
+) -> str:
+    """Define the name of the shifted column.
+
+    :param original_column: the original column name
+    :param shift: the number of time steps to shift by
+    :param past_shift: whether the shift is in the past or future
+    """
+    return (
+        f"{CONST.PREVIOUS if past_shift else CONST.UPCOMING}_{original_column}_{shift}"
+    )

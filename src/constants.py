@@ -55,6 +55,11 @@ DEFAULT_PREDICTION_REGION_BUFFER = 10  # metres
 # this defines its size
 DEFAULT_NEIGHBOURHOOD_RADIUS = 100  # metres
 
+# flag to whether to use absolute values as features (e.g. distance to the signalling line) or the differences between
+# them (e.g. how much erosion has happened). We lean towards using the differences, as e.g. the signalling line can
+# move arbitrarily but the erosion remains
+DEFAULT_USE_DIFFERENCES_IN_FEATURES = True
+
 DEFAULT_USE_ONLY_CERTAIN_RIVER_BANK_POINTS = (
     True  # only use the OK data points, not the outliers
 )
@@ -73,3 +78,52 @@ RIVER_BANK_POINT_STATUS = "status"
 # column names used in the processed data
 DISTANCE_TO_EROSION_BORDER = "distance_to_erosion_border"
 DIRECTION_FACTOR = "direction_factor"
+
+DEFAULT_NUMBER_OF_LAGS = 1
+DEFAULT_NUMBER_OF_FUTURES = 1
+
+# some suffixes for creating temporary columns
+FLOAT = "float"
+AS_NUMBER = "as_number"
+
+
+class KnownColumnTypes(Enum):
+    NUMERIC = "numerical"
+    CATEGORICAL = "categorical"
+
+
+class KnownFutureFillOperations(Enum):
+    """For "know future" columns, these are the possible operations how the features evolve."""
+
+    FILL = "fill"  # propagate the last known value forever
+    INCREMENT = "increment"  # every time step (year) increment the previous value by 1
+
+
+# WFS names
+BRPGEWAS = "BrpGewas"
+BAG_PAND = "bag:pand"
+RWS_WL_BOMEN = "rws_vegetatielegger:bomen"
+RWS_WL_HEGGEN = "rws_vegetatielegger:heggen"
+RWS_WL_VEGETATIEKLASSEN = "rws_vegetatielegger:vegetatieklassen"
+RIVER_CENTERLINE = "river_centerline"  # river centerline
+
+KNOWN_CATEGORIES = {
+    f"{BRPGEWAS}_majority_class_category": ["Grasland"],
+    f"{RWS_WL_VEGETATIEKLASSEN}_majority_class_vlklasse": ["Gras en Akker"],
+}
+
+DEFAULT_UNKNOWN_CATEGORY_LABEL = -1
+
+PREVIOUS = "past"
+UPCOMING = "future"
+DIFFERENCE = "diff"
+
+TIMESTEPS_SINCE_LAST_MEASUREMENT = "timesteps_since_last_measurement"
+DEFAULT_LENGTH_OF_TIME_GAP_BETWEEN_MEASSUREMENTS = 1.0  # year
+
+DEFAULT_KNOWN_NUMERICAL_COLUMNS = [TIMESTEPS_SINCE_LAST_MEASUREMENT]
+DEFAULT_UNKNOWN_NUMERICAL_COLUMNS = [
+    DISTANCE_TO_EROSION_BORDER,
+]
+DEFAULT_KNOWN_CATEGORICAL_COLUMNS = []
+DEFAULT_UNKNOWN_CATEGORICAL_COLUMNS = []
