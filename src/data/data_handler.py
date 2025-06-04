@@ -483,6 +483,8 @@ class DataHandler:
         :param use_differences: if True, the feature is calculated as a difference between the current and the previous value
         :param known_future: a flag to see whether the future values are known (easily calculable)
         :param future_operation: if the future values are known, how to fill in the features
+
+        TODO: for the known futures, implement the future filling in - probably has to be in the model!
         """
         assert column_type in [
             col_type.value for col_type in CONST.KnownColumnTypes
@@ -550,7 +552,7 @@ class DataHandler:
         self._add_past_and_future_columns_for_feature(
             unique_grouping_id=self.config.prediction_region_id_column_name,
             source_column=temporary_column_name,
-            continuous=True,
+            is_continuous=column_type == CONST.KnownColumnTypes.NUMERIC.value,
             additional_futures=self.number_of_extra_futures,
         )
 
@@ -560,14 +562,14 @@ class DataHandler:
         self,
         unique_grouping_id: str,
         source_column: str,
-        continuous: bool,
+        is_continuous: bool,
         additional_futures: int,
     ):
         """Add all the lag and future columns for a particular feature by shifting the existing ones.
 
         :param unique_grouping_id: the name of the region
         :param source_column: the dataframe column to shift
-        :param continuous: if True, the resulting column is continuous - for the purposes of recording
+        :param is_continuous: if True, the resulting column is continuous - for the purposes of recording
            which columns to scale
         :param additional_futures: the number of additional future shifts (w.r.t. to the number from the config) that
            are to be added to the lagged features
@@ -578,7 +580,7 @@ class DataHandler:
                 source_column,
                 lag,
                 past_shift=True,
-                continuous=continuous,
+                is_continuous=is_continuous,
             )
 
         for future in range(1, self.config.number_of_futures + 1 + additional_futures):
@@ -587,7 +589,7 @@ class DataHandler:
                 source_column,
                 future,
                 past_shift=False,
-                continuous=continuous,
+                is_continuous=is_continuous,
             )
 
     def _add_shifted_column(
@@ -596,7 +598,7 @@ class DataHandler:
         original_column: str,
         shift: int,
         past_shift=True,
-        continuous=True,
+        is_continuous=True,
     ):
         """Add a shifted version of a column from processed data to the features.
 
@@ -605,7 +607,7 @@ class DataHandler:
         :param shift: the number of steps to shift the column by
         :param past_shift: if True, shift the column to the past
                            (downwards, otherwise to the future (upwards)
-        :param continuous: if True, the resulting column is continuous
+        :param is_continuous: if True, the resulting column is continuous
                            and should be scaled, otherwise categorical, to be embedded
         """
         new_column_name = UTILS.generate_shifted_column_name(
@@ -620,9 +622,9 @@ class DataHandler:
         )
         self.columns_added_in_feature_creation[
             (
-                CONST.NUMERICAL_COLUMNS_KEY
-                if continuous
-                else CONST.CATEGORICAL_COLUMNS_KEY
+                CONST.KnownColumnTypes.NUMERIC.value
+                if is_continuous
+                else CONST.KnownColumnTypes.CATEGORICAL.value
             )
         ].append(new_column_name)
 

@@ -88,7 +88,7 @@ AS_NUMBER = "as_number"
 
 
 class KnownColumnTypes(Enum):
-    NUMERIC = "numeric"
+    NUMERIC = "numerical"
     CATEGORICAL = "categorical"
 
 
@@ -113,9 +113,6 @@ KNOWN_CATEGORIES = {
 }
 
 DEFAULT_UNKNOWN_CATEGORY_LABEL = -1
-
-NUMERICAL_COLUMNS_KEY = "numerical"
-CATEGORICAL_COLUMNS_KEY = "categorical"
 
 PREVIOUS = "past"
 UPCOMING = "future"

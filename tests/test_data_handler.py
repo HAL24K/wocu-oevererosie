@@ -378,9 +378,30 @@ def test_generate_features_with_remote_data(
     assert data_handler.erosion_features is None
 
     data_handler.create_data_from_remote()
+
+    number_of_original_processed_columns = len(
+        data_handler.processed_erosion_data.columns
+    )
+
     data_handler.add_remote_data_to_processed()
+    number_of_processed_columns_with_remote_data = len(
+        data_handler.processed_erosion_data.columns
+    )
+
+    assert (
+        number_of_processed_columns_with_remote_data
+        > number_of_original_processed_columns
+    )
 
     data_handler.generate_erosion_features()
 
-    # TODO: finish the test
-    print("bla")
+    # make sure that all column types are included in this test data
+    for column_type in CONST.KnownColumnTypes:
+        assert (
+            column_type.value in data_handler.columns_added_in_feature_creation.keys()
+        )
+
+    # make sure that the columns we have logged as added realyl exist
+    assert len(data_handler.erosion_features.columns) == sum(
+        [len(cols) for cols in data_handler.columns_added_in_feature_creation.values()]
+    )
