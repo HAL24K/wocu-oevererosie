@@ -48,7 +48,9 @@ class DataHandler:
         self.erosion_features_complete = None
         self.erosion_features = None
 
-        self.columns_added_in_feature_creation = {column_type.value: [] for column_type in CONST.KnownColumnTypes}
+        self.columns_added_in_feature_creation = {
+            column_type.value: [] for column_type in CONST.KnownColumnTypes
+        }
 
         # TODO: define this correctly
         logger.warning(
@@ -292,7 +294,9 @@ class DataHandler:
 
         # TODO: here we glue the old and the new features next to each other, ignoring the order. It **should** work
         #   due to the for loop but should replace this with a proper merge
-        self.scope_region_features = pd.concat([self.scope_region_features, wfs_features], axis=1)
+        self.scope_region_features = pd.concat(
+            [self.scope_region_features, wfs_features], axis=1
+        )
 
         self.remote_data_downloaded = True
 
@@ -516,15 +520,19 @@ class DataHandler:
         elif CONST.CATEGORICAL in column_type:
             try:
                 ordered_categories = CONST.KNOWN_CATEGORIES[column]
-                ordered_categories = {element: i for i, element in enumerate(ordered_categories)}
+                ordered_categories = {
+                    element: i for i, element in enumerate(ordered_categories)
+                }
             except KeyError:
                 raise KeyError(
                     f"Unknown categories for {column}, please define them first."
                 )
 
-            self.processed_erosion_data[temporary_column_name] = (
-                self.processed_erosion_data[column].map(
-                    lambda x: ordered_categories.get(x, CONST.DEFAULT_UNKNOWN_CATEGORY_LABEL)
+            self.processed_erosion_data[
+                temporary_column_name
+            ] = self.processed_erosion_data[column].map(
+                lambda x: ordered_categories.get(
+                    x, CONST.DEFAULT_UNKNOWN_CATEGORY_LABEL
                 )
             )
 
@@ -617,6 +625,10 @@ class DataHandler:
         )
         self.columns_added_in_feature_creation[column_type].append(new_column_name)
 
-    def generate_targets(self):
-        """If needed (for training), add targets to the existing features."""
-        raise NotImplementedError
+    def generate_pytorch_features(self):
+        """Transform the existing feature dataframe into a pytorch dataset."""
+        if self.erosion_features is None:
+            logger.warning(
+                "No erosion features present, please generate them first using generate_erosion_features()."
+            )
+            return
