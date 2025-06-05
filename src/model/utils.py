@@ -33,7 +33,7 @@ class LinearModule(nn.Module):
         out_features: int,
         hidden_layer_sizes: list[int],
         use_batch_norm: bool = CONST.DEFAULT_USE_BATCH_NORMALIZATION,
-        dropout: float = CONST.DEFAULT_LINEAR_DROPOUT,
+        dropout: float = CONST.DEFAULT_DROPOUT,
         nonlinearity_function: callable = CONST.DEFAULT_NONLINEARITY_FUNCTION,
     ):
         super().__init__()
