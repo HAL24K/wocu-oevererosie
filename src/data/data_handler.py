@@ -11,6 +11,7 @@ import src.constants as CONST
 import src.utils as UTILS
 import src.data.config as DATA_CONFIG
 import src.data.data_collector as DC
+import src.data.custom_pytorch_dataset as CPD
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -469,6 +470,15 @@ class DataHandler:
         if len(self.erosion_features) == 0:
             logger.warning("No data left after dropping NaNs.")
 
+    @staticmethod
+    def _prepare_feature_column_name_root(column: str, column_type: str) -> str:
+        """Prepare the root name for the feature column.
+
+        :param column: the name of the column in the processed data
+        :return: a string with the root name of the feature column
+        """
+        return f"{column}_{CONST.FLOAT if CONST.NUMERIC in column_type else CONST.AS_NUMBER}"
+
     def _prepare_single_feature(
         self,
         column: str,
@@ -503,7 +513,9 @@ class DataHandler:
             ], f"Unknown future operation {future_operation} for column {column}."
 
         # make sure that you don't overwrite the existing column
-        temporary_column_name = f"{column}_{CONST.FLOAT if CONST.NUMERIC in column_type else CONST.AS_NUMBER}"
+        temporary_column_name = self._prepare_feature_column_name_root(
+            column, column_type
+        )
         if use_differences:
             temporary_column_name = f"{CONST.DIFFERENCE}_{temporary_column_name}"
 
@@ -632,3 +644,57 @@ class DataHandler:
                 "No erosion features present, please generate them first using generate_erosion_features()."
             )
             return
+
+        data = {}
+
+        for column_type in CONST.KnownColumnTypes:
+            data[column_type.value] = self.prepare_feature_array(
+                column_type=column_type.value
+            )
+
+        self.pytorch_dataset = CPD.PytorchDataset(data)
+
+    def prepare_feature_array(self, column_type: str):
+        """Prepare the feature array for the pytorch dataset."""
+        known_column_types = [col_type.value for col_type in CONST.KnownColumnTypes]
+        assert (
+            column_type in known_column_types
+        ), f"Unknown column type {column_type}, pick one of {known_column_types}."
+
+        feature_values = []
+        for column in getattr(self.config, f"{column_type}_columns"):
+            feature_column_root = self._prepare_feature_column_name_root(column)
+
+            single_feature_values = []
+            for lag in range(self.config.number_of_lags - 1, 0, -1):
+                # we start with the last lag and go backwards, so that the first lag is the most recent one
+                feature_column_name = UTILS.generate_shifted_column_name(
+                    feature_column_root, lag, past_shift=True
+                )
+                single_feature_values.append(
+                    self.erosion_features[feature_column_name].values[:, np.newaxis]
+                )
+
+            for future in range(
+                1, self.config.number_of_futures + 1 + self.number_of_extra_futures
+            ):
+                # we start with the first future and go forwards, so that the first future is the most recent one
+                feature_column_name = UTILS.generate_shifted_column_name(
+                    feature_column_root, future, past_shift=False
+                )
+                single_feature_values.append(
+                    self.erosion_features[feature_column_name].values[:, np.newaxis]
+                )
+
+            single_feature_values = np.concatenate(single_feature_values, axis=1)[
+                :, :, np.newaxis
+            ]
+
+            # if CONST.NUMERIC in column_type:
+            # scale the values
+
+            feature_values.append(single_feature_values)
+
+        feature_values = np.concatenate(feature_values, axis=2)
+
+        return feature_values
