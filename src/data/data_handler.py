@@ -6,12 +6,9 @@ import pandas as pd
 import geopandas as gpd
 import shapely.geometry.base
 from shapely.geometry import LineString
-from collections import defaultdict
 
 import src.constants as CONST
 import src.utils as UTILS
-import src.config as CONFIG
-import src.data.schema_wfs_service as SWS
 import src.data.config as DATA_CONFIG
 import src.data.data_collector as DC
 
@@ -51,7 +48,7 @@ class DataHandler:
         self.erosion_features_complete = None
         self.erosion_features = None
 
-        self.columns_added_in_feature_creation = defaultdict(list)
+        self.columns_added_in_feature_creation = {column_type.value: [] for column_type in CONST.KnownColumnTypes}
 
         # TODO: define this correctly
         logger.warning(
@@ -422,7 +419,7 @@ class DataHandler:
             # TODO: things like the time since last operation is already a diff in the processed data, how to handle this here?
             self._prepare_single_feature(
                 column,
-                CONST.KnownColumnTypes.NUMERIC.value,
+                CONST.KnownColumnTypes.KNOWN_NUMERIC.value,
                 use_differences=False,
                 known_future=True,
             )
@@ -430,7 +427,7 @@ class DataHandler:
         for column in self.config.unknown_numerical_columns:
             self._prepare_single_feature(
                 column,
-                CONST.KnownColumnTypes.NUMERIC.value,
+                CONST.KnownColumnTypes.UNKNOWN_NUMERIC.value,
                 use_differences=self.config.use_differences_in_features,
                 known_future=False,
             )
@@ -439,14 +436,14 @@ class DataHandler:
             # TODO: define how to pass the future operation
             self._prepare_single_feature(
                 column,
-                CONST.KnownColumnTypes.CATEGORICAL.value,
+                CONST.KnownColumnTypes.KNOWN_CATEGORICAL.value,
                 known_future=True,
             )
 
         for column in self.config.unknown_categorical_columns:
             self._prepare_single_feature(
                 column,
-                CONST.KnownColumnTypes.CATEGORICAL.value,
+                CONST.KnownColumnTypes.UNKNOWN_CATEGORICAL.value,
                 known_future=False,
             )
 
@@ -490,7 +487,7 @@ class DataHandler:
             col_type.value for col_type in CONST.KnownColumnTypes
         ], f"Unknown column type {column_type} for column {column}."
 
-        if use_differences and column_type != CONST.KnownColumnTypes.NUMERIC.value:
+        if use_differences and CONST.NUMERIC not in column_type:
             logger.warning(
                 f"The `use_differences` feature only works for numeric columns. "
                 f"You are trying to use it for {column_type} column {column}, where it will have no effect."
@@ -502,11 +499,11 @@ class DataHandler:
             ], f"Unknown future operation {future_operation} for column {column}."
 
         # make sure that you don't overwrite the existing column
-        temporary_column_name = f"{column}_{CONST.FLOAT if column_type == CONST.KnownColumnTypes.NUMERIC.value else CONST.AS_NUMBER}"
+        temporary_column_name = f"{column}_{CONST.FLOAT if CONST.NUMERIC in column_type else CONST.AS_NUMBER}"
         if use_differences:
             temporary_column_name = f"{CONST.DIFFERENCE}_{temporary_column_name}"
 
-        if column_type == CONST.KnownColumnTypes.NUMERIC.value:
+        if CONST.NUMERIC in column_type:
             self.processed_erosion_data[temporary_column_name] = (
                 self.processed_erosion_data[column].astype(float)
             )
@@ -516,7 +513,7 @@ class DataHandler:
                         self.config.prediction_region_id_column_name
                     )[temporary_column_name].diff()
                 )
-        elif column_type == CONST.KnownColumnTypes.CATEGORICAL.value:
+        elif CONST.CATEGORICAL in column_type:
             try:
                 ordered_categories = CONST.KNOWN_CATEGORIES[column]
                 ordered_categories = {element: i for i, element in enumerate(ordered_categories)}
@@ -552,7 +549,7 @@ class DataHandler:
         self._add_past_and_future_columns_for_feature(
             unique_grouping_id=self.config.prediction_region_id_column_name,
             source_column=temporary_column_name,
-            is_continuous=column_type == CONST.KnownColumnTypes.NUMERIC.value,
+            column_type=column_type,
             additional_futures=self.number_of_extra_futures,
         )
 
@@ -562,15 +559,14 @@ class DataHandler:
         self,
         unique_grouping_id: str,
         source_column: str,
-        is_continuous: bool,
+        column_type: str,
         additional_futures: int,
     ):
         """Add all the lag and future columns for a particular feature by shifting the existing ones.
 
         :param unique_grouping_id: the name of the region
         :param source_column: the dataframe column to shift
-        :param is_continuous: if True, the resulting column is continuous - for the purposes of recording
-           which columns to scale
+        :param column_type: the type of the column, defined in CONST.KnownColumnTypes
         :param additional_futures: the number of additional future shifts (w.r.t. to the number from the config) that
            are to be added to the lagged features
         """
@@ -578,37 +574,36 @@ class DataHandler:
             self._add_shifted_column(
                 unique_grouping_id,
                 source_column,
+                column_type,
                 lag,
                 past_shift=True,
-                is_continuous=is_continuous,
             )
 
         for future in range(1, self.config.number_of_futures + 1 + additional_futures):
             self._add_shifted_column(
                 unique_grouping_id,
                 source_column,
+                column_type,
                 future,
                 past_shift=False,
-                is_continuous=is_continuous,
             )
 
     def _add_shifted_column(
         self,
         grouping: str,
         original_column: str,
+        column_type: str,
         shift: int,
         past_shift=True,
-        is_continuous=True,
     ):
         """Add a shifted version of a column from processed data to the features.
 
         :param grouping: what to group the data by
         :param original_column: the column from processed_data to shift
+        :param column_type: the type of the column, defined in CONST.KnownColumnTypes
         :param shift: the number of steps to shift the column by
         :param past_shift: if True, shift the column to the past
                            (downwards, otherwise to the future (upwards)
-        :param is_continuous: if True, the resulting column is continuous
-                           and should be scaled, otherwise categorical, to be embedded
         """
         new_column_name = UTILS.generate_shifted_column_name(
             original_column, shift, past_shift
@@ -620,13 +615,7 @@ class DataHandler:
                 shift if past_shift else -shift
             )
         )
-        self.columns_added_in_feature_creation[
-            (
-                CONST.KnownColumnTypes.NUMERIC.value
-                if is_continuous
-                else CONST.KnownColumnTypes.CATEGORICAL.value
-            )
-        ].append(new_column_name)
+        self.columns_added_in_feature_creation[column_type].append(new_column_name)
 
     def generate_targets(self):
         """If needed (for training), add targets to the existing features."""

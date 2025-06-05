@@ -401,7 +401,7 @@ def test_generate_features_with_remote_data(
             column_type.value in data_handler.columns_added_in_feature_creation.keys()
         )
 
-    # make sure that the columns we have logged as added realyl exist
+    # make sure that the columns we have logged as added really exist
     assert len(data_handler.erosion_features.columns) == sum(
         [len(cols) for cols in data_handler.columns_added_in_feature_creation.values()]
     )

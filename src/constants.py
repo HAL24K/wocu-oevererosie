@@ -90,9 +90,17 @@ FLOAT = "float"
 AS_NUMBER = "as_number"
 
 
+NUMERIC = "numerical"
+CATEGORICAL = "categorical"
+KNOWN = "known"
+UNKNOWN = "unknown"  # these are what we nominally predict
+
+
 class KnownColumnTypes(Enum):
-    NUMERIC = "numerical"
-    CATEGORICAL = "categorical"
+    KNOWN_NUMERIC = f"{KNOWN}_{NUMERIC}"
+    KNOWN_CATEGORICAL = f"{KNOWN}_{CATEGORICAL}"
+    UNKNOWN_NUMERIC = f"{UNKNOWN}_{NUMERIC}"  # these are what we nominally predict
+    UNKNOWN_CATEGORICAL = f"{UNKNOWN}_{CATEGORICAL}"  # TODO: these should not appear but later we might include
 
 
 class KnownFutureFillOperations(Enum):
