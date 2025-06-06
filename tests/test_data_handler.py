@@ -405,3 +405,58 @@ def test_generate_features_with_remote_data(
     assert len(data_handler.erosion_features.columns) == sum(
         [len(cols) for cols in data_handler.columns_added_in_feature_creation.values()]
     )
+
+
+def test_scale_values():
+    """Test the scaling of arrays."""
+    unscaled_data = 10 * np.random.rand(3, 4, 5)
+
+    low = np.min(unscaled_data)
+    high = np.max(unscaled_data)
+
+    scaled_data = DH.DataHandler.scale_values(unscaled_data, low, high)
+    inverse_scaled_data = DH.DataHandler.scale_values(
+        scaled_data, low, high, inverse=True
+    )
+
+    # don't change the shape of the data
+    assert unscaled_data.shape == scaled_data.shape
+    assert scaled_data.shape == inverse_scaled_data.shape
+
+    # make sure the scaling and the inverse scaling work correctly
+    assert np.allclose(unscaled_data, inverse_scaled_data)
+
+    # make sure that the scaling as we set it up squishes the values as expected
+    assert np.all(scaled_data >= 0)
+    assert np.all(scaled_data <= 1)
+
+
+def test_create_scaling_values(
+    default_data_configuration,
+    prediction_regions_for_test,
+    local_enrichment_geodata,
+    erosion_data_for_test,
+    real_erosion_border,
+):
+    """Test that the scaling values are calcualted correctly."""
+    data_handler = DH.DataHandler(
+        config=default_data_configuration,
+        prediction_regions=prediction_regions_for_test,
+        local_data_for_enrichment=local_enrichment_geodata,
+        erosion_data=erosion_data_for_test,
+        erosion_border=real_erosion_border,
+    )
+
+    data_handler.process_erosion_features()
+    data_handler.generate_erosion_features()
+
+    assert isinstance(data_handler.scaler_parameters, dict)
+    assert len(data_handler.scaler_parameters) == 0
+
+    column = default_data_configuration.unknown_numerical_columns[0]
+    column_type = CONST.KnownColumnTypes.UNKNOWN_NUMERIC.value
+
+    data_handler.calculate_scaler_parameters(column, column_type)
+
+    assert len(data_handler.scaler_parameters) == 1
+    assert column in data_handler.scaler_parameters

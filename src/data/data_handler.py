@@ -44,6 +44,8 @@ class DataHandler:
         self.raw_erosion_data = erosion_data
         self.erosion_border = erosion_border
         self.scaler_parameters = scaler_parameters
+        if self.scaler_parameters is None:
+            self.scaler_parameters = {}
 
         # TODO: we assume the features always start here - maybe there is a more elegant way of doing it
         self.scope_region_features = self.prediction_regions.copy()
@@ -473,14 +475,21 @@ class DataHandler:
         if len(self.erosion_features) == 0:
             logger.warning("No data left after dropping NaNs.")
 
-    @staticmethod
-    def _prepare_feature_column_name_root(column: str, column_type: str) -> str:
+    def _prepare_feature_column_name_root(self, column: str, column_type: str) -> str:
         """Prepare the root name for the feature column.
 
         :param column: the name of the column in the processed data
         :return: a string with the root name of the feature column
         """
-        return f"{column}_{CONST.FLOAT if CONST.NUMERIC in column_type else CONST.AS_NUMBER}"
+        return_name = f"{column}_{CONST.FLOAT if CONST.NUMERIC in column_type else CONST.AS_NUMBER}"
+
+        if (
+            self.config.use_differences_in_features
+            and column_type == CONST.KnownColumnTypes.UNKNOWN_NUMERIC.value
+        ):
+            return_name = f"{CONST.DIFFERENCE}_{return_name}"
+
+        return return_name
 
     def _prepare_single_feature(
         self,
@@ -519,8 +528,6 @@ class DataHandler:
         temporary_column_name = self._prepare_feature_column_name_root(
             column, column_type
         )
-        if use_differences:
-            temporary_column_name = f"{CONST.DIFFERENCE}_{temporary_column_name}"
 
         if CONST.NUMERIC in column_type:
             self.processed_erosion_data[temporary_column_name] = (
@@ -697,7 +704,7 @@ class DataHandler:
                 # scale the values
                 if column not in self.scaler_parameters.keys():
                     self.scaler_parameters[column] = self.calculate_scaler_parameters(
-                        column
+                        column, column_type
                     )
 
                 lo_scaling, hi_scaling = self.scaler_parameters[column]
@@ -711,14 +718,14 @@ class DataHandler:
 
         return feature_values
 
-    def calculate_scaler_parameters(self, column: str) -> tuple:
+    def calculate_scaler_parameters(self, column: str, column_type: str):
         """Calculate the scaler parameters for a given column.
 
         Specifically, at the moment we calculate the min and max values of the column, for the minmax scaling.
         """
         # the internal column name is the name of the "present" feature
         internal_column_name = self._prepare_feature_column_name_root(
-            column, CONST.FLOAT
+            column, column_type
         )
         internal_column_name = UTILS.generate_shifted_column_name(
             internal_column_name, 0, past_shift=True
@@ -727,7 +734,7 @@ class DataHandler:
         low = self.erosion_features[internal_column_name].min()
         high = self.erosion_features[internal_column_name].max()
 
-        return (low, high)
+        self.scaler_parameters[column] = (low, high)
 
     @staticmethod
     def scale_values(
