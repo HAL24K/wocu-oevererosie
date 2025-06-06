@@ -27,6 +27,7 @@ class DataHandler:
         local_data_for_enrichment: dict[str, gpd.GeoDataFrame] = None,
         erosion_data: gpd.GeoDataFrame = None,
         erosion_border: LineString = None,
+        scaler_parameters: dict = None,
     ):
         """Initialise the object.
 
@@ -35,12 +36,14 @@ class DataHandler:
         :param local_data_for_enrichment: a dictionary with geodataframes with the local data to enrich the erosion data with.
         :param erosion_data: a geodataframe with the erosion data to calculate targets (if required)
         :param erosion_border: a linestring with how far the erosion can proceed
+        :param scaler_parameters: a dictionary with the parameters for the scaler, if any. If None, gets calculated from the data.
         """
         self.config = config
         self.prediction_regions = prediction_regions
         self.raw_enrichment_geospatial_data = local_data_for_enrichment
         self.raw_erosion_data = erosion_data
         self.erosion_border = erosion_border
+        self.scaler_parameters = scaler_parameters
 
         # TODO: we assume the features always start here - maybe there is a more elegant way of doing it
         self.scope_region_features = self.prediction_regions.copy()
@@ -690,11 +693,55 @@ class DataHandler:
                 :, :, np.newaxis
             ]
 
-            # if CONST.NUMERIC in column_type:
-            # scale the values
+            if CONST.NUMERIC in column_type:
+                # scale the values
+                if column not in self.scaler_parameters.keys():
+                    self.scaler_parameters[column] = self.calculate_scaler_parameters(
+                        column
+                    )
+
+                lo_scaling, hi_scaling = self.scaler_parameters[column]
+                single_feature_values = self.scale_values(
+                    single_feature_values, lo_scaling, hi_scaling, inverse=False
+                )
 
             feature_values.append(single_feature_values)
 
         feature_values = np.concatenate(feature_values, axis=2)
 
         return feature_values
+
+    def calculate_scaler_parameters(self, column: str) -> tuple:
+        """Calculate the scaler parameters for a given column.
+
+        Specifically, at the moment we calculate the min and max values of the column, for the minmax scaling.
+        """
+        # the internal column name is the name of the "present" feature
+        internal_column_name = self._prepare_feature_column_name_root(
+            column, CONST.FLOAT
+        )
+        internal_column_name = UTILS.generate_shifted_column_name(
+            internal_column_name, 0, past_shift=True
+        )
+
+        low = self.erosion_features[internal_column_name].min()
+        high = self.erosion_features[internal_column_name].max()
+
+        return (low, high)
+
+    @staticmethod
+    def scale_values(
+        input_array: np.array, lower_bound, upper_bound, inverse: bool = False
+    ) -> np.array:
+        """Scale the values in the input array using the scaler parameters.
+
+        :param input_array: the input array to scale
+        :param lower_bound: the lower bound of the scaling
+        :param upper_bound: the upper bound of the scaling
+        :param inverse: if True, scale the values back to the original range
+        :return: the scaled values
+        """
+        if inverse:
+            return input_array * (upper_bound - lower_bound) + lower_bound
+        else:
+            return (input_array - lower_bound) / (upper_bound - lower_bound)
