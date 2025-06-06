@@ -7,12 +7,14 @@ import numpy as np
 import pandas as pd
 import pytest
 import geopandas as gpd
+import torch
 from shapely.geometry import LineString, Point
 
 import src.data.data_handler as DH
 import src.paths as PATHS
 import src.data.config as DATA_CONFIG
 import src.constants as CONST
+import src.data.custom_pytorch_dataset as CPD
 from conftest import real_erosion_border, default_data_configuration
 
 
@@ -460,3 +462,58 @@ def test_create_scaling_values(
 
     assert len(data_handler.scaler_parameters) == 1
     assert column in data_handler.scaler_parameters
+
+
+def test_pytorch_feature_creation(
+    default_data_configuration,
+    prediction_regions_for_test,
+    erosion_data_for_test,
+    local_enrichment_geodata,
+    real_erosion_border,
+    caplog,
+):
+    """Test the enrichment of the data with remote data."""
+    data_configuration = default_data_configuration
+    data_configuration.known_categorical_columns = [
+        "BrpGewas_majority_class_category",
+        "rws_vegetatielegger:vegetatieklassen_majority_class_vlklasse",
+    ]
+
+    data_handler = DH.DataHandler(
+        config=data_configuration,
+        prediction_regions=prediction_regions_for_test,
+        local_data_for_enrichment=local_enrichment_geodata,
+        erosion_data=erosion_data_for_test,
+        erosion_border=real_erosion_border,
+    )
+
+    data_handler.process_erosion_features()
+    data_handler.create_data_from_remote()
+    data_handler.add_remote_data_to_processed()
+    data_handler.generate_erosion_features()
+
+    assert data_handler.pytorch_dataset is None
+
+    data_handler.generate_pytorch_features()
+
+    assert isinstance(data_handler.pytorch_dataset, CPD.PytorchDataset)
+
+    random_index = np.random.randint(0, len(data_handler.pytorch_dataset))
+    random_sample = data_handler.pytorch_dataset[random_index]
+
+    assert isinstance(random_sample, dict)
+
+    for feature_type in CONST.KnownColumnTypes:
+        sample_part = random_sample.get(feature_type.value, None)
+
+        if sample_part is not None:
+            assert isinstance(sample_part, torch.Tensor)
+            assert sample_part.ndim == 2
+            assert (
+                sample_part.shape[0]
+                == data_configuration.number_of_lags
+                + data_configuration.number_of_futures
+            )
+            assert sample_part.shape[1] == len(
+                getattr(data_configuration, f"{feature_type.value}_columns")
+            )

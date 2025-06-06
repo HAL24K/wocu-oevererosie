@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import geopandas as gpd
 import shapely.geometry.base
+import torch
 from shapely.geometry import LineString
 
 import src.constants as CONST
@@ -67,6 +68,8 @@ class DataHandler:
         # track the remote status
         self.remote_data_downloaded = False
         self.remote_features_added = False
+
+        self.pytorch_dataset = None
 
     def process_erosion_features(self, reload=False):
         """Process the erosion features into a usable format.
@@ -658,13 +661,15 @@ class DataHandler:
         data = {}
 
         for column_type in CONST.KnownColumnTypes:
-            data[column_type.value] = self.prepare_feature_array(
-                column_type=column_type.value
-            )
+            feature_array = self.prepare_feature_array(column_type=column_type.value)
+            if feature_array is None:
+                continue
+
+            data[column_type.value] = feature_array
 
         self.pytorch_dataset = CPD.PytorchDataset(data)
 
-    def prepare_feature_array(self, column_type: str):
+    def prepare_feature_array(self, column_type: str) -> torch.Tensor:
         """Prepare the feature array for the pytorch dataset."""
         known_column_types = [col_type.value for col_type in CONST.KnownColumnTypes]
         assert (
@@ -673,10 +678,12 @@ class DataHandler:
 
         feature_values = []
         for column in getattr(self.config, f"{column_type}_columns"):
-            feature_column_root = self._prepare_feature_column_name_root(column)
+            feature_column_root = self._prepare_feature_column_name_root(
+                column, column_type
+            )
 
             single_feature_values = []
-            for lag in range(self.config.number_of_lags - 1, 0, -1):
+            for lag in range(self.config.number_of_lags - 1, -1, -1):
                 # we start with the last lag and go backwards, so that the first lag is the most recent one
                 feature_column_name = UTILS.generate_shifted_column_name(
                     feature_column_root, lag, past_shift=True
@@ -703,9 +710,7 @@ class DataHandler:
             if CONST.NUMERIC in column_type:
                 # scale the values
                 if column not in self.scaler_parameters.keys():
-                    self.scaler_parameters[column] = self.calculate_scaler_parameters(
-                        column, column_type
-                    )
+                    self.calculate_scaler_parameters(column, column_type)
 
                 lo_scaling, hi_scaling = self.scaler_parameters[column]
                 single_feature_values = self.scale_values(
@@ -714,9 +719,13 @@ class DataHandler:
 
             feature_values.append(single_feature_values)
 
+        if not feature_values:
+            # no column of a given type exists
+            return None
+
         feature_values = np.concatenate(feature_values, axis=2)
 
-        return feature_values
+        return UTILS.make_float_array_into_torch_tensor(feature_values)
 
     def calculate_scaler_parameters(self, column: str, column_type: str):
         """Calculate the scaler parameters for a given column.
