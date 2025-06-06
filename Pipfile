@@ -9,6 +9,8 @@ pyproj = "*"
 geopandas = "*"
 owslib = "*"
 pydantic = "*"
+torch = "*"
+lightning = "*"
 
 [dev-packages]
 pytest = "*"

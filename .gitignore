@@ -52,7 +52,7 @@ Thumbs.db
 *.sav
 
 # Large raw or intermediate files
-data/
+/data/
 *.tmp
 
 # Results or output directories

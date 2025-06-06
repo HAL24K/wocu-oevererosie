@@ -5,6 +5,7 @@ import logging
 import pyproj
 import numpy as np
 import re
+import torch
 
 from shapely.ops import transform
 from shapely.geometry.base import BaseGeometry
@@ -302,3 +303,16 @@ def generate_shifted_column_name(
     return (
         f"{CONST.PREVIOUS if past_shift else CONST.UPCOMING}_{original_column}_{shift}"
     )
+
+
+def make_float_array_into_torch_tensor(
+    array: np.array, dtype: torch.dtype = CONST.DEFAULT_TORCH_FLOAT_TYPE
+) -> torch.Tensor:
+    """Make an array into a torch tensor.
+
+    :param array: the array to convert
+    :type array: np.array
+    :param dtype: the dtype to convert to (default is torch.float32)
+    :type dtype: torch.dtype
+    """
+    return torch.tensor(array, dtype=dtype)

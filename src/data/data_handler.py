@@ -5,15 +5,14 @@ import numpy as np
 import pandas as pd
 import geopandas as gpd
 import shapely.geometry.base
+import torch
 from shapely.geometry import LineString
-from collections import defaultdict
 
 import src.constants as CONST
 import src.utils as UTILS
-import src.config as CONFIG
-import src.data.schema_wfs_service as SWS
 import src.data.config as DATA_CONFIG
 import src.data.data_collector as DC
+import src.data.custom_pytorch_dataset as CPD
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -29,6 +28,7 @@ class DataHandler:
         local_data_for_enrichment: dict[str, gpd.GeoDataFrame] = None,
         erosion_data: gpd.GeoDataFrame = None,
         erosion_border: LineString = None,
+        scaler_parameters: dict = None,
     ):
         """Initialise the object.
 
@@ -37,12 +37,16 @@ class DataHandler:
         :param local_data_for_enrichment: a dictionary with geodataframes with the local data to enrich the erosion data with.
         :param erosion_data: a geodataframe with the erosion data to calculate targets (if required)
         :param erosion_border: a linestring with how far the erosion can proceed
+        :param scaler_parameters: a dictionary with the parameters for the scaler, if any. If None, gets calculated from the data.
         """
         self.config = config
         self.prediction_regions = prediction_regions
         self.raw_enrichment_geospatial_data = local_data_for_enrichment
         self.raw_erosion_data = erosion_data
         self.erosion_border = erosion_border
+        self.scaler_parameters = scaler_parameters
+        if self.scaler_parameters is None:
+            self.scaler_parameters = {}
 
         # TODO: we assume the features always start here - maybe there is a more elegant way of doing it
         self.scope_region_features = self.prediction_regions.copy()
@@ -51,7 +55,9 @@ class DataHandler:
         self.erosion_features_complete = None
         self.erosion_features = None
 
-        self.columns_added_in_feature_creation = defaultdict(list)
+        self.columns_added_in_feature_creation = {
+            column_type.value: [] for column_type in CONST.KnownColumnTypes
+        }
 
         # TODO: define this correctly
         logger.warning(
@@ -62,6 +68,8 @@ class DataHandler:
         # track the remote status
         self.remote_data_downloaded = False
         self.remote_features_added = False
+
+        self.pytorch_dataset = None
 
     def process_erosion_features(self, reload=False):
         """Process the erosion features into a usable format.
@@ -295,7 +303,9 @@ class DataHandler:
 
         # TODO: here we glue the old and the new features next to each other, ignoring the order. It **should** work
         #   due to the for loop but should replace this with a proper merge
-        self.scope_region_features = pd.concat([self.scope_region_features, wfs_features], axis=1)
+        self.scope_region_features = pd.concat(
+            [self.scope_region_features, wfs_features], axis=1
+        )
 
         self.remote_data_downloaded = True
 
@@ -422,7 +432,7 @@ class DataHandler:
             # TODO: things like the time since last operation is already a diff in the processed data, how to handle this here?
             self._prepare_single_feature(
                 column,
-                CONST.KnownColumnTypes.NUMERIC.value,
+                CONST.KnownColumnTypes.KNOWN_NUMERIC.value,
                 use_differences=False,
                 known_future=True,
             )
@@ -430,7 +440,7 @@ class DataHandler:
         for column in self.config.unknown_numerical_columns:
             self._prepare_single_feature(
                 column,
-                CONST.KnownColumnTypes.NUMERIC.value,
+                CONST.KnownColumnTypes.UNKNOWN_NUMERIC.value,
                 use_differences=self.config.use_differences_in_features,
                 known_future=False,
             )
@@ -439,14 +449,14 @@ class DataHandler:
             # TODO: define how to pass the future operation
             self._prepare_single_feature(
                 column,
-                CONST.KnownColumnTypes.CATEGORICAL.value,
+                CONST.KnownColumnTypes.KNOWN_CATEGORICAL.value,
                 known_future=True,
             )
 
         for column in self.config.unknown_categorical_columns:
             self._prepare_single_feature(
                 column,
-                CONST.KnownColumnTypes.CATEGORICAL.value,
+                CONST.KnownColumnTypes.UNKNOWN_CATEGORICAL.value,
                 known_future=False,
             )
 
@@ -467,6 +477,22 @@ class DataHandler:
 
         if len(self.erosion_features) == 0:
             logger.warning("No data left after dropping NaNs.")
+
+    def _prepare_feature_column_name_root(self, column: str, column_type: str) -> str:
+        """Prepare the root name for the feature column.
+
+        :param column: the name of the column in the processed data
+        :return: a string with the root name of the feature column
+        """
+        return_name = f"{column}_{CONST.FLOAT if CONST.NUMERIC in column_type else CONST.AS_NUMBER}"
+
+        if (
+            self.config.use_differences_in_features
+            and column_type == CONST.KnownColumnTypes.UNKNOWN_NUMERIC.value
+        ):
+            return_name = f"{CONST.DIFFERENCE}_{return_name}"
+
+        return return_name
 
     def _prepare_single_feature(
         self,
@@ -490,7 +516,7 @@ class DataHandler:
             col_type.value for col_type in CONST.KnownColumnTypes
         ], f"Unknown column type {column_type} for column {column}."
 
-        if use_differences and column_type != CONST.KnownColumnTypes.NUMERIC.value:
+        if use_differences and CONST.NUMERIC not in column_type:
             logger.warning(
                 f"The `use_differences` feature only works for numeric columns. "
                 f"You are trying to use it for {column_type} column {column}, where it will have no effect."
@@ -502,11 +528,11 @@ class DataHandler:
             ], f"Unknown future operation {future_operation} for column {column}."
 
         # make sure that you don't overwrite the existing column
-        temporary_column_name = f"{column}_{CONST.FLOAT if column_type == CONST.KnownColumnTypes.NUMERIC.value else CONST.AS_NUMBER}"
-        if use_differences:
-            temporary_column_name = f"{CONST.DIFFERENCE}_{temporary_column_name}"
+        temporary_column_name = self._prepare_feature_column_name_root(
+            column, column_type
+        )
 
-        if column_type == CONST.KnownColumnTypes.NUMERIC.value:
+        if CONST.NUMERIC in column_type:
             self.processed_erosion_data[temporary_column_name] = (
                 self.processed_erosion_data[column].astype(float)
             )
@@ -516,18 +542,22 @@ class DataHandler:
                         self.config.prediction_region_id_column_name
                     )[temporary_column_name].diff()
                 )
-        elif column_type == CONST.KnownColumnTypes.CATEGORICAL.value:
+        elif CONST.CATEGORICAL in column_type:
             try:
                 ordered_categories = CONST.KNOWN_CATEGORIES[column]
-                ordered_categories = {element: i for i, element in enumerate(ordered_categories)}
+                ordered_categories = {
+                    element: i for i, element in enumerate(ordered_categories)
+                }
             except KeyError:
                 raise KeyError(
                     f"Unknown categories for {column}, please define them first."
                 )
 
-            self.processed_erosion_data[temporary_column_name] = (
-                self.processed_erosion_data[column].map(
-                    lambda x: ordered_categories.get(x, CONST.DEFAULT_UNKNOWN_CATEGORY_LABEL)
+            self.processed_erosion_data[
+                temporary_column_name
+            ] = self.processed_erosion_data[column].map(
+                lambda x: ordered_categories.get(
+                    x, CONST.DEFAULT_UNKNOWN_CATEGORY_LABEL
                 )
             )
 
@@ -552,7 +582,7 @@ class DataHandler:
         self._add_past_and_future_columns_for_feature(
             unique_grouping_id=self.config.prediction_region_id_column_name,
             source_column=temporary_column_name,
-            is_continuous=column_type == CONST.KnownColumnTypes.NUMERIC.value,
+            column_type=column_type,
             additional_futures=self.number_of_extra_futures,
         )
 
@@ -562,15 +592,14 @@ class DataHandler:
         self,
         unique_grouping_id: str,
         source_column: str,
-        is_continuous: bool,
+        column_type: str,
         additional_futures: int,
     ):
         """Add all the lag and future columns for a particular feature by shifting the existing ones.
 
         :param unique_grouping_id: the name of the region
         :param source_column: the dataframe column to shift
-        :param is_continuous: if True, the resulting column is continuous - for the purposes of recording
-           which columns to scale
+        :param column_type: the type of the column, defined in CONST.KnownColumnTypes
         :param additional_futures: the number of additional future shifts (w.r.t. to the number from the config) that
            are to be added to the lagged features
         """
@@ -578,37 +607,36 @@ class DataHandler:
             self._add_shifted_column(
                 unique_grouping_id,
                 source_column,
+                column_type,
                 lag,
                 past_shift=True,
-                is_continuous=is_continuous,
             )
 
         for future in range(1, self.config.number_of_futures + 1 + additional_futures):
             self._add_shifted_column(
                 unique_grouping_id,
                 source_column,
+                column_type,
                 future,
                 past_shift=False,
-                is_continuous=is_continuous,
             )
 
     def _add_shifted_column(
         self,
         grouping: str,
         original_column: str,
+        column_type: str,
         shift: int,
         past_shift=True,
-        is_continuous=True,
     ):
         """Add a shifted version of a column from processed data to the features.
 
         :param grouping: what to group the data by
         :param original_column: the column from processed_data to shift
+        :param column_type: the type of the column, defined in CONST.KnownColumnTypes
         :param shift: the number of steps to shift the column by
         :param past_shift: if True, shift the column to the past
                            (downwards, otherwise to the future (upwards)
-        :param is_continuous: if True, the resulting column is continuous
-                           and should be scaled, otherwise categorical, to be embedded
         """
         new_column_name = UTILS.generate_shifted_column_name(
             original_column, shift, past_shift
@@ -620,14 +648,116 @@ class DataHandler:
                 shift if past_shift else -shift
             )
         )
-        self.columns_added_in_feature_creation[
-            (
-                CONST.KnownColumnTypes.NUMERIC.value
-                if is_continuous
-                else CONST.KnownColumnTypes.CATEGORICAL.value
-            )
-        ].append(new_column_name)
+        self.columns_added_in_feature_creation[column_type].append(new_column_name)
 
-    def generate_targets(self):
-        """If needed (for training), add targets to the existing features."""
-        raise NotImplementedError
+    def generate_pytorch_features(self):
+        """Transform the existing feature dataframe into a pytorch dataset."""
+        if self.erosion_features is None:
+            logger.warning(
+                "No erosion features present, please generate them first using generate_erosion_features()."
+            )
+            return
+
+        data = {}
+
+        for column_type in CONST.KnownColumnTypes:
+            feature_array = self.prepare_feature_array(column_type=column_type.value)
+            if feature_array is None:
+                continue
+
+            data[column_type.value] = feature_array
+
+        self.pytorch_dataset = CPD.PytorchDataset(data)
+
+    def prepare_feature_array(self, column_type: str) -> torch.Tensor:
+        """Prepare the feature array for the pytorch dataset."""
+        known_column_types = [col_type.value for col_type in CONST.KnownColumnTypes]
+        assert (
+            column_type in known_column_types
+        ), f"Unknown column type {column_type}, pick one of {known_column_types}."
+
+        feature_values = []
+        for column in getattr(self.config, f"{column_type}_columns"):
+            feature_column_root = self._prepare_feature_column_name_root(
+                column, column_type
+            )
+
+            single_feature_values = []
+            for lag in range(self.config.number_of_lags - 1, -1, -1):
+                # we start with the last lag and go backwards, so that the first lag is the most recent one
+                feature_column_name = UTILS.generate_shifted_column_name(
+                    feature_column_root, lag, past_shift=True
+                )
+                single_feature_values.append(
+                    self.erosion_features[feature_column_name].values[:, np.newaxis]
+                )
+
+            for future in range(
+                1, self.config.number_of_futures + 1 + self.number_of_extra_futures
+            ):
+                # we start with the first future and go forwards, so that the first future is the most recent one
+                feature_column_name = UTILS.generate_shifted_column_name(
+                    feature_column_root, future, past_shift=False
+                )
+                single_feature_values.append(
+                    self.erosion_features[feature_column_name].values[:, np.newaxis]
+                )
+
+            single_feature_values = np.concatenate(single_feature_values, axis=1)[
+                :, :, np.newaxis
+            ]
+
+            if CONST.NUMERIC in column_type:
+                # scale the values
+                if column not in self.scaler_parameters.keys():
+                    self.calculate_scaler_parameters(column, column_type)
+
+                lo_scaling, hi_scaling = self.scaler_parameters[column]
+                single_feature_values = self.scale_values(
+                    single_feature_values, lo_scaling, hi_scaling, inverse=False
+                )
+
+            feature_values.append(single_feature_values)
+
+        if not feature_values:
+            # no column of a given type exists
+            return None
+
+        feature_values = np.concatenate(feature_values, axis=2)
+
+        return UTILS.make_float_array_into_torch_tensor(feature_values)
+
+    def calculate_scaler_parameters(self, column: str, column_type: str):
+        """Calculate the scaler parameters for a given column.
+
+        Specifically, at the moment we calculate the min and max values of the column, for the minmax scaling.
+        """
+        # the internal column name is the name of the "present" feature
+        internal_column_name = self._prepare_feature_column_name_root(
+            column, column_type
+        )
+        internal_column_name = UTILS.generate_shifted_column_name(
+            internal_column_name, 0, past_shift=True
+        )
+
+        low = self.erosion_features[internal_column_name].min()
+        high = self.erosion_features[internal_column_name].max()
+
+        self.scaler_parameters[column] = (low, high)
+
+    @staticmethod
+    def scale_values(
+        input_array: np.array, lower_bound, upper_bound, inverse: bool = False
+    ) -> np.array:
+        """Scale the values in the input array using the scaler parameters.
+
+        :param input_array: the input array to scale
+        :param lower_bound: the lower bound of the scaling
+        :param upper_bound: the upper bound of the scaling
+        :param inverse: if True, scale the values back to the original range
+        :return: the scaled values
+        """
+        if inverse:
+            return input_array * (upper_bound - lower_bound) + lower_bound
+        else:
+            return (input_array - lower_bound) / (upper_bound - lower_bound)
