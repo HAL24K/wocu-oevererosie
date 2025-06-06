@@ -293,6 +293,9 @@ def test_generate_model_features_local(
             erosion_border=real_erosion_border,
         )
 
+        data_handler.generate_erosion_features()
+        assert "please process the inspection" in caplog.text
+
         data_handler.process_erosion_features()
 
         assert data_handler.erosion_features is None
@@ -350,6 +353,9 @@ def test_generate_model_features_local(
                     for col in data_handler.erosion_features.columns
                 ]
             )
+
+        data_handler.generate_erosion_features()
+        assert "already present" in caplog.text
 
 
 def test_generate_features_with_remote_data(
@@ -486,6 +492,9 @@ def test_pytorch_feature_creation(
         erosion_data=erosion_data_for_test,
         erosion_border=real_erosion_border,
     )
+
+    data_handler.generate_pytorch_features()
+    assert "please generate them first" in caplog.text
 
     data_handler.process_erosion_features()
     data_handler.create_data_from_remote()
