@@ -69,3 +69,22 @@ def test_linear_module_forward_pass(
         batch_size,
         default_linear_module_parameters["out_features"],
     )
+
+
+def test_find_the_first_future_time_step():
+    """Test that identifying the first future time step works correctly."""
+    # Case 1: All fine
+    columns = ["past_1", "past_2", "future_1", "future_2"]
+
+    first_future = U.find_the_first_future_time_step(columns)
+    assert first_future == "future_1"
+
+    # Case 2: No future time steps
+    columns = ["past_1", "past_2"]
+    with pytest.raises(ValueError):
+        U.find_the_first_future_time_step(columns)
+
+    # Case 3: Multiple future columns
+    columns = ["future1_1", "future2_1", "future_2", "future_3"]
+    with pytest.raises(ValueError):
+        U.find_the_first_future_time_step(columns)

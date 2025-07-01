@@ -1,6 +1,7 @@
 """Utilities for the model package."""
 
 import logging
+import re
 import torch.nn as nn
 
 import src.constants as CONST
@@ -66,3 +67,27 @@ class LinearModule(nn.Module):
         for layer in self.layers:
             x = layer(x)
         return x
+
+
+def find_the_first_future_time_step(column_names: list[str]) -> str:
+    """From a list of (future) column names, find the one the closest in the future."""
+    future_column_pattern = re.compile(f"{CONST.UPCOMING}.*\_1")
+
+    candidate_columns = []
+    for column in column_names:
+        hits = re.findall(future_column_pattern, column)
+        if hits:
+            candidate_columns.append(column)
+
+    if not candidate_columns:
+        raise ValueError(
+            "No future time step column found in the provided column names. "
+            "Expected a column name with '_1' in it."
+        )
+
+    if len(candidate_columns) > 1:
+        raise ValueError(
+            f"Found more than one candidate column with '_1' in the name: {candidate_columns}"
+        )
+
+    return candidate_columns[0]

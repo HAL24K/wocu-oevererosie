@@ -20,3 +20,15 @@ def test_invalid_setup():
 
     with pytest.raises(ValueError):
         _ = DATA_CONFIG.DataConfiguration(no_of_points_for_distance_calculation=0)
+
+    with pytest.raises(ValueError):
+        _ = DATA_CONFIG.DataConfiguration(
+            unknown_numerical_columns=["numerical_column"],
+            unknown_categorical_columns=["categorical_column"],
+        )
+
+    with pytest.raises(ValueError):
+        _ = DATA_CONFIG.DataConfiguration(
+            unknown_numerical_columns=[],
+            unknown_categorical_columns=[],
+        )

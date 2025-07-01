@@ -93,3 +93,19 @@ class DataConfiguration:
             )
 
         return self
+
+    @model_validator(mode="after")
+    def check_that_unknown_columns_are_disjoint(self):
+        """Check that there is no overlap between the known and unknown columns but there is at least some."""
+        if self.unknown_numerical_columns and self.unknown_categorical_columns:
+            raise ValueError(
+                "Only one category of unknown columns is allowed. At the moment you have both."
+            )
+
+        if not self.unknown_numerical_columns and not self.unknown_categorical_columns:
+            raise ValueError(
+                "At least one category of unknown columns must be provided, "
+                "otherwise we cannot predict anything."
+            )
+
+        return self
