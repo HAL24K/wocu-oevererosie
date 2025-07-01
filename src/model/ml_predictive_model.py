@@ -19,6 +19,7 @@ import src.constants as CONST
 import src.model.utils as MODEL_UTILS
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 class PredictiveModel:
@@ -48,8 +49,9 @@ class PredictiveModel:
         """Get the target columns from the training data."""
         return [
             column
-            for column in self.configuration.unknown_numerical_columns
-            if CONST.UPCOMING in column
+            for column in self.training_data.columns
+            for column_root in self.configuration.unknown_numerical_columns
+            if CONST.UPCOMING in column and column_root in column
         ]
 
     @property
@@ -74,9 +76,12 @@ class PredictiveModel:
         # TODO: improve the target column finding logic
         target_column = MODEL_UTILS.find_the_first_future_time_step(self.target_columns)
 
+        training_data = self.training_data.copy()
+        training_data.dropna(subset=[target_column] + self.input_columns, inplace=True)
+
         self.model.fit(
-            self.training_data[self.input_columns],
-            self.training_data[target_column],
+            training_data[self.input_columns],
+            training_data[target_column],
         )
 
         self.model_is_trained = True
@@ -116,7 +121,7 @@ class PredictiveModel:
         * move forward the known data
         """
 
-    def save_model(self, path: pathlib.Path, keep_training_data: bool = False):
+    def save(self, path: pathlib.Path, keep_training_data: bool = False):
         """Save the model for future use.
 
         :param path: The path to save the model to.
@@ -136,10 +141,14 @@ class PredictiveModel:
             # restore the training data
             self.training_data = tmp_training_data
 
-    def load_model(self, path_to_model: pathlib.Path):
-        """Load the model from the file."""
-        with open(path_to_model, "rb") as f:
+    def load_model(self, path_to_stored_class: pathlib.Path):
+        """Load the model from the file.
+
+        TODO: this is quite a weird logic: we save the whole class (with or without data) but then loading it here
+          we only want the model itself. Figure it out.
+        """
+        with open(path_to_stored_class, "rb") as f:
             model = pickle.load(f)
 
+        self.model = model.model
         self.model_is_trained = True
-        return model

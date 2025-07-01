@@ -19,34 +19,6 @@ from conftest import real_erosion_border, default_data_configuration
 
 
 @pytest.fixture
-def prediction_regions_for_test():
-    """Fixture for the prediction regions for testing."""
-    return gpd.read_file(
-        PATHS.TEST_DIR / "assets" / "prediction_regions_for_tests.geojson"
-    )
-
-
-@pytest.fixture
-def erosion_data_for_test():
-    """Fixture for the erosion data for testing."""
-    return gpd.read_file(
-        PATHS.TEST_DIR / "assets" / "river_bank_points_for_tests.geojson"
-    )
-
-
-@pytest.fixture
-def local_enrichment_geodata():
-    """Local geodata for data enrichment."""
-    geodata = {}
-
-    geodata[CONST.AggregationOperations.CENTERLINE_SHAPE.value] = gpd.read_file(
-        PATHS.TEST_DIR / "assets" / "river_centerline.geojson"
-    )
-
-    return geodata
-
-
-@pytest.fixture
 def basic_beefed_up_data_handler(
     prediction_regions_for_test,
     erosion_data_for_test,

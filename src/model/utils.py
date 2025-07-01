@@ -71,7 +71,7 @@ class LinearModule(nn.Module):
 
 def find_the_first_future_time_step(column_names: list[str]) -> str:
     """From a list of (future) column names, find the one the closest in the future."""
-    future_column_pattern = re.compile(f"{CONST.UPCOMING}.*\_1")
+    future_column_pattern = re.compile(f"{CONST.UPCOMING}.*_1")
 
     candidate_columns = []
     for column in column_names:

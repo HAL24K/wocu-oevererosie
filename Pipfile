@@ -11,6 +11,7 @@ owslib = "*"
 pydantic = "*"
 torch = "*"
 lightning = "*"
+scikit-learn = "*"
 
 [dev-packages]
 pytest = "*"
