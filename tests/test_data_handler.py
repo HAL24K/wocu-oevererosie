@@ -7,41 +7,15 @@ import numpy as np
 import pandas as pd
 import pytest
 import geopandas as gpd
+import torch
 from shapely.geometry import LineString, Point
 
 import src.data.data_handler as DH
 import src.paths as PATHS
 import src.data.config as DATA_CONFIG
 import src.constants as CONST
+import src.data.custom_pytorch_dataset as CPD
 from conftest import real_erosion_border, default_data_configuration
-
-
-@pytest.fixture
-def prediction_regions_for_test():
-    """Fixture for the prediction regions for testing."""
-    return gpd.read_file(
-        PATHS.TEST_DIR / "assets" / "prediction_regions_for_tests.geojson"
-    )
-
-
-@pytest.fixture
-def erosion_data_for_test():
-    """Fixture for the erosion data for testing."""
-    return gpd.read_file(
-        PATHS.TEST_DIR / "assets" / "river_bank_points_for_tests.geojson"
-    )
-
-
-@pytest.fixture
-def local_enrichment_geodata():
-    """Local geodata for data enrichment."""
-    geodata = {}
-
-    geodata[CONST.AggregationOperations.CENTERLINE_SHAPE.value] = gpd.read_file(
-        PATHS.TEST_DIR / "assets" / "river_centerline.geojson"
-    )
-
-    return geodata
 
 
 @pytest.fixture
@@ -291,6 +265,9 @@ def test_generate_model_features_local(
             erosion_border=real_erosion_border,
         )
 
+        data_handler.generate_erosion_features()
+        assert "please process the inspection" in caplog.text
+
         data_handler.process_erosion_features()
 
         assert data_handler.erosion_features is None
@@ -349,6 +326,9 @@ def test_generate_model_features_local(
                 ]
             )
 
+        data_handler.generate_erosion_features()
+        assert "already present" in caplog.text
+
 
 def test_generate_features_with_remote_data(
     default_data_configuration,
@@ -401,7 +381,120 @@ def test_generate_features_with_remote_data(
             column_type.value in data_handler.columns_added_in_feature_creation.keys()
         )
 
-    # make sure that the columns we have logged as added realyl exist
+    # make sure that the columns we have logged as added really exist
     assert len(data_handler.erosion_features.columns) == sum(
         [len(cols) for cols in data_handler.columns_added_in_feature_creation.values()]
     )
+
+
+def test_scale_values():
+    """Test the scaling of arrays."""
+    unscaled_data = 10 * np.random.rand(3, 4, 5)
+
+    low = np.min(unscaled_data)
+    high = np.max(unscaled_data)
+
+    scaled_data = DH.DataHandler.scale_values(unscaled_data, low, high)
+    inverse_scaled_data = DH.DataHandler.scale_values(
+        scaled_data, low, high, inverse=True
+    )
+
+    # don't change the shape of the data
+    assert unscaled_data.shape == scaled_data.shape
+    assert scaled_data.shape == inverse_scaled_data.shape
+
+    # make sure the scaling and the inverse scaling work correctly
+    assert np.allclose(unscaled_data, inverse_scaled_data)
+
+    # make sure that the scaling as we set it up squishes the values as expected
+    assert np.all(scaled_data >= 0)
+    assert np.all(scaled_data <= 1)
+
+
+def test_create_scaling_values(
+    default_data_configuration,
+    prediction_regions_for_test,
+    local_enrichment_geodata,
+    erosion_data_for_test,
+    real_erosion_border,
+):
+    """Test that the scaling values are calcualted correctly."""
+    data_handler = DH.DataHandler(
+        config=default_data_configuration,
+        prediction_regions=prediction_regions_for_test,
+        local_data_for_enrichment=local_enrichment_geodata,
+        erosion_data=erosion_data_for_test,
+        erosion_border=real_erosion_border,
+    )
+
+    data_handler.process_erosion_features()
+    data_handler.generate_erosion_features()
+
+    assert isinstance(data_handler.scaler_parameters, dict)
+    assert len(data_handler.scaler_parameters) == 0
+
+    column = default_data_configuration.unknown_numerical_columns[0]
+    column_type = CONST.KnownColumnTypes.UNKNOWN_NUMERIC.value
+
+    data_handler.calculate_scaler_parameters(column, column_type)
+
+    assert len(data_handler.scaler_parameters) == 1
+    assert column in data_handler.scaler_parameters
+
+
+def test_pytorch_feature_creation(
+    default_data_configuration,
+    prediction_regions_for_test,
+    erosion_data_for_test,
+    local_enrichment_geodata,
+    real_erosion_border,
+    caplog,
+):
+    """Test the enrichment of the data with remote data."""
+    data_configuration = default_data_configuration
+    data_configuration.known_categorical_columns = [
+        "BrpGewas_majority_class_category",
+        "rws_vegetatielegger:vegetatieklassen_majority_class_vlklasse",
+    ]
+
+    data_handler = DH.DataHandler(
+        config=data_configuration,
+        prediction_regions=prediction_regions_for_test,
+        local_data_for_enrichment=local_enrichment_geodata,
+        erosion_data=erosion_data_for_test,
+        erosion_border=real_erosion_border,
+    )
+
+    data_handler.generate_pytorch_features()
+    assert "please generate them first" in caplog.text
+
+    data_handler.process_erosion_features()
+    data_handler.create_data_from_remote()
+    data_handler.add_remote_data_to_processed()
+    data_handler.generate_erosion_features()
+
+    assert data_handler.pytorch_dataset is None
+
+    data_handler.generate_pytorch_features()
+
+    assert isinstance(data_handler.pytorch_dataset, CPD.PytorchDataset)
+
+    random_index = np.random.randint(0, len(data_handler.pytorch_dataset))
+    random_sample = data_handler.pytorch_dataset[random_index]
+
+    assert isinstance(random_sample, dict)
+
+    for feature_type in CONST.KnownColumnTypes:
+        sample_part = random_sample.get(feature_type.value, None)
+
+        if sample_part is not None:
+            assert isinstance(sample_part, torch.Tensor)
+            assert sample_part.ndim == 2
+            assert (
+                sample_part.shape[0]
+                == data_configuration.number_of_lags
+                + data_configuration.number_of_futures
+            )
+            assert sample_part.shape[1] == len(
+                getattr(data_configuration, f"{feature_type.value}_columns")
+            )

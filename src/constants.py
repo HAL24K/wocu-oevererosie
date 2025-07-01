@@ -1,6 +1,9 @@
 """All the hardcoded values live here. This is the place to change them if needed."""
 
 from enum import Enum
+import torch
+import torch.nn as nn
+
 
 # where the Netherlands is
 CENTRE_NL_LON = 5.2913
@@ -87,9 +90,17 @@ FLOAT = "float"
 AS_NUMBER = "as_number"
 
 
+NUMERIC = "numerical"
+CATEGORICAL = "categorical"
+KNOWN = "known"
+UNKNOWN = "unknown"  # these are what we nominally predict
+
+
 class KnownColumnTypes(Enum):
-    NUMERIC = "numerical"
-    CATEGORICAL = "categorical"
+    KNOWN_NUMERIC = f"{KNOWN}_{NUMERIC}"
+    KNOWN_CATEGORICAL = f"{KNOWN}_{CATEGORICAL}"
+    UNKNOWN_NUMERIC = f"{UNKNOWN}_{NUMERIC}"  # these are what we nominally predict
+    UNKNOWN_CATEGORICAL = f"{UNKNOWN}_{CATEGORICAL}"  # TODO: these should not appear but later we might include
 
 
 class KnownFutureFillOperations(Enum):
@@ -127,3 +138,27 @@ DEFAULT_UNKNOWN_NUMERICAL_COLUMNS = [
 ]
 DEFAULT_KNOWN_CATEGORICAL_COLUMNS = []
 DEFAULT_UNKNOWN_CATEGORICAL_COLUMNS = []
+
+### model constants
+DEFAULT_USE_BATCH_NORMALIZATION = (
+    False  # whether to use batch normalization in the model
+)
+DEFAULT_DROPOUT = 0.0  # default dropout for the linear layers in the model
+DEFAULT_NONLINEARITY_FUNCTION = (
+    nn.ReLU
+)  # default nonlinearity function for the linear layers in the model
+
+DEFAULT_COLUMN_TYPE_NOT_PRESENT = (
+    []
+)  # if a specific column type is not present just passa an empty list
+
+DEFAULT_EMBEDDING_DIMENSION = (
+    3  # how many elements to use to represent a categorical column
+)
+DEFAULT_LOSS = nn.MSELoss  # default loss function to use in the model
+DEFAULT_TORCH_FLOAT_TYPE = torch.float32  # default torch float type to use in the model
+DEFAULT_NUMBER_OF_RECURRENT_LAYERS = 3  # out of thin air
+DEFAULT_HIDDEN_MLP_LAYER_SIZES = 4 * [100]  # out of thin air
+DEFAULT_OPTIMIZER = torch.optim.Adam  # default optimizer to use in the model
+DEFAULT_LEARNING_RATE = 0.001  # default learning rate for the optimizer
+DEFAULT_TEACHER_FORCING_PROBABILITY = 0.5  # out of thin air
