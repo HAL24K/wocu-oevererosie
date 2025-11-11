@@ -28,6 +28,7 @@ def basic_beefed_up_data_handler(
     """Fixture for the basic data handler with defaults except for the big region buffer to have data."""
     big_buffer = 1_000  # metres, known to contain data
     data_configuration = DATA_CONFIG.DataConfiguration(
+        timestamp_column_name="ahn_version",  # TODO: update test data to use default dtm_date
         prediction_region_buffer=big_buffer,
     )
 
@@ -255,6 +256,9 @@ def test_generate_model_features_local(
 
     for use_differences in [True, False]:
         data_configuration = default_data_configuration
+        data_configuration.timestamp_column_name = (
+            "ahn_version"  # TODO: update test data to use default dtm_date
+        )
         data_configuration.use_differences_in_features = use_differences
 
         data_handler = DH.DataHandler(
@@ -340,6 +344,9 @@ def test_generate_features_with_remote_data(
 ):
     """Test the enrichment of the data with remote data."""
     data_configuration = default_data_configuration
+    data_configuration.timestamp_column_name = (
+        "ahn_version"  # TODO: update test data to use default dtm_date
+    )
     data_configuration.known_categorical_columns = [
         "BrpGewas_majority_class_category",
         "rws_vegetatielegger:vegetatieklassen_majority_class_vlklasse",
@@ -418,7 +425,12 @@ def test_create_scaling_values(
     erosion_data_for_test,
     real_erosion_border,
 ):
-    """Test that the scaling values are calcualted correctly."""
+    """Test that the scaling values are calculated correctly."""
+    data_configuration = default_data_configuration
+    data_configuration.timestamp_column_name = (
+        "ahn_version"  # TODO: update test data to use default dtm_date
+    )
+
     data_handler = DH.DataHandler(
         config=default_data_configuration,
         prediction_regions=prediction_regions_for_test,
@@ -452,6 +464,9 @@ def test_pytorch_feature_creation(
 ):
     """Test the enrichment of the data with remote data."""
     data_configuration = default_data_configuration
+    data_configuration.timestamp_column_name = (
+        "ahn_version"  # TODO: update test data to use default dtm_date
+    )
     data_configuration.known_categorical_columns = [
         "BrpGewas_majority_class_category",
         "rws_vegetatielegger:vegetatieklassen_majority_class_vlklasse",

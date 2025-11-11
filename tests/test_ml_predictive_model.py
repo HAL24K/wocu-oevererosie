@@ -17,6 +17,10 @@ NUMBER_OF_FUTURES = 2
 def ml_data_configuration(default_data_configuration):
     """Create a default data configuration for the ML model."""
     data_configuration = default_data_configuration
+
+    # TODO: update the test data to possibly use the default dtm_date here
+    data_configuration.timestamp_column_name = "ahn_version"
+
     data_configuration.number_of_futures = NUMBER_OF_FUTURES
     data_configuration.known_categorical_columns = [
         "BrpGewas_majority_class_category",
@@ -47,14 +51,20 @@ def ml_data(
     data_handler.add_remote_data_to_processed()
     data_handler.generate_erosion_features()
 
-    return data_handler.erosion_features_complete
+    return (
+        data_handler.columns_added_in_feature_creation,
+        data_handler.erosion_features_complete,
+    )
 
 
 def test_columns(ml_data_configuration, ml_data):
     """Test that the target and input columns are correctly generated."""
+    columns_in_data, model_data = ml_data
+
     predictive_model = MLPM.PredictiveModel(
         config=ml_data_configuration,
-        training_data=ml_data,
+        training_data=model_data,
+        column_kinds=columns_in_data,
     )
 
     target_columns = predictive_model.target_columns
@@ -66,8 +76,8 @@ def test_columns(ml_data_configuration, ml_data):
 
     input_columns = predictive_model.input_columns
 
-    assert len(input_columns) == len(ml_data.columns) - len(target_columns)
-    assert set(input_columns + target_columns) == set(ml_data.columns)
+    assert len(input_columns) == len(model_data.columns) - len(target_columns)
+    assert set(input_columns + target_columns) == set(model_data.columns)
 
 
 def test_train_save_load(tmp_path, ml_data_configuration, ml_data, caplog):
@@ -82,9 +92,12 @@ def test_train_save_load(tmp_path, ml_data_configuration, ml_data, caplog):
     assert "No training data provided" in caplog.text
     caplog.clear()
 
+    columns_in_data, model_data = ml_data
+
     predictive_model = MLPM.PredictiveModel(
         config=ml_data_configuration,
-        training_data=ml_data,
+        training_data=model_data,
+        column_kinds=columns_in_data,
         model=sklm.LinearRegression(),
     )
 
@@ -134,3 +147,68 @@ def test_train_save_load(tmp_path, ml_data_configuration, ml_data, caplog):
     assert new_predictive_model.model_is_trained
     assert new_predictive_model.training_data is None
     assert new_predictive_model.model is not None
+
+
+def test_check_column_types(ml_data_configuration, ml_data, caplog):
+    """Test that the model checks the column types correctly."""
+    columns_in_data, model_data = ml_data
+
+    # Forgot the column_kinds
+    with pytest.raises(AssertionError) as exc_info:
+        _ = MLPM.PredictiveModel(
+            config=ml_data_configuration,
+            training_data=model_data,
+        )
+
+    assert "You are providing" in str(exc_info)
+
+    # unknown column_kind
+    unknown_column_kind = "unknown_column_kind"
+    columns_in_data_with_extra_key = columns_in_data.copy()
+    columns_in_data_with_extra_key[unknown_column_kind] = ["colX", "colY"]
+
+    with pytest.raises(AssertionError) as exc_info:
+        _ = MLPM.PredictiveModel(
+            config=ml_data_configuration,
+            training_data=model_data,
+            column_kinds=columns_in_data_with_extra_key,
+        )
+
+    assert unknown_column_kind in str(exc_info)
+
+    # a column not sorted into any column kind
+    extra_column = "extra_column"
+    data_with_extra_column = model_data.copy()
+    data_with_extra_column[extra_column] = np.random.rand(len(model_data))
+
+    with pytest.raises(AssertionError) as exc_info:
+        _ = MLPM.PredictiveModel(
+            config=ml_data_configuration,
+            training_data=data_with_extra_column,
+            column_kinds=columns_in_data,
+        )
+
+    assert extra_column in str(exc_info)
+
+
+def test_predict(ml_data_configuration, ml_data):
+    NUMBER_OF_PREDICTION_STEPS = 10
+    NUMBER_OF_TEST_SAMPLES = 4
+
+    columns_in_data, model_data = ml_data
+
+    predictive_model = MLPM.PredictiveModel(
+        config=ml_data_configuration,
+        training_data=model_data,
+        column_kinds=columns_in_data,
+        model=sklm.LinearRegression(),
+    )
+
+    predictive_model.train()
+
+    input_data = model_data[predictive_model.input_columns].dropna()
+    prediction = predictive_model.predict(
+        input_data.iloc[:NUMBER_OF_TEST_SAMPLES],
+        prediction_steps=NUMBER_OF_PREDICTION_STEPS,
+    )
+    assert prediction.shape == (NUMBER_OF_TEST_SAMPLES, NUMBER_OF_PREDICTION_STEPS)

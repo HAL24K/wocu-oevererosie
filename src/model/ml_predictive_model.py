@@ -16,6 +16,7 @@ import pickle
 
 import src.data.config as DATA_CONFIG
 import src.constants as CONST
+import src.utils as UTILS
 import src.model.utils as MODEL_UTILS
 
 logger = logging.getLogger(__name__)
@@ -28,21 +29,67 @@ class PredictiveModel:
     def __init__(
         self,
         config: DATA_CONFIG.DataConfiguration,
-        model: object = None,  # This should be a scikit-learn model or similar
+        model: object = None,  # This should be an untrained scikit-learn model or similar
         training_data: pd.DataFrame = None,
+        column_kinds: dict = None,
         verbose: bool = False,
     ):
         """
+        :param config: The data configuration to use for the model.
         :param model: The model to use for predictions.
+        :param training_data: training data to use for the model.
+        :param column_kinds: A dictionary mapping column names to their kinds (unknown numerical, categorical, etc.).
         :param verbose: Whether to print debug information.
         """
         self.configuration = config
 
         self.training_data = training_data
+        self.column_kinds = column_kinds
         self.model = model
         self.verbose = verbose
 
         self.model_is_trained = False
+
+        self._check_column_kinds()
+
+    def _check_column_kinds(self):
+        """Check if the column kinds match the training data.
+
+        TODO: this will fall over at the first issue, consider changing it so that every issue is reported so that all can be fixed at once.
+        """
+        if self.training_data is None:
+            # only run this if we have training data
+            return
+
+        allowed_column_kinds = [kind.value for kind in CONST.KnownColumnTypes]
+
+        # column_kinds need to be provided if training_data is given
+        if self.training_data is not None:
+            assert self.column_kinds is not None, (
+                f"You are providing the training data with columns {self.training_data.columns} but no column kinds. "
+                f"Please provide the column kinds as a dictionary with keys {allowed_column_kinds}."
+            )
+
+        # the keys of the column kinds have to be of the allowed values
+        for column_kind in self.column_kinds:
+            assert (
+                column_kind in allowed_column_kinds
+            ), f"Column kind {column_kind} is not among the allowed ones: {allowed_column_kinds}."
+
+        # the columns in the training data have to be in the column kinds
+        # TODO: do we need to make sure that all columns are in the column kinds are unique?
+        # TODO: do we care if column_kinds contains columns not in self.training_data?
+        all_columns_in_kinds = []
+        for column_kind in self.column_kinds:
+            all_columns_in_kinds.extend(self.column_kinds[column_kind])
+
+        for column in self.training_data.columns:
+            assert column in all_columns_in_kinds, (
+                f"Column {column} is not in the column kinds. "
+                "Please make sure that all columns in the training data are in the column kinds."
+            )
+
+            all_columns_in_kinds.remove(column)
 
     @property
     def target_columns(self):
@@ -100,7 +147,10 @@ class PredictiveModel:
         predictions = []
         for time_step in range(prediction_steps):
             # Shift the input data to predict the next time step
-            prediction = self.model.predict(input_data)
+            try:
+                prediction = self.model.predict(input_data.values).reshape(-1, 1)
+            except AttributeError:
+                pass
             input_data = self._shift_input_data(
                 input_data[self.input_columns], prediction
             )
@@ -108,7 +158,10 @@ class PredictiveModel:
             predictions.append(prediction)
 
         predictions = pd.DataFrame(
-            np.concat(predictions, axis=1), columns=self.target_columns
+            np.concat(predictions, axis=1),
+            columns=[
+                f"future_{time_step}" for time_step in range(1, prediction_steps + 1)
+            ],
         )
         return predictions
 
@@ -120,6 +173,32 @@ class PredictiveModel:
         * replace the "current" data with the predicted ones
         * move forward the known data
         """
+        for column_kind in self.column_kinds:
+            if not self.column_kinds[column_kind]:
+                # don't shift nonexistent columns
+
+                continue
+            match column_kind:
+                case CONST.KnownColumnTypes.UNKNOWN_NUMERIC.value:
+                    # TODO: finish this!
+                    column_renaming = {
+                        original_column: UTILS.get_temporally_previous_column_name(
+                            original_column
+                        )
+                        for original_column in self.column_kinds[column_kind]
+                    }
+                case CONST.KnownColumnTypes.UNKNOWN_CATEGORICAL.value:
+                    # we cannot predict these yet
+                    # TODO: implement this
+                    raise NotImplementedError(
+                        f"Shifting for {column_kind} not implemented yet."
+                    )
+                case CONST.KnownColumnTypes.KNOWN_NUMERIC.value:
+                    # TODO: finish this!
+                    pass
+                case CONST.KnownColumnTypes.KNOWN_CATEGORICAL.value:
+                    # known categoricals presumably don't change (a category remains a category)
+                    pass
 
     def save(self, path: pathlib.Path, keep_training_data: bool = False):
         """Save the model for future use.

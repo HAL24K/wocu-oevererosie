@@ -75,7 +75,7 @@ DEFAULT_NO_OF_POINTS_FOR_DISTANCE_CALCULATION = 3
 # the input data should contain some standard column names
 PREDICTION_REGION_ID = "location_id"
 # TODO: get a real timestamp and rename the timestamp column!
-TIMESTAMP = "ahn_version"
+TIMESTAMP = "dtm_date"  # "ahn_version"
 RIVER_BANK_POINT_STATUS = "status"
 
 # column names used in the processed data
@@ -119,8 +119,21 @@ RWS_WL_VEGETATIEKLASSEN = "rws_vegetatielegger:vegetatieklassen"
 RIVER_CENTERLINE = "river_centerline"  # river centerline
 
 KNOWN_CATEGORIES = {
-    f"{BRPGEWAS}_majority_class_category": ["Grasland"],
-    f"{RWS_WL_VEGETATIEKLASSEN}_majority_class_vlklasse": ["Gras en Akker"],
+    f"{BRPGEWAS}_majority_class_category": [
+        "Grasland",
+        "Landschapselement",
+        "Natuurterrein",
+        "Bouwland",
+    ],
+    f"{RWS_WL_VEGETATIEKLASSEN}_majority_class_vlklasse": [
+        "Gras en Akker",
+        "Riet en Ruigte",
+        "Verhard oppervlak",
+        "Bos",
+        "Water",
+        "Struweel",
+        "90/10",
+    ],
 }
 
 DEFAULT_UNKNOWN_CATEGORY_LABEL = -1

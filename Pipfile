@@ -4,6 +4,7 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
+numpy = "<=2.2"
 pandas = "*"
 pyproj = "*"
 geopandas = "*"
@@ -12,6 +13,7 @@ pydantic = "*"
 torch = "*"
 lightning = "*"
 scikit-learn = "*"
+shap = "*"
 
 [dev-packages]
 pytest = "*"
@@ -23,6 +25,7 @@ jupyterlab = "*"
 matplotlib = "*"
 ipykernel = "*"
 altair = "*"
+plotly = "*"
 
 [requires]
 python_version = "3.12"

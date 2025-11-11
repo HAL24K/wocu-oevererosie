@@ -17,7 +17,7 @@ jobs:
       - run: pip install pipenv
       - run: |
           pipenv sync --dev
-          pipenv run black src --check
+          pipenv run black src --check --diff
           PYTHONPATH=. pipenv run pytest --log-cli-level=DEBUG -n auto --cov src --cov-report term --junitxml=pytest.xml --cov-report xml:coverage.xml
       - name: Pytest coverage comment
         if: ${{ ! startsWith(github.ref, 'refs/tags/') }}

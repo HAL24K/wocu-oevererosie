@@ -190,8 +190,12 @@ class DataHandler:
         TODO: refactor TIMESTEPS_... into YEARS_... or something like that, once we get rid of AHN
         """
         self.processed_erosion_data[CONST.TIMESTEPS_SINCE_LAST_MEASUREMENT] = (
-            self.processed_erosion_data.reset_index(level=CONST.TIMESTAMP)
-            .groupby(CONST.PREDICTION_REGION_ID)[CONST.TIMESTAMP]
+            self.processed_erosion_data.reset_index(
+                level=self.config.timestamp_column_name
+            )
+            .groupby(self.config.prediction_region_id_column_name)[
+                self.config.timestamp_column_name
+            ]
             .diff()
             .fillna(
                 CONST.DEFAULT_LENGTH_OF_TIME_GAP_BETWEEN_MEASSUREMENTS

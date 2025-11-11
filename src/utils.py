@@ -305,6 +305,43 @@ def generate_shifted_column_name(
     )
 
 
+def get_temporally_previous_column_name(original_column_name: str) -> str:
+    """Get the name of the temporally previous column.
+
+    :param original_column_name: the original column name
+    """
+    original_temporal_shift_regex = re.compile(r"_(\d+)$")
+    original_temporal_shift = re.search(
+        original_temporal_shift_regex, original_column_name
+    )
+    if original_temporal_shift:
+        original_temporal_shift = int(original_temporal_shift.group(1))
+    else:
+        raise ValueError(
+            f"Temporal shift not found in column name: {original_column_name}"
+        )
+
+    switch_prefix = False
+    if CONST.PREVIOUS in original_column_name:
+        new_temporal_shift = original_temporal_shift + 1
+    elif CONST.UPCOMING in original_column_name:
+        new_temporal_shift = original_temporal_shift - 1
+        if original_temporal_shift == 1:
+            switch_prefix = True
+    else:
+        raise ValueError(
+            f"Column name does not contain {CONST.UPCOMING} or {CONST.PREVIOUS}: {original_column_name}"
+        )
+
+    new_column_name = original_column_name.replace(
+        f"_{original_temporal_shift}", f"_{new_temporal_shift}"
+    )
+    if switch_prefix:
+        new_column_name = new_column_name.replace(CONST.UPCOMING, CONST.PREVIOUS)
+
+    return new_column_name
+
+
 def make_float_array_into_torch_tensor(
     array: np.array, dtype: torch.dtype = CONST.DEFAULT_TORCH_FLOAT_TYPE
 ) -> torch.Tensor:

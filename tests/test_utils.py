@@ -5,6 +5,7 @@ import numpy as np
 import pytest
 from shapely.geometry import Polygon, LineString, Point
 
+import src.constants as CONST
 import src.utils as U
 
 
@@ -284,3 +285,38 @@ def test_is_point_between_two_lines():
     # This cannot be checked deeply, as we only return the boolean, not the actual dot product
     assert U.is_point_between_two_lines(point_between, line2, line1)
     assert not U.is_point_between_two_lines(point_not_between, line2, line1)
+
+
+def test_get_temporally_previous_column_name():
+    """Test that we get the previous column name correctly."""
+    # CASE 1: a simple column, one digit
+    example_column_name = f"{CONST.PREVIOUS}_property_3"
+    shifted_name = U.get_temporally_previous_column_name(example_column_name)
+
+    assert shifted_name == f"{CONST.PREVIOUS}_property_4"
+
+    # CASE 2: a simple column, mulitple digits
+    example_column_name = f"{CONST.UPCOMING}_property_42"
+    shifted_name = U.get_temporally_previous_column_name(example_column_name)
+
+    assert shifted_name == f"{CONST.UPCOMING}_property_41"
+
+    # CASE 3: from future to past
+    example_column_name = f"{CONST.UPCOMING}_right_on_the_edge_1"
+    shifted_name = U.get_temporally_previous_column_name(example_column_name)
+
+    assert shifted_name == f"{CONST.PREVIOUS}_right_on_the_edge_0"
+
+    # CASE 4: no temporal shift
+    with pytest.raises(ValueError) as e:
+        U.get_temporally_previous_column_name(
+            f"{CONST.PREVIOUS}_property_no_shift_here"
+        )
+
+    assert "shift not found" in str(e.value)
+
+    # CASE 5: no future or past
+    with pytest.raises(ValueError) as e:
+        U.get_temporally_previous_column_name("random_column_44")
+
+    assert "does not contain" in str(e.value)
