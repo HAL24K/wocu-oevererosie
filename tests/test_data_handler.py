@@ -129,18 +129,43 @@ def test_erosion_data_processing(
     # we also update the erosion data with nonrobust points that line on the line and in the nonfiltering case
     # should influence us a lot
     internal_erosion_data = erosion_data_for_test.copy()
-    additional_nonrobust_points = CONST.DEFAULT_NO_OF_POINTS_FOR_DISTANCE_CALCULATION * [
-        {
-            CONST.RIVER_BANK_POINT_STATUS: "NON OK POINT",
-            CONST.PREDICTION_REGION_ID: prediction_regions_for_test[
-                CONST.PREDICTION_REGION_ID
-            ].iloc[0],
-            CONST.TIMESTAMP: 3,  # we know this is in the data
-            "geometry": Point(
-                test_longitude_rd, test_latitude_rd, 0
-            ),  # we want the point to lie exactly on the erosion border, that's how we know they are (not) there
-        }
-    ]
+    
+    # Add synthetic points for ALL regions, not just the first one
+    additional_nonrobust_points = []
+    additional_robust_points = []
+    
+    for region_id in prediction_regions_for_test[CONST.PREDICTION_REGION_ID]:
+        # Add non-robust points for each region
+        additional_nonrobust_points.extend(
+            CONST.DEFAULT_NO_OF_POINTS_FOR_DISTANCE_CALCULATION * [
+                {
+                    CONST.RIVER_BANK_POINT_STATUS: "NON OK POINT",
+                    CONST.PREDICTION_REGION_ID: region_id,
+                    CONST.TIMESTAMP: 3,  # we know this is in the data
+                    "geometry": Point(
+                        test_longitude_rd, test_latitude_rd, 0
+                    ),  # we want the point to lie exactly on the erosion border, that's how we know they are (not) there
+                }
+            ]
+        )
+        
+        # Add robust points for each region
+        additional_robust_points.extend(
+            CONST.DEFAULT_NO_OF_POINTS_FOR_DISTANCE_CALCULATION * [
+                {
+                    CONST.RIVER_BANK_POINT_STATUS: CONST.OK_POINT_LABEL,
+                    CONST.PREDICTION_REGION_ID: region_id,
+                    CONST.TIMESTAMP: 5,  # we know this is in the data
+                    # the points lie a bit randomly below the erosion border
+                    "geometry": Point(
+                        test_longitude_rd,
+                        test_latitude_rd - np.random.randint(1, 10),
+                        0,
+                    ),
+                }
+            ]
+        )
+    
     additional_nonrobust_points_gdf = gpd.GeoDataFrame(
         additional_nonrobust_points, crs=internal_erosion_data.crs
     )
@@ -148,21 +173,6 @@ def test_erosion_data_processing(
     # add points that have negative distance to the erosion border, i.e. they lie over the erosion border
     # note that this creation is a bit dodgy - we assign the prediction_region_id explicitly. If we did it by checking
     # which point lies inside which scope polygon this may filter out these points as they lie far from everything
-    additional_robust_points = CONST.DEFAULT_NO_OF_POINTS_FOR_DISTANCE_CALCULATION * [
-        {
-            CONST.RIVER_BANK_POINT_STATUS: CONST.OK_POINT_LABEL,
-            CONST.PREDICTION_REGION_ID: prediction_regions_for_test[
-                CONST.PREDICTION_REGION_ID
-            ].iloc[0],
-            CONST.TIMESTAMP: 5,  # we know this is in the data
-            # the points lie a bit randomly below the erosion border
-            "geometry": Point(
-                test_longitude_rd,
-                test_latitude_rd - np.random.randint(1, 10),
-                0,
-            ),
-        }
-    ]
     additional_robust_points_gdf = gpd.GeoDataFrame(
         additional_robust_points, crs=internal_erosion_data.crs
     )

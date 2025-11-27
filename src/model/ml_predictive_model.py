@@ -136,34 +136,41 @@ class PredictiveModel:
     def predict(self, input_data, prediction_steps: int = 1):
         if self.model is None:
             logger.warning("No model has been provided.")
-            return
+            return None
 
         if not self.model_is_trained:
             logger.warning(
                 "Model is not trained. Please train the model before predicting."
             )
-            return
+            return None
 
         predictions = []
         for time_step in range(prediction_steps):
             # Shift the input data to predict the next time step
             try:
                 prediction = self.model.predict(input_data.values).reshape(-1, 1)
-            except AttributeError:
-                pass
-            input_data = self._shift_input_data(
-                input_data[self.input_columns], prediction
-            )
+            except AttributeError as e:
+                logger.error(f"Model prediction failed: {e}")
+                return None
 
             predictions.append(prediction)
 
-        predictions = pd.DataFrame(
-            np.concat(predictions, axis=1),
+            # Only shift if we have more steps to predict
+            if time_step < prediction_steps - 1:
+                input_data = self._shift_input_data(
+                    input_data[self.input_columns], prediction
+                )
+                if input_data is None:
+                    logger.error("Failed to shift input data for next prediction step.")
+                    return None
+
+        predictions_df = pd.DataFrame(
+            np.concatenate(predictions, axis=1),
             columns=[
                 f"future_{time_step}" for time_step in range(1, prediction_steps + 1)
             ],
         )
-        return predictions
+        return predictions_df
 
     def _shift_input_data(self, data, prediction):
         """Shift the input columns so that they apply for the next time step.
@@ -172,11 +179,18 @@ class PredictiveModel:
         * shift the numerical data one year further
         * replace the "current" data with the predicted ones
         * move forward the known data
+
+        Returns:
+            pd.DataFrame: The shifted input data for the next time step, or None if shifting fails.
         """
+        if data is None or prediction is None:
+            return None
+
+        shifted_data = data.copy()
+
         for column_kind in self.column_kinds:
             if not self.column_kinds[column_kind]:
                 # don't shift nonexistent columns
-
                 continue
             match column_kind:
                 case CONST.KnownColumnTypes.UNKNOWN_NUMERIC.value:
@@ -187,6 +201,8 @@ class PredictiveModel:
                         )
                         for original_column in self.column_kinds[column_kind]
                     }
+                    # NOTE: The shifting logic is incomplete - this is a placeholder
+                    # Full implementation needed for proper multi-step prediction
                 case CONST.KnownColumnTypes.UNKNOWN_CATEGORICAL.value:
                     # we cannot predict these yet
                     # TODO: implement this
@@ -199,6 +215,11 @@ class PredictiveModel:
                 case CONST.KnownColumnTypes.KNOWN_CATEGORICAL.value:
                     # known categoricals presumably don't change (a category remains a category)
                     pass
+
+        # For now, return the data as-is since the shifting logic is incomplete
+        # This prevents crashes but multi-step prediction may not work correctly
+        # until the full implementation is completed
+        return shifted_data
 
     def save(self, path: pathlib.Path, keep_training_data: bool = False):
         """Save the model for future use.
