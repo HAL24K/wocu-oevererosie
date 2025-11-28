@@ -5,6 +5,7 @@ from shapely.geometry import Point, LineString, Polygon
 from shapely.wkt import loads
 import pytest
 
+import src.constants as CONST
 import src.paths as PATHS
 import src.utils as U
 import src.data.config as DATA_CONFIG
@@ -108,3 +109,31 @@ def real_erosion_border():
     signaling_line = loads(signaling_line_wkt)
 
     return signaling_line
+
+
+@pytest.fixture
+def prediction_regions_for_test():
+    """Fixture for the prediction regions for testing."""
+    return gpd.read_file(
+        PATHS.TEST_DIR / "assets" / "prediction_regions_for_tests.geojson"
+    )
+
+
+@pytest.fixture
+def local_enrichment_geodata():
+    """Local geodata for data enrichment."""
+    geodata = {}
+
+    geodata[CONST.AggregationOperations.CENTERLINE_SHAPE.value] = gpd.read_file(
+        PATHS.TEST_DIR / "assets" / "river_centerline.geojson"
+    )
+
+    return geodata
+
+
+@pytest.fixture
+def erosion_data_for_test():
+    """Fixture for the erosion data for testing."""
+    return gpd.read_file(
+        PATHS.TEST_DIR / "assets" / "river_bank_points_for_tests.geojson"
+    )
