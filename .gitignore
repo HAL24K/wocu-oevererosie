@@ -65,3 +65,6 @@ figures/
 # Cache files
 .cache/
 *.ipynb_cache
+
+# Archived notebooks
+backend/notebooks/archive/
