@@ -11,12 +11,14 @@ We're fetching WFS data for 233 scope regions (eventually 12,130). The workflow 
 ✅ DataCollector works (fetches for single region with retry logic)
 ✅ Notebook code successfully fetches, aggregates, deduplicates, saves
 ✅ WFSDataBundler class created - abstracts multi-region data collection
-⬜ Need to test bundler at scale (10 → 100 → 500 → 12,130 regions)
-⬜ Need to extend DataHandler to load from GeoPackage (instead of live WFS)
+✅ WFSDataBundler tested with 10 regions - layer naming convention updated to `{service}/{layer}`
+✅ DataHandler extended to load from GeoPackage (verified identical to live WFS)
+⬜ Need to test bundler at scale (100 → 500 → 12,130 regions)
+⬜ Need to add checkpointing before full 12,130-region run
 
 ---
 
-## TASK 1: Refactor DataHandler - Add Geopackage Loader
+## TASK 1: Refactor DataHandler - Add Geopackage Loader ✅ COMPLETED
 
 **Goal:** Let DataHandler load pre-saved WFS data instead of fetching live
 
@@ -24,34 +26,36 @@ We're fetching WFS data for 233 scope regions (eventually 12,130). The workflow 
 
 ### Subtasks:
 
-**1.1 Add method: `load_remote_data_from_geopackage()`**
-- [ ] Read all layers from geopackage using `fiona.listlayers()`
-- [ ] Filter for layers starting with `wfs_`
-- [ ] Parse layer names: `wfs_{service}_{layer}` → extract service + layer
-- [ ] Load each layer as GeoDataFrame
-- [ ] Store in nested dict: `bundled_wfs_data[service_name][layer_name] = gdf`
-- [ ] Call `_process_bundled_data_into_features(bundled_wfs_data)`
-- [ ] Set `self.remote_data_downloaded = True`
+**1.1 Add method: `load_remote_data_from_geopackage()`** ✅
+- [x] Read all layers from geopackage using `gpd.list_layers()` (switched from fiona)
+- [x] Filter for layers containing `/` (new naming: `{service}/{layer}`)
+- [x] Parse layer names: `land_use/BrpGewas` → extract service + layer
+- [x] Load each layer as GeoDataFrame
+- [x] Store in nested dict: `bundled_wfs_data[service_name][layer_name] = gdf`
+- [x] Call `_process_bundled_data_into_features(bundled_wfs_data)`
+- [x] Set `self.remote_data_downloaded = True`
 
-**1.2 Add method: `_process_bundled_data_into_features()`**
-- [ ] Loop through `self.prediction_regions`
-- [ ] For each region:
-  - [ ] Buffer the region geometry (use `self.config.prediction_region_buffer`)
-  - [ ] For each WFS service/layer in `bundled_wfs_data`:
-    - [ ] Spatially filter: `layer_gdf[layer_gdf.intersects(buffered_region)]`
-    - [ ] Get feature config: `self.config.feature_creation_config.get(layer_name)`
-    - [ ] Call `self._generate_region_features(region_geom, filtered_data, feature_config)`
-    - [ ] Name features: `{layer_name}_{agg_function}`
-  - [ ] Flatten nested dict: `UTILS.flatten_dictionary(single_region_features)`
-  - [ ] Append to `wfs_features` list
-- [ ] Convert to DataFrame
-- [ ] Merge with `self.scope_region_features`
+**1.2 Add method: `_process_bundled_data_into_features()`** ✅
+- [x] Loop through `self.prediction_regions`
+- [x] For each region:
+  - [x] Buffer the region geometry (use `self.config.prediction_region_buffer`)
+  - [x] For each configured layer (not just what's in geopackage):
+    - [x] Find layer in bundled data or create empty GeoDataFrame
+    - [x] Spatially filter: `layer_gdf[layer_gdf.intersects(buffered_region)]`
+    - [x] Get feature config: `self.config.feature_creation_config.get(layer_name)`
+    - [x] Call `self._generate_region_features(region_geom, filtered_data, feature_config)`
+    - [x] Name features: `{layer_name}_{agg_function}`
+  - [x] Flatten nested dict: `UTILS.flatten_dictionary(single_region_features)`
+  - [x] Append to `wfs_features` list
+- [x] Convert to DataFrame
+- [x] Merge with `self.scope_region_features`
 
-**1.3 Test the new methods**
-- [ ] Load your saved GeoPackage (`wocu_output_fase2_v4_w_features_20260127.gpkg`)
-- [ ] Confirm all WFS layers are detected
-- [ ] Verify features are calculated correctly for 233 regions
-- [ ] Compare output to `create_data_from_remote()` (should match structurally)
+**1.3 Test the new methods** ✅
+- [x] Created `test_datahandler_geopackage_loading.ipynb`
+- [x] Side-by-side comparison: live WFS vs geopackage loading
+- [x] Verified identical output (10 regions, 11 columns)
+- [x] Confirmed ~200x speedup (16s → 0.08s for 10 regions)
+- [x] Handles missing layers (creates default values)
 
 ---
 
@@ -140,9 +144,10 @@ data_handler.create_data_from_remote()
 - **Decision:** Fetch → Save → Validate → Process (not Fetch+Process together)
 - **Reason:** QGIS validation checkpoint prevents wasted compute
 
-### ✅ Geopackage Layer Naming
-- **Format:** `wfs_{service}_{layer}` (e.g., `wfs_pdok_waterdeel`)
-- **Reason:** Unambiguous parsing, avoids name collisions
+### ✅ Geopackage Layer Naming (Updated 2026-01-27)
+- **Format:** `{service}/{layer}` (e.g., `land_use/BrpGewas`, `building_location/bag:pand`)
+- **Reason:** Native geopackage folder structure, preserves colons in layer names, simpler parsing
+- **Previous format:** `wfs_{service}_{layer_encoded}` - deprecated due to parsing ambiguity
 
 ---
 
@@ -150,11 +155,12 @@ data_handler.create_data_from_remote()
 
 **COMPLETED:**
 - ✅ Task 2: Created WFSDataBundler class and test notebook
+- ✅ Task 1: DataHandler geopackage loader implemented and tested (verified with 10 regions)
 
 **NEXT STEPS:**
 
-1. **HIGH:** Test WFSDataBundler with 10 → 100 → 500 regions
-   - Run `notebooks/test_wfs_bundler.ipynb`
+1. **HIGH:** Test WFSDataBundler at scale (100 → 500 regions)
+   - Run `notebooks/test_wfs_bundler.ipynb` with larger datasets
    - Verify output in QGIS
    - Estimate timing for full 12,130 run
 
@@ -167,12 +173,13 @@ data_handler.create_data_from_remote()
    - Run overnight with checkpointing
    - Validate output in QGIS
 
-4. **HIGH:** Task 1.1 + 1.2 (DataHandler geopackage loader) - 2-3 hours
-   - Only start AFTER data collection is validated
+4. **HIGH:** Update `demo_baseline_model.ipynb` to use geopackage loading
+   - Replace `create_data_from_remote()` with `load_remote_data_from_geopackage()`
+   - Verify model predictions remain identical
 
-5. **MEDIUM:** Task 1.3 (Test with your geopackage) - 1 hour
-
-6. **LOW:** Task 4 (Documentation)
+5. **LOW:** Task 4 (Documentation updates)
+   - Update DataHandler class docstring
+   - Add workflow examples
 
 ---
 
