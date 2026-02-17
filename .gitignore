@@ -53,6 +53,7 @@ Thumbs.db
 
 # Large raw or intermediate files
 /data/
+/backend/data/
 *.tmp
 
 # Results or output directories
