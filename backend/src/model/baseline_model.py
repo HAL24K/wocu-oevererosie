@@ -73,9 +73,9 @@ class BaselineErosionModel:
                 )
                 erosion_step_size = (
                     region_data_simple_index.iloc[i + 1][
-                        CONST.DISTANCE_TO_EROSION_BORDER
+                        CONST.DISTANCE_TO_CENTERLINE
                     ]
-                    - region_data_simple_index.iloc[i][CONST.DISTANCE_TO_EROSION_BORDER]
+                    - region_data_simple_index.iloc[i][CONST.DISTANCE_TO_CENTERLINE]
                 )
 
                 erosion_speeds.append(erosion_step_size / time_step_size)
@@ -133,9 +133,9 @@ class BaselineErosionModel:
 
         for prediction_step in range(1, prediction_length + 1):
             predicted_data[
-                f"future_{CONST.DISTANCE_TO_EROSION_BORDER}_{prediction_step}"
+                f"future_{CONST.DISTANCE_TO_CENTERLINE}_{prediction_step}"
             ] = data[
-                CONST.DISTANCE_TO_EROSION_BORDER
+                CONST.DISTANCE_TO_CENTERLINE
             ] + prediction_step * data.index.get_level_values(
                 CONST.PREDICTION_REGION_ID
             ).map(

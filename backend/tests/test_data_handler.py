@@ -211,7 +211,7 @@ def test_erosion_data_processing(
         ).nunique() == len(data_handler.prediction_regions)
 
         assert (
-            data_handler.processed_erosion_data[CONST.DISTANCE_TO_EROSION_BORDER] < 0
+            data_handler.processed_erosion_data[CONST.DISTANCE_TO_CENTERLINE] < 0
         ).any()
 
         assert (
@@ -237,12 +237,12 @@ def test_erosion_data_processing(
         # * if they are absent - not filtered out, we have data with zero distance
         if filter_out_bad_points:
             assert (
-                data_handler.processed_erosion_data[CONST.DISTANCE_TO_EROSION_BORDER]
+                data_handler.processed_erosion_data[CONST.DISTANCE_TO_CENTERLINE]
                 != 0
             ).all()
         else:
             assert (
-                data_handler.processed_erosion_data[CONST.DISTANCE_TO_EROSION_BORDER]
+                data_handler.processed_erosion_data[CONST.DISTANCE_TO_CENTERLINE]
                 == 0
             ).any()
 

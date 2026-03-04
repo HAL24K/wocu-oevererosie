@@ -40,7 +40,7 @@ def training_data():
                 5,
             ],
             CONST.TIMESTAMP: [1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 3],
-            CONST.DISTANCE_TO_EROSION_BORDER: [
+            CONST.DISTANCE_TO_CENTERLINE: [
                 50,
                 10,
                 -10,
@@ -96,7 +96,7 @@ def prediction_data():
                 3,
                 5,
             ],
-            CONST.DISTANCE_TO_EROSION_BORDER: [50, 10, -10, 10, 10],
+            CONST.DISTANCE_TO_CENTERLINE: [50, 10, -10, 10, 10],
         }
     )
 
@@ -152,7 +152,7 @@ def test_predict_baseline_model(baseline_model, prediction_data):
         {
             CONST.PREDICTION_REGION_ID: [42, 42],
             CONST.TIMESTAMP: [1, 2],
-            CONST.DISTANCE_TO_EROSION_BORDER: [666, 667],
+            CONST.DISTANCE_TO_CENTERLINE: [666, 667],
         }
     )
     extra_region = extra_region.set_index([CONST.PREDICTION_REGION_ID, CONST.TIMESTAMP])

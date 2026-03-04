@@ -79,7 +79,8 @@ TIMESTAMP = "dtm_date"  # "ahn_version"
 RIVER_BANK_POINT_STATUS = "status"
 
 # column names used in the processed data
-DISTANCE_TO_EROSION_BORDER = "distance_to_erosion_border"
+DISTANCE_TO_CENTERLINE = "distance_to_centerline"  # Processed column: mean dist of N furthest bank pts to centreline
+RAW_DIST_COLUMN = "dist"  # Column name in raw WOCU geopackages (per-point distance to centreline)
 DIRECTION_FACTOR = "direction_factor"
 
 DEFAULT_NUMBER_OF_LAGS = 1
@@ -147,7 +148,7 @@ DEFAULT_LENGTH_OF_TIME_GAP_BETWEEN_MEASSUREMENTS = 1.0  # year
 
 DEFAULT_KNOWN_NUMERICAL_COLUMNS = [TIMESTEPS_SINCE_LAST_MEASUREMENT]
 DEFAULT_UNKNOWN_NUMERICAL_COLUMNS = [
-    DISTANCE_TO_EROSION_BORDER,
+    DISTANCE_TO_CENTERLINE,
 ]
 DEFAULT_KNOWN_CATEGORICAL_COLUMNS = []
 DEFAULT_UNKNOWN_CATEGORICAL_COLUMNS = []

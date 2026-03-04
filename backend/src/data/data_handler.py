@@ -124,6 +124,19 @@ class DataHandler:
             )
             internal_erosion_data = internal_erosion_data[ok_mask]
 
+        use_precalculated_dist = CONST.RAW_DIST_COLUMN in internal_erosion_data.columns
+        if use_precalculated_dist:
+            logger.info(
+                f"Using pre-calculated '{CONST.RAW_DIST_COLUMN}' column from erosion data "
+                f"(skipping geometric distance calculation)."
+            )
+        elif self.erosion_border is None:
+            raise ValueError(
+                f"erosion_border is required when erosion_data does not contain a "
+                f"'{CONST.RAW_DIST_COLUMN}' column. Either provide erosion_border or "
+                f"ensure erosion_data has pre-calculated distances."
+            )
+
         for (
             prediction_region_id,
             timestamp,
@@ -133,22 +146,19 @@ class DataHandler:
                 self.config.timestamp_column_name,
             ]
         ):
-            # TODO: distance is a metric that is always positive, so if we are a distance X from the line one year
-            #   and then cross and end up Y<X on the other side, the speed of erosion will be wrong!
-            # local_distances_bank_to_border = local_erosion_data.distance(self.erosion_border)
-            local_distances_bank_to_border = (
-                self.calculate_river_bank_distances_to_erosion_border(
-                    local_erosion_data
+            if use_precalculated_dist:
+                local_distances_bank_to_border = local_erosion_data[CONST.RAW_DIST_COLUMN]
+            else:
+                local_distances_bank_to_border = (
+                    self.calculate_river_bank_distances_to_erosion_border(
+                        local_erosion_data
+                    )
                 )
-            )
 
-            # Calculate the mean distance of the self.config.no_of_points_for_distance_calculation closest points
-            # to the erosion border
-            # I know that pandas has a .nsmallest() method, but it handles duplicates in a way that is not right for us
-            # (it either drops them, or keeps more than N points, in any case messing up the average)
-            # TODO: make the below more configurable
+            # Mean distance of the N furthest bank points (largest dist values) to the centreline.
+            # nsmallest() is avoided because it drops duplicates inconsistently.
             local_distance_bank_to_border = (
-                local_distances_bank_to_border.sort_values()
+                local_distances_bank_to_border.sort_values(ascending=False)
                 .iloc[: self.config.no_of_points_for_distance_calculation]
                 .mean()
             )
@@ -157,7 +167,7 @@ class DataHandler:
                 {
                     self.config.prediction_region_id_column_name: prediction_region_id,
                     self.config.timestamp_column_name: timestamp,
-                    CONST.DISTANCE_TO_EROSION_BORDER: local_distance_bank_to_border,
+                    CONST.DISTANCE_TO_CENTERLINE: local_distance_bank_to_border,
                 }
             )
 
@@ -248,15 +258,15 @@ class DataHandler:
             direction_factors.append(local_direction_factor)
 
         local_distances = pd.DataFrame(erosion_data.distance(self.erosion_border))
-        local_distances.columns = [CONST.DISTANCE_TO_EROSION_BORDER]
+        local_distances.columns = [CONST.DISTANCE_TO_CENTERLINE]
 
         local_distances[CONST.DIRECTION_FACTOR] = direction_factors
-        local_distances[CONST.DISTANCE_TO_EROSION_BORDER] = (
-            local_distances[CONST.DISTANCE_TO_EROSION_BORDER]
+        local_distances[CONST.DISTANCE_TO_CENTERLINE] = (
+            local_distances[CONST.DISTANCE_TO_CENTERLINE]
             * local_distances[CONST.DIRECTION_FACTOR]
         )
 
-        return local_distances[CONST.DISTANCE_TO_EROSION_BORDER]
+        return local_distances[CONST.DISTANCE_TO_CENTERLINE]
 
     def create_data_from_remote(self, show_progress: bool = True):
         """For each prediction region, get the WFS data and calculate the features.
