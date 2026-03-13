@@ -13,10 +13,17 @@ Typical usage in a notebook::
         cl_lookup=cl_lookup,
         scope_lookup=scope_lookup,
         bank_points=bank_points,
-        legend_handles=make_legend_handles(year_colors, pred_colors, pred_years),
-        draw_kwargs=dict(show_predictions=True, show_signalering=True,
-                         predicted_bank_positions=predicted_bank_positions,
-                         signaleringslijn=signaleringslijn),
+        legend_handles=make_legend_handles(
+            pred_colors=pred_colors, pred_years=PRED_YEARS,
+            show_vvr=True, show_signaleringslijn=True,
+        ),
+        draw_kwargs=dict(
+            show_predictions=True,
+            show_vvr=True,
+            show_signaleringslijn=True,
+            vvr=signalering,
+            predicted_bank_positions=predicted_bank_positions,
+        ),
     )
 """
 
@@ -44,7 +51,7 @@ from src.erosion.centerline_utils import (
 
 YEAR_COLORS: list[str] = ["#f4d03f", "#a50026", "#4393c3"]
 VVR_COLOR: str = "#7b2d8b"
-PARALLEL_LINE_COLOR: str = "#e67e22"
+SIGNALERINGSLIJN_COLOR: str = "#7b2d8b"  # purple, continuous line at back of VVR
 STATUS_ALPHA: dict[str, float] = {"OK": 0.80, "UNCERTAIN": 0.40, "OUTLIER": 0.20}
 
 
@@ -58,7 +65,7 @@ def make_legend_handles(
     pred_years: Optional[list[int]] = None,
     n_points: int = 3,
     show_vvr: bool = False,
-    show_parallel: bool = False,
+    show_signaleringslijn: bool = False,
 ) -> list:
     """Build standard legend handles for scope region plots."""
     handles = [
@@ -86,13 +93,13 @@ def make_legend_handles(
         )
     if show_vvr:
         handles.append(
-            plt.Line2D([0], [0], color=VVR_COLOR, lw=2.5, label="signaleringslijn")
+            plt.Line2D([0], [0], color=VVR_COLOR, lw=2.5, label="VVR")
         )
-    if show_parallel:
+    if show_signaleringslijn:
         handles.append(
             plt.Line2D(
-                [0], [0], color=PARALLEL_LINE_COLOR, lw=2, ls="--",
-                label="parallel @ dist_signaleringslijn",
+                [0], [0], color=SIGNALERINGSLIJN_COLOR, lw=2,
+                label="signaleringslijn",
             )
         )
     return handles
@@ -115,12 +122,12 @@ def draw_region(
     pred_years: Optional[list[int]] = None,
     pred_colors: Optional[list] = None,
     predicted_bank_positions: Optional[gpd.GeoDataFrame] = None,
-    signaleringslijn: Optional[gpd.GeoDataFrame] = None,
+    vvr: Optional[gpd.GeoDataFrame] = None,
     show_t1_to_t2_arrow: bool = True,
     show_predictions: bool = False,
-    show_signalering: bool = False,
+    show_vvr: bool = False,
     show_bank_points: bool = True,
-    show_parallel_line: bool = False,
+    show_signaleringslijn: bool = False,
     compact: bool = False,
 ) -> None:
     """Draw one scope region panel onto ``ax``."""
@@ -139,8 +146,8 @@ def draw_region(
         _draw_arrows(ax, offset_lines)
     if show_predictions and predicted_bank_positions is not None:
         _draw_predictions(ax, loc_id, predicted_bank_positions, pred_years, pred_colors)
-    if (show_signalering or show_parallel_line) and signaleringslijn is not None:
-        _draw_signalering(ax, sgeom, cline, signaleringslijn, show_parallel_line, compact)
+    if (show_vvr or show_signaleringslijn) and vvr is not None:
+        _draw_vvr(ax, sgeom, cline, vvr, show_signaleringslijn, compact)
 
 
 def plot_regions(
@@ -169,7 +176,7 @@ def plot_regions(
         bank_points:       Full bank points GeoDataFrame.
         draw_kwargs:       Extra kwargs forwarded to ``draw_region``.
         per_region_xlabel: Optional callable returning x-axis label per location.
-        n_cols:            Columns for compact grid (default 10).
+        n_cols:            Number of columns (default: all in one row).
         fig_w / fig_h:     Panel width/height in inches (non-compact mode).
         compact:           Use small dense grid layout.
     """
@@ -184,14 +191,16 @@ def plot_regions(
             figsize=(2.0 * n_cols, 2.0 * n_rows),
             constrained_layout=True,
         )
-        axes_flat = np.array(axes).flatten()
     else:
+        n_cols = n_cols or n
+        n_rows = math.ceil(n / n_cols)
         fig, axes = plt.subplots(
-            1, n,
-            figsize=(fig_w * n, fig_h),
+            n_rows, n_cols,
+            figsize=(fig_w * n_cols, fig_h * n_rows),
             constrained_layout=True,
         )
-        axes_flat = ensure_axes_list(axes)
+
+    axes_flat = np.array(axes).flatten()
 
     for col, loc_id in enumerate(loc_ids):
         draw_region(
@@ -199,14 +208,13 @@ def plot_regions(
             cl_lookup=cl_lookup,
             scope_lookup=scope_lookup,
             bank_points=bank_points,
-            col_idx=col,
+            col_idx=col % n_cols,
             compact=compact,
             **draw_kw,
         )
         if per_region_xlabel:
             axes_flat[col].set_xlabel(per_region_xlabel(loc_id), fontsize=7.5)
 
-    # Hide unused axes in compact mode
     for ax in axes_flat[n:]:
         ax.set_visible(False)
 
@@ -236,12 +244,15 @@ def _setup_ax(ax, loc_id: str, col_idx: int, compact: bool) -> None:
     ax.set_xlabel("Easting (m RD)", fontsize=8)
 
 
-def _draw_scope_and_cl(ax, sgeom, cline, compact: bool) -> None:
+def _draw_scope_and_cl(ax, sgeom, cline, compact: bool, padding: float = 50.0) -> None:
     lw_cl = 1.5 if compact else 2.5
     if sgeom is not None:
         bx, by = sgeom.exterior.xy
         ax.fill(bx, by, fc="#f0f0f0", ec="#aaaaaa",
                 lw=0.8 if compact else 1.2, zorder=1)
+        minx, miny, maxx, maxy = sgeom.bounds
+        ax.set_xlim(minx - padding, maxx + padding)
+        ax.set_ylim(miny - padding, maxy + padding)
     if cline is not None:
         xs, ys = cline.xy
         ax.plot(xs, ys, color="black", lw=lw_cl, zorder=5, solid_capstyle="round")
@@ -339,17 +350,17 @@ def _draw_arrows(ax, offset_lines: list, arrow_offset: float = 10.0) -> None:
         )
 
 
-def _draw_signalering(
+def _draw_vvr(
     ax, sgeom, cline,
-    signaleringslijn: gpd.GeoDataFrame,
-    show_parallel_line: bool,
+    vvr: gpd.GeoDataFrame,
+    show_signaleringslijn: bool,
     compact: bool,
 ) -> None:
     if sgeom is None:
         return
-    buf = sgeom.buffer(10) if show_parallel_line else sgeom
-    local_sig = signaleringslijn[signaleringslijn.intersects(buf)]
-    for _, row in local_sig.iterrows():
+    buf = sgeom.buffer(10) if show_signaleringslijn else sgeom
+    local_vvr = vvr[vvr.intersects(buf)]
+    for _, row in local_vvr.iterrows():
         for part in flatten_geom_to_lines(row.geometry):
             try:
                 ax.plot(
@@ -359,16 +370,16 @@ def _draw_signalering(
                 )
             except (NotImplementedError, AttributeError):
                 pass
-    if show_parallel_line and not local_sig.empty and cline is not None:
-        vvr_clipped = local_sig.geometry.union_all().intersection(sgeom)
+    if show_signaleringslijn and not local_vvr.empty and cline is not None:
+        vvr_clipped = local_vvr.geometry.union_all().intersection(sgeom)
         if vvr_clipped and not vvr_clipped.is_empty:
             pline = parallel_line_from_vvr(cline, vvr_clipped)
             if pline and not pline.is_empty:
                 for part in flatten_geom_to_lines(pline):
                     try:
                         ax.plot(
-                            *part.xy, color=PARALLEL_LINE_COLOR,
-                            lw=1.2, ls="--", zorder=6,
+                            *part.xy, color=SIGNALERINGSLIJN_COLOR,
+                            lw=1.5, zorder=6, solid_capstyle="round",
                         )
                     except (NotImplementedError, AttributeError):
                         pass
