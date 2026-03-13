@@ -92,13 +92,20 @@ def dist_signaleringslijn(centerline, vvr_geom, n_samples: int = 200) -> float:
     Samples n_points along the centerline and returns the minimum distance
     to the VVR geometry (or its boundary for Polygons).
     """
-    if vvr_geom.geom_type == "Polygon":
-        vvr_boundary = vvr_geom.boundary
+    if vvr_geom.geom_type == 'LineString':
+        line_geoms = [vvr_geom]
+    elif vvr_geom.geom_type == 'MultiLineString':
+        line_geoms = list(vvr_geom.geoms)
     else:
-        vvr_boundary = vvr_geom
-    distances = np.linspace(0, centerline.length, n_samples)
-    perp_dists = [_scalar_distance(centerline.interpolate(d), vvr_boundary) for d in distances]
-    return min(perp_dists) if perp_dists else float("inf")
+        line_geoms = [vvr_geom]
+    max_dist = 0
+    for geom in line_geoms:
+        for d in np.linspace(0, geom.length, n_samples):
+            pt = geom.interpolate(d)
+            dist = centerline.distance(pt)
+            if dist > max_dist:
+                max_dist = dist
+    return max_dist if max_dist > 0 else None
 
 
 def parallel_line_from_vvr(centerline, vvr_geom):
@@ -230,7 +237,8 @@ def compute_vvr_crossing_year(
 ) -> pd.DataFrame:
     """
     For each NVO region: when does predicted bank distance exceed signaleringslijn?
-    Returns: location_id, dist_to_vvr_m, crossing_year, velocity_m_per_yr, years_to_crossing.
+    Returns: location_id, dist_to_vvr_m, crossing_year, velocity_m_per_yr, years_to_crossing,
+             dist_2026, dist_2027, ..., dist_2035.
     """
     sig = signaleringslijn.to_crs(28992) if signaleringslijn.crs.to_epsg() != 28992 else signaleringslijn
     cl, sc = centerlines.set_index("location_id")["geometry"], scope.set_index("location_id")["geometry"]
@@ -258,18 +266,23 @@ def compute_vvr_crossing_year(
                 crossing_year = float(t1)
                 break
             if d2 >= dist_to_vvr:
-                crossing_year = t1 + (dist_to_vvr - d1) / (d2 - d1) * (t2 - t1) if d2 > d1 else float(t2)
+                crossing_year = float(t2)
                 break
         if crossing_year is None and pred.iloc[-1][dist_column] >= dist_to_vvr:
             crossing_year = float(pred.iloc[-1]["year"])
         vel = pred.iloc[0]["velocity_m_per_yr"] if has_vel else None
-        rows.append({
+        # dist per year for debugging (prove hypothesis: dist_2026 vs dist_to_vvr_m)
+        dist_by_year = pred.set_index("year")[dist_column].to_dict()
+        row = {
             "location_id": loc_id,
             "dist_to_vvr_m": dist_to_vvr,
             "crossing_year": crossing_year,
             "velocity_m_per_yr": vel,
             "years_to_crossing": crossing_year - reference_year if crossing_year else None,
-        })
+        }
+        for y in range(2026, 2036):
+            row[f"dist_{y}"] = dist_by_year.get(y)
+        rows.append(row)
     return pd.DataFrame(rows)
 
 
