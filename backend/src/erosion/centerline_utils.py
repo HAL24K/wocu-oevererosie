@@ -237,12 +237,18 @@ def compute_vvr_crossing_year(
 ) -> pd.DataFrame:
     """
     For each NVO region: when does predicted bank distance exceed signaleringslijn?
-    Returns: location_id, dist_to_vvr_m, crossing_year, velocity_m_per_yr, years_to_crossing,
-             dist_2026, dist_2027, ..., dist_2035.
+
+    Returns a DataFrame with columns:
+        location_id, dist_to_vvr_m, crossing_year, velocity_m_per_yr, years_to_crossing,
+        dist_{y} for each prediction year present in predicted_dist_df.
     """
     sig = signaleringslijn.to_crs(28992) if signaleringslijn.crs.to_epsg() != 28992 else signaleringslijn
     cl, sc = centerlines.set_index("location_id")["geometry"], scope.set_index("location_id")["geometry"]
     has_vel = "velocity_m_per_yr" in predicted_dist_df.columns
+
+    # Derive prediction years from the data — no hardcoded range
+    all_years = sorted(predicted_dist_df["year"].unique().tolist())
+
     rows = []
     for loc_id in nvo_location_ids:
         cline, sgeom = cl.get(loc_id), sc.get(loc_id)
@@ -258,6 +264,8 @@ def compute_vvr_crossing_year(
             dist_to_vvr = dist_signaleringslijn(cline, vvr)
         except (ValueError, TypeError):
             continue
+        if dist_to_vvr is None:
+            continue
         crossing_year = None
         for i in range(len(pred) - 1):
             d1, d2 = pred.iloc[i][dist_column], pred.iloc[i + 1][dist_column]
@@ -271,7 +279,6 @@ def compute_vvr_crossing_year(
         if crossing_year is None and pred.iloc[-1][dist_column] >= dist_to_vvr:
             crossing_year = float(pred.iloc[-1]["year"])
         vel = pred.iloc[0]["velocity_m_per_yr"] if has_vel else None
-        # dist per year for debugging (prove hypothesis: dist_2026 vs dist_to_vvr_m)
         dist_by_year = pred.set_index("year")[dist_column].to_dict()
         row = {
             "location_id": loc_id,
@@ -280,7 +287,7 @@ def compute_vvr_crossing_year(
             "velocity_m_per_yr": vel,
             "years_to_crossing": crossing_year - reference_year if crossing_year else None,
         }
-        for y in range(2026, 2036):
+        for y in all_years:
             row[f"dist_{y}"] = dist_by_year.get(y)
         rows.append(row)
     return pd.DataFrame(rows)
