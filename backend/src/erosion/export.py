@@ -3,10 +3,12 @@
 Creates a dated copy of a base GeoPackage and appends prediction outputs:
 
   - ``predicted_bank_positions``: new GeoPoint layer — one row per (location_id, year)
-    with predicted dist, velocity, and is_nvo flag.
+    with predicted dist, velocity, and is_nvo flag (stored as integer 0/1).
   - ``predicted_vvr_crossing_year``: new column on the existing
     ``vvr_rates_of_change`` layer — earliest predicted crossing year per VVR polygon,
     derived via spatial join with scope regions.
+  - ``signaleringslijn`` (optional): new LineString layer with the VVR boundary lines
+    used as crossing threshold reference.
 
 Usage::
 
@@ -18,6 +20,7 @@ Usage::
         predicted_bank_positions=predicted_bank_positions,
         vvr_crossing=vvr_crossing,
         scope_raw=scope_raw,
+        signaleringslijn=signalering,  # optional
     )
 """
 
@@ -38,9 +41,11 @@ def export_predictions(
     predicted_bank_positions: gpd.GeoDataFrame,
     vvr_crossing: pd.DataFrame,
     scope_raw: gpd.GeoDataFrame,
+    signaleringslijn: gpd.GeoDataFrame | None = None,
     bank_layer: str = "predicted_bank_positions",
     vvr_layer: str = "vvr_rates_of_change",
     crossing_col: str = "predicted_vvr_crossing_year",
+    signalering_layer: str = "signaleringslijn",
     target_crs: int = 28992,
     verbose: bool = True,
 ) -> Path:
@@ -51,13 +56,18 @@ def export_predictions(
         output_gpkg: Destination path. Will be overwritten if it exists.
         predicted_bank_positions: GeoDataFrame with columns
             location_id, year, predicted_dist_m, velocity_m_per_yr, is_nvo, geometry.
+            ``is_nvo`` will be cast to int (0/1) before writing to avoid pyogrio
+            misinterpreting a bool column as a geometry field.
         vvr_crossing: DataFrame from ``compute_vvr_crossing_year`` with columns
             location_id, crossing_year (and optionally dist_to_vvr_m, years_to_crossing).
         scope_raw: GeoDataFrame with location_id + geometry (vlakken_scope).
             Used to spatially link scope regions to VVR polygons.
+        signaleringslijn: Optional GeoDataFrame of VVR boundary lines to include as
+            a standalone layer in the output GPKG.
         bank_layer: Name for the new bank positions layer.
         vvr_layer:  Name of the existing VVR layer to patch.
         crossing_col: Name of the new attribute added to ``vvr_layer``.
+        signalering_layer: Name for the optional signaleringslijn layer.
         target_crs: EPSG code to reproject outputs to (default: RD New / 28992).
         verbose: Print progress steps.
 
@@ -69,9 +79,10 @@ def export_predictions(
             print(msg, flush=True)
 
     output_gpkg = Path(output_gpkg)
+    n_steps = 5 if signaleringslijn is not None else 4
 
     # --- Step 1: Copy base GPKG ---
-    _log(f"[1/4] Copying base GPKG → {output_gpkg.name} ...")
+    _log(f"[1/{n_steps}] Copying base GPKG → {output_gpkg.name} ...")
     t = time.time()
     shutil.copy2(base_gpkg, output_gpkg)
     for _ext in ("-wal", "-shm"):
@@ -85,8 +96,11 @@ def export_predictions(
     bank_export = predicted_bank_positions[
         predicted_bank_positions.geometry.notna()
     ].copy()
+    # Cast is_nvo to int to prevent pyogrio from misidentifying a bool column as geometry
+    if "is_nvo" in bank_export.columns:
+        bank_export["is_nvo"] = bank_export["is_nvo"].astype(int)
 
-    _log(f"[2/4] Writing {bank_layer} ({len(bank_export):,} rows) ...")
+    _log(f"[2/{n_steps}] Writing {bank_layer} ({len(bank_export):,} rows) ...")
     t = time.time()
     bank_export = bank_export.to_crs(target_crs)
 
@@ -104,7 +118,7 @@ def export_predictions(
     _log(f"      sqlite ATTACH copy done  {time.time()-t:.1f}s")
 
     # --- Step 3: Compute crossing year per VVR polygon ---
-    _log(f"[3/4] Computing crossing year per VVR polygon ...")
+    _log(f"[3/{n_steps}] Computing crossing year per VVR polygon ...")
     t = time.time()
     crossing_lookup = vvr_crossing.set_index("location_id")["crossing_year"].dropna()
     scope_matched = scope_raw[
@@ -122,11 +136,26 @@ def export_predictions(
     _log(f"      done  {time.time()-t:.1f}s  → {n_filled:,}/{len(vvr_geom):,} assigned")
 
     # --- Step 4: Patch crossing_col into vvr_layer ---
-    _log(f"[4/4] Patching {vvr_layer}.{crossing_col} ...")
+    _log(f"[4/{n_steps}] Patching {vvr_layer}.{crossing_col} ...")
     t = time.time()
     vvr_geom[crossing_col] = vvr_geom.index.map(earliest)
     vvr_geom.to_file(output_gpkg, layer=vvr_layer, driver="GPKG")
     _log(f"      done  {time.time()-t:.1f}s")
+
+    # --- Step 5 (optional): Write signaleringslijn layer ---
+    if signaleringslijn is not None:
+        _log(f"[5/{n_steps}] Writing {signalering_layer} ({len(signaleringslijn):,} features) ...")
+        t = time.time()
+        sig_export = signaleringslijn.to_crs(target_crs)
+        tmp_sig = output_gpkg.with_suffix(".sig.tmp.gpkg")
+        sig_export.to_file(tmp_sig, layer=signalering_layer, driver="GPKG")
+        for _ext in ("-wal", "-shm"):
+            _sidecar = Path(str(tmp_sig) + _ext)
+            if _sidecar.exists():
+                _sidecar.unlink()
+        _attach_copy_layer(tmp_sig, output_gpkg, signalering_layer)
+        tmp_sig.unlink()
+        _log(f"      done  {time.time()-t:.1f}s")
 
     return output_gpkg
 
