@@ -112,7 +112,16 @@ extend-exclude = '''
 
 [tool.ruff]
 line-length = 88
-target-version = "py311"
+target-version = "py312"
+extend-exclude = [
+    ".git",
+    "__pycache__",
+    ".venv",
+    "build",
+    "dist",
+]
+
+[tool.ruff.lint]
 select = [
     "E",   # pycodestyle errors
     "W",   # pycodestyle warnings
@@ -123,21 +132,18 @@ select = [
     "UP",  # pyupgrade
 ]
 ignore = [
-    "E501",  # line too long (handled by black)
+    "E501",  # line too long (handled by the formatter)
     "B008",  # do not perform function calls in argument defaults
     "C901",  # too complex
 ]
-extend-exclude = [
-    ".git",
-    "__pycache__",
-    ".venv",
-    "build",
-    "dist",
-]
 
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]  # unused imports in __init__.py
 "tests/**/*.py" = ["F401", "F811"]  # allow unused imports and redefinitions in tests
+# Optional[...] here are runtime values handed to pydantic's create_model, not
+# annotations. Rewriting them to `X | None` changes what pydantic receives, so
+# leave them as-is.
+"src/data/feature_generation_config_schema.py" = ["UP045"]
 
-[tool.ruff.isort]
+[tool.ruff.lint.isort]
 known-first-party = ["app", "src"]
