@@ -75,3 +75,12 @@ backend/artifacts/
 # Coverage and test artifacts
 .coverage
 .pytest_cache/
+
+# Documents and raster images — keep binaries out of the repo.
+# Notebook outputs embed images as base64 inside .ipynb and are unaffected.
+# To commit one deliberately: git add -f <file>
+*.pdf
+*.png
+*.jpg
+*.jpeg
+*.gif
