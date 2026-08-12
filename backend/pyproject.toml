@@ -9,7 +9,6 @@ packages = ["app", "src"]
 name = "wocu-oevererosie-backend"
 version = "1.0.0"
 description = "River bank erosion prediction backend API"
-readme = "../README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [
     # Core web framework
