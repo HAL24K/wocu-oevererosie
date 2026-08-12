@@ -6,7 +6,11 @@ Creates a dated copy of a base GeoPackage and appends prediction outputs:
     with predicted dist, velocity, and is_nvo flag (stored as integer 0/1).
   - ``predicted_vvr_crossing_year``: new column on the existing
     ``vvr_rates_of_change`` layer — earliest predicted crossing year per VVR polygon,
-    derived via spatial join with scope regions.
+    derived via spatial join with scope regions. Three possible values:
+
+      * 2026–end_year  — bank crosses the signaleringslijn within the prediction window
+      * 9999           — bank was predicted but does not cross before the end year ("safe")
+      * NULL           — no scope region with predictions matched this VVR polygon
   - ``signaleringslijn`` (optional): new LineString layer with the VVR boundary lines
     used as crossing threshold reference.
 
@@ -129,11 +133,35 @@ def export_predictions(
     vvr_pts = vvr_geom.to_crs(scope_matched.crs).copy()
     vvr_pts["geometry"] = vvr_pts.geometry.representative_point()
 
-    joined = gpd.sjoin(vvr_pts[["geometry"]], scope_matched, how="left", predicate="within")
-    joined[crossing_col] = joined["location_id"].map(crossing_lookup)
-    earliest = joined.groupby(joined.index)[crossing_col].min()
-    n_filled = earliest.notna().sum()
-    _log(f"      done  {time.time()-t:.1f}s  → {n_filled:,}/{len(vvr_geom):,} assigned")
+    # Left-join: every VVR polygon gets matched scope region(s) if any overlap.
+    # scope_matched only contains locations that have a crossing_year, so rows
+    # that join but have no crossing_year means the scope region was predicted
+    # but the bank never crosses before the end year.
+    scope_all_predicted = scope_raw[
+        scope_raw["location_id"].isin(vvr_crossing["location_id"])
+    ][["location_id", "geometry"]].copy()
+
+    joined_all = gpd.sjoin(vvr_pts[["geometry"]], scope_all_predicted, how="left", predicate="within")
+    has_any_prediction = joined_all.groupby(joined_all.index)["location_id"].count() > 0
+
+    joined_all[crossing_col] = joined_all["location_id"].map(crossing_lookup)
+    earliest = joined_all.groupby(joined_all.index)[crossing_col].min()
+
+    # Sentinel logic:
+    #   crosses before end year  → actual year (2026–end_year)
+    #   predicted but no crossing → NO_CROSSING_SENTINEL (9999)
+    #   no matching scope region  → NULL (no prediction available)
+    NO_CROSSING_SENTINEL = 9999
+    earliest = earliest.where(earliest.notna(), other=pd.Series(
+        {idx: NO_CROSSING_SENTINEL if has_any_prediction.get(idx, False) else float("nan")
+         for idx in earliest.index}
+    ))
+
+    n_crossing = (earliest < NO_CROSSING_SENTINEL).sum()
+    n_safe     = (earliest == NO_CROSSING_SENTINEL).sum()
+    n_null     = earliest.isna().sum()
+    _log(f"      done  {time.time()-t:.1f}s  → {n_crossing:,} crossing  "
+         f"{n_safe:,} safe (={NO_CROSSING_SENTINEL})  {n_null:,} no-prediction (NULL)")
 
     # --- Step 4: Patch crossing_col into vvr_layer ---
     _log(f"[4/{n_steps}] Patching {vvr_layer}.{crossing_col} ...")

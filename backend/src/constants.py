@@ -135,6 +135,24 @@ KNOWN_CATEGORIES = {
         "Struweel",
         "90/10",
     ],
+    # River segment — ordered roughly by typical flow regime / channel size
+    "river": [
+        "maas1",
+        "maas2",
+        "maas3",
+        "rijn",
+        "nederrijn",
+        "ijssel1",
+        "ijssel2",
+    ],
+    # Soil group — ordered by erosion resistance (most resistant first)
+    "soil_group": [
+        "River clay",
+        "River sand-clay",
+        "Other",
+        "Sandy",
+        "Soft (peat/podzol)",
+    ],
 }
 
 DEFAULT_UNKNOWN_CATEGORY_LABEL = -1

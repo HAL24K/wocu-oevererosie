@@ -231,6 +231,124 @@ def plot_regions(
 
 
 # ---------------------------------------------------------------------------
+# Segmented bank line drawing
+# ---------------------------------------------------------------------------
+
+def draw_region_segmented(
+    ax,
+    loc_id: str,
+    *,
+    cl_lookup: dict,
+    scope_lookup: dict,
+    bank_points: gpd.GeoDataFrame,
+    n_segments: int = 10,
+    n_points: int = 1,
+    year_colors: list[str] = YEAR_COLORS,
+    col_idx: int = 0,
+    compact: bool = False,
+) -> None:
+    """Draw one scope region with bank positions split into N along-centerline segments.
+
+    Instead of one mean offset line per year, the centerline is divided into
+    ``n_segments`` equal-length sub-segments.  Bank points are assigned to a
+    sub-segment based on where they project onto the centerline.  For each
+    sub-segment × year the furthest ``n_points`` OK points are used to draw
+    an independent short offset line, revealing along-channel variation in
+    bank position that a single global mean would obscure.
+
+    Args:
+        ax:          Matplotlib axes to draw into.
+        loc_id:      Location identifier.
+        cl_lookup:   ``{location_id: LineString}`` centerline lookup.
+        scope_lookup: ``{location_id: Polygon}`` scope geometry lookup.
+        bank_points: Full bank points GeoDataFrame (all locations).
+        n_segments:  Number of equal-length sub-segments to divide into.
+        n_points:    Furthest N OK points per sub-segment used to compute mean dist.
+        year_colors: Colors per survey year.
+        col_idx:     Column index (used to label y-axis only on leftmost panel).
+        compact:     Use compact font/line sizes.
+    """
+    from shapely.ops import substring
+
+    cline = cl_lookup.get(loc_id)
+    sgeom = scope_lookup.get(loc_id)
+
+    _setup_ax(ax, loc_id, col_idx, compact)
+    _draw_scope_and_cl(ax, sgeom, cline, compact)
+
+    if cline is None:
+        return
+
+    grp = bank_points[bank_points["location_id"] == loc_id].copy()
+    if grp.empty:
+        return
+
+    dates = sorted(grp["dtm_date"].unique())
+    cl_len = cline.length
+    seg_len = cl_len / n_segments
+
+    for d_idx, date in enumerate(dates):
+        color = year_colors[d_idx % len(year_colors)]
+        yr_grp = grp[grp["dtm_date"] == date]
+
+        # Draw all points (faded background)
+        for status, sub in yr_grp.groupby("status"):
+            ax.scatter(
+                sub.geometry.x, sub.geometry.y,
+                c=color, s=6,
+                alpha=STATUS_ALPHA.get(status, 0.3),
+                linewidths=0, zorder=3,
+            )
+
+        ok = yr_grp[yr_grp["status"] == "OK"].copy()
+        if ok.empty:
+            continue
+
+        # Assign each OK point to a segment by projecting onto the centerline
+        ok["_proj_frac"] = ok.geometry.apply(
+            lambda pt: cline.project(pt, normalized=True)
+        )
+        ok["_seg"] = (ok["_proj_frac"] * n_segments).astype(int).clip(0, n_segments - 1)
+
+        for seg_idx in range(n_segments):
+            seg_pts = ok[ok["_seg"] == seg_idx]
+            if seg_pts.empty:
+                continue
+
+            chosen = seg_pts.nlargest(n_points, "dist")
+            mean_dist = chosen["dist"].mean()
+
+            # Extract the sub-segment of the centerline
+            start_m = seg_idx * seg_len
+            end_m   = min((seg_idx + 1) * seg_len, cl_len)
+            sub_cline = substring(cline, start_m, end_m)
+            if sub_cline is None or sub_cline.is_empty or sub_cline.length < 0.1:
+                continue
+
+            # Highlight the selected furthest points
+            ax.scatter(
+                chosen.geometry.x, chosen.geometry.y,
+                c=color, s=80, edgecolors="black", lw=0.6, zorder=8,
+            )
+
+            # Offset sub-segment toward the bank side
+            offset_seg = offset_line_toward(sub_cline, mean_dist, chosen.geometry)
+            if offset_seg is None or offset_seg.is_empty:
+                continue
+
+            ox, oy = offset_seg.xy
+            ax.plot(ox, oy, color=color, lw=2.5, ls="-", zorder=6, alpha=0.90,
+                    solid_capstyle="butt")
+
+    # Year labels at top-right
+    for d_idx, date in enumerate(dates):
+        color = year_colors[d_idx % len(year_colors)]
+        ax.plot([], [], color=color, lw=2.5,
+                label=f"t{d_idx+1} ({date})")
+    ax.legend(fontsize=5.5, loc="upper right", framealpha=0.7)
+
+
+# ---------------------------------------------------------------------------
 # Private drawing helpers
 # ---------------------------------------------------------------------------
 
