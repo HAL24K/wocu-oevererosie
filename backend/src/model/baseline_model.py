@@ -3,10 +3,11 @@ scope region.
 """
 
 import logging
-import numpy as np
-import pandas as pd
 import pathlib
 import pickle
+
+import numpy as np
+import pandas as pd
 
 import src.constants as CONST
 import src.data.config as DATA_CONFIG
@@ -72,9 +73,7 @@ class BaselineErosionModel:
                     ]
                 )
                 erosion_step_size = (
-                    region_data_simple_index.iloc[i + 1][
-                        CONST.DISTANCE_TO_CENTERLINE
-                    ]
+                    region_data_simple_index.iloc[i + 1][CONST.DISTANCE_TO_CENTERLINE]
                     - region_data_simple_index.iloc[i][CONST.DISTANCE_TO_CENTERLINE]
                 )
 
@@ -138,9 +137,7 @@ class BaselineErosionModel:
                 CONST.DISTANCE_TO_CENTERLINE
             ] + prediction_step * data.index.get_level_values(
                 CONST.PREDICTION_REGION_ID
-            ).map(
-                self.model
-            )
+            ).map(self.model)
 
         return predicted_data
 

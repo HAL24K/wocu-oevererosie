@@ -3,7 +3,7 @@
 import geopandas as gpd
 import numpy as np
 import pytest
-from shapely.geometry import Polygon, LineString, Point
+from shapely.geometry import LineString, Point, Polygon
 
 import src.constants as CONST
 import src.utils as U

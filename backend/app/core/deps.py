@@ -16,7 +16,7 @@ SettingsDep = Annotated[Settings, Depends(get_settings)]
 async def get_current_settings() -> Settings:
     """
     Dependency to get application settings.
-    
+
     Returns:
         Settings: Application settings instance
     """
@@ -27,13 +27,9 @@ async def get_current_settings() -> Settings:
 # async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
 #     """
 #     Dependency to get database session.
-#     
+#
 #     Yields:
 #         AsyncSession: Database session
 #     """
 #     async with async_session_maker() as session:
 #         yield session
-
-
-
-

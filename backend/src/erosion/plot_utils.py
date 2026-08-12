@@ -30,16 +30,14 @@ Typical usage in a notebook::
 from __future__ import annotations
 
 import math
-from typing import Callable, Optional
+from collections.abc import Callable
 
 import geopandas as gpd
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 
 from src.erosion.centerline_utils import (
-    ensure_axes_list,
     flatten_geom_to_lines,
     offset_line_toward,
     parallel_line_from_vvr,
@@ -59,10 +57,11 @@ STATUS_ALPHA: dict[str, float] = {"OK": 0.80, "UNCERTAIN": 0.40, "OUTLIER": 0.20
 # Legend helpers
 # ---------------------------------------------------------------------------
 
+
 def make_legend_handles(
     year_colors: list[str] = YEAR_COLORS,
-    pred_colors: Optional[list] = None,
-    pred_years: Optional[list[int]] = None,
+    pred_colors: list | None = None,
+    pred_years: list[int] | None = None,
     n_points: int = 3,
     show_vvr: bool = False,
     show_signaleringslijn: bool = False,
@@ -72,33 +71,48 @@ def make_legend_handles(
         plt.Line2D([0], [0], color="black", lw=2.5, label="centreline"),
         mpatches.Patch(fc="#f0f0f0", ec="#aaaaaa", label="scope boundary"),
         plt.Line2D(
-            [0], [0], marker="o", color="w",
-            markerfacecolor="grey", markeredgecolor="black",
-            markersize=8, label=f"{n_points} furthest OK (selected)",
+            [0],
+            [0],
+            marker="o",
+            color="w",
+            markerfacecolor="grey",
+            markeredgecolor="black",
+            markersize=8,
+            label=f"{n_points} furthest OK (selected)",
         ),
     ]
     for i, color in enumerate(year_colors):
-        handles.append(mpatches.Patch(color=color, alpha=0.80, label=f"t{i+1} (hist)"))
+        handles.append(
+            mpatches.Patch(color=color, alpha=0.80, label=f"t{i + 1} (hist)")
+        )
     if pred_colors and pred_years:
         for idx in [0, len(pred_years) // 2, -1]:
             handles.append(
-                mpatches.Patch(color=pred_colors[idx], label=f"{pred_years[idx]} (pred)")
+                mpatches.Patch(
+                    color=pred_colors[idx], label=f"{pred_years[idx]} (pred)"
+                )
             )
         handles.append(
             plt.Line2D(
-                [0], [0], marker="s", color="w",
-                markerfacecolor="gray", markeredgecolor="black",
-                markersize=8, label="predicted",
+                [0],
+                [0],
+                marker="s",
+                color="w",
+                markerfacecolor="gray",
+                markeredgecolor="black",
+                markersize=8,
+                label="predicted",
             )
         )
     if show_vvr:
-        handles.append(
-            plt.Line2D([0], [0], color=VVR_COLOR, lw=2.5, label="VVR")
-        )
+        handles.append(plt.Line2D([0], [0], color=VVR_COLOR, lw=2.5, label="VVR"))
     if show_signaleringslijn:
         handles.append(
             plt.Line2D(
-                [0], [0], color=SIGNALERINGSLIJN_COLOR, lw=2,
+                [0],
+                [0],
+                color=SIGNALERINGSLIJN_COLOR,
+                lw=2,
                 label="signaleringslijn",
             )
         )
@@ -108,6 +122,7 @@ def make_legend_handles(
 # ---------------------------------------------------------------------------
 # Core draw function
 # ---------------------------------------------------------------------------
+
 
 def draw_region(
     ax,
@@ -119,10 +134,10 @@ def draw_region(
     col_idx: int = 0,
     n_points: int = 3,
     year_colors: list[str] = YEAR_COLORS,
-    pred_years: Optional[list[int]] = None,
-    pred_colors: Optional[list] = None,
-    predicted_bank_positions: Optional[gpd.GeoDataFrame] = None,
-    vvr: Optional[gpd.GeoDataFrame] = None,
+    pred_years: list[int] | None = None,
+    pred_colors: list | None = None,
+    predicted_bank_positions: gpd.GeoDataFrame | None = None,
+    vvr: gpd.GeoDataFrame | None = None,
     show_t1_to_t2_arrow: bool = True,
     show_predictions: bool = False,
     show_vvr: bool = False,
@@ -158,9 +173,9 @@ def plot_regions(
     cl_lookup: dict,
     scope_lookup: dict,
     bank_points: gpd.GeoDataFrame,
-    draw_kwargs: Optional[dict] = None,
-    per_region_xlabel: Optional[Callable[[str], str]] = None,
-    n_cols: Optional[int] = None,
+    draw_kwargs: dict | None = None,
+    per_region_xlabel: Callable[[str], str] | None = None,
+    n_cols: int | None = None,
     fig_w: float = 5.5,
     fig_h: float = 8.0,
     compact: bool = False,
@@ -187,7 +202,8 @@ def plot_regions(
         n_cols = n_cols or 10
         n_rows = math.ceil(n / n_cols)
         fig, axes = plt.subplots(
-            n_rows, n_cols,
+            n_rows,
+            n_cols,
             figsize=(2.0 * n_cols, 2.0 * n_rows),
             constrained_layout=True,
         )
@@ -195,7 +211,8 @@ def plot_regions(
         n_cols = n_cols or n
         n_rows = math.ceil(n / n_cols)
         fig, axes = plt.subplots(
-            n_rows, n_cols,
+            n_rows,
+            n_cols,
             figsize=(fig_w * n_cols, fig_h * n_rows),
             constrained_layout=True,
         )
@@ -204,7 +221,8 @@ def plot_regions(
 
     for col, loc_id in enumerate(loc_ids):
         draw_region(
-            axes_flat[col], loc_id,
+            axes_flat[col],
+            loc_id,
             cl_lookup=cl_lookup,
             scope_lookup=scope_lookup,
             bank_points=bank_points,
@@ -233,6 +251,7 @@ def plot_regions(
 # ---------------------------------------------------------------------------
 # Segmented bank line drawing
 # ---------------------------------------------------------------------------
+
 
 def draw_region_segmented(
     ax,
@@ -294,10 +313,13 @@ def draw_region_segmented(
         # Draw all points (faded background)
         for status, sub in yr_grp.groupby("status"):
             ax.scatter(
-                sub.geometry.x, sub.geometry.y,
-                c=color, s=6,
+                sub.geometry.x,
+                sub.geometry.y,
+                c=color,
+                s=6,
                 alpha=STATUS_ALPHA.get(status, 0.3),
-                linewidths=0, zorder=3,
+                linewidths=0,
+                zorder=3,
             )
 
         ok = yr_grp[yr_grp["status"] == "OK"].copy()
@@ -320,15 +342,20 @@ def draw_region_segmented(
 
             # Extract the sub-segment of the centerline
             start_m = seg_idx * seg_len
-            end_m   = min((seg_idx + 1) * seg_len, cl_len)
+            end_m = min((seg_idx + 1) * seg_len, cl_len)
             sub_cline = substring(cline, start_m, end_m)
             if sub_cline is None or sub_cline.is_empty or sub_cline.length < 0.1:
                 continue
 
             # Highlight the selected furthest points
             ax.scatter(
-                chosen.geometry.x, chosen.geometry.y,
-                c=color, s=80, edgecolors="black", lw=0.6, zorder=8,
+                chosen.geometry.x,
+                chosen.geometry.y,
+                c=color,
+                s=80,
+                edgecolors="black",
+                lw=0.6,
+                zorder=8,
             )
 
             # Offset sub-segment toward the bank side
@@ -337,20 +364,28 @@ def draw_region_segmented(
                 continue
 
             ox, oy = offset_seg.xy
-            ax.plot(ox, oy, color=color, lw=2.5, ls="-", zorder=6, alpha=0.90,
-                    solid_capstyle="butt")
+            ax.plot(
+                ox,
+                oy,
+                color=color,
+                lw=2.5,
+                ls="-",
+                zorder=6,
+                alpha=0.90,
+                solid_capstyle="butt",
+            )
 
     # Year labels at top-right
     for d_idx, date in enumerate(dates):
         color = year_colors[d_idx % len(year_colors)]
-        ax.plot([], [], color=color, lw=2.5,
-                label=f"t{d_idx+1} ({date})")
+        ax.plot([], [], color=color, lw=2.5, label=f"t{d_idx + 1} ({date})")
     ax.legend(fontsize=5.5, loc="upper right", framealpha=0.7)
 
 
 # ---------------------------------------------------------------------------
 # Private drawing helpers
 # ---------------------------------------------------------------------------
+
 
 def _setup_ax(ax, loc_id: str, col_idx: int, compact: bool) -> None:
     fs, fst = (7, 5) if compact else (8.5, 6)
@@ -366,8 +401,9 @@ def _draw_scope_and_cl(ax, sgeom, cline, compact: bool, padding: float = 50.0) -
     lw_cl = 1.5 if compact else 2.5
     if sgeom is not None:
         bx, by = sgeom.exterior.xy
-        ax.fill(bx, by, fc="#f0f0f0", ec="#aaaaaa",
-                lw=0.8 if compact else 1.2, zorder=1)
+        ax.fill(
+            bx, by, fc="#f0f0f0", ec="#aaaaaa", lw=0.8 if compact else 1.2, zorder=1
+        )
         minx, miny, maxx, maxy = sgeom.bounds
         ax.set_xlim(minx - padding, maxx + padding)
         ax.set_ylim(miny - padding, maxy + padding)
@@ -378,7 +414,9 @@ def _draw_scope_and_cl(ax, sgeom, cline, compact: bool, padding: float = 50.0) -
 
 
 def _draw_bank_points(
-    ax, loc_id: str, cline,
+    ax,
+    loc_id: str,
+    cline,
     bank_points: gpd.GeoDataFrame,
     n_points: int,
     year_colors: list[str],
@@ -391,10 +429,13 @@ def _draw_bank_points(
         yr_grp = grp[grp["dtm_date"] == date]
         for status, sub in yr_grp.groupby("status"):
             ax.scatter(
-                sub.geometry.x, sub.geometry.y,
-                c=color, s=8,
+                sub.geometry.x,
+                sub.geometry.y,
+                c=color,
+                s=8,
                 alpha=STATUS_ALPHA.get(status, 0.3),
-                linewidths=0, zorder=3,
+                linewidths=0,
+                zorder=3,
             )
         ok_grp = yr_grp[yr_grp["status"] == "OK"]
         chosen = ok_grp.nlargest(n_points, "dist")
@@ -402,23 +443,49 @@ def _draw_bank_points(
             offset_lines.append(None)
             if cline is not None:
                 mid = cline.interpolate(0.5, normalized=True)
-                ax.text(mid.x, mid.y, f"{date}\nno OK pts", fontsize=5.5,
-                        color=color, ha="center", va="bottom", zorder=9,
-                        bbox=dict(fc="white", ec=color, alpha=0.7, pad=1, lw=0.8))
+                ax.text(
+                    mid.x,
+                    mid.y,
+                    f"{date}\nno OK pts",
+                    fontsize=5.5,
+                    color=color,
+                    ha="center",
+                    va="bottom",
+                    zorder=9,
+                    bbox={
+                        "fc": "white",
+                        "ec": color,
+                        "alpha": 0.7,
+                        "pad": 1,
+                        "lw": 0.8,
+                    },
+                )
             continue
         mean_dist = chosen["dist"].mean()
-        ax.scatter(chosen.geometry.x, chosen.geometry.y, c=color, s=110,
-                   edgecolors="black", lw=0.8, zorder=8)
+        ax.scatter(
+            chosen.geometry.x,
+            chosen.geometry.y,
+            c=color,
+            s=110,
+            edgecolors="black",
+            lw=0.8,
+            zorder=8,
+        )
         offset_line = offset_line_toward(cline, mean_dist, chosen.geometry)
         if offset_line is not None and not offset_line.is_empty:
             ox, oy = offset_line.xy
             ax.plot(ox, oy, color=color, lw=2.2, ls="--", zorder=6, alpha=0.95)
             mid = offset_line.interpolate(0.5, normalized=True)
             ax.text(
-                mid.x, mid.y,
+                mid.x,
+                mid.y,
                 f"{date}\n{mean_dist:.1f} m  ({len(ok_grp)}/{len(yr_grp)} OK)",
-                fontsize=5.5, color=color, ha="center", va="bottom", zorder=9,
-                bbox=dict(fc="white", ec="none", alpha=0.65, pad=1),
+                fontsize=5.5,
+                color=color,
+                ha="center",
+                va="bottom",
+                zorder=9,
+                bbox={"fc": "white", "ec": "none", "alpha": 0.65, "pad": 1},
             )
         offset_lines.append(
             offset_line if offset_line and not offset_line.is_empty else None
@@ -427,10 +494,11 @@ def _draw_bank_points(
 
 
 def _draw_predictions(
-    ax, loc_id: str,
+    ax,
+    loc_id: str,
     predicted_bank_positions: gpd.GeoDataFrame,
-    pred_years: Optional[list[int]],
-    pred_colors: Optional[list],
+    pred_years: list[int] | None,
+    pred_colors: list | None,
 ) -> None:
     if pred_years is None or pred_colors is None:
         return
@@ -442,9 +510,14 @@ def _draw_predictions(
         if row["year"] in pred_years:
             idx = pred_years.index(row["year"])
             ax.scatter(
-                row.geometry.x, row.geometry.y,
-                c=[pred_colors[idx]], s=80,
-                edgecolors="black", lw=0.6, zorder=9, marker="s",
+                row.geometry.x,
+                row.geometry.y,
+                c=[pred_colors[idx]],
+                s=80,
+                edgecolors="black",
+                lw=0.6,
+                zorder=9,
+                marker="s",
             )
 
 
@@ -459,17 +532,23 @@ def _draw_arrows(ax, offset_lines: list, arrow_offset: float = 10.0) -> None:
         dn = np.hypot(dx, dy)
         ux, uy = (-dy / dn * side, dx / dn * side) if dn > 1e-6 else (0, 0)
         ax.annotate(
-            "", xy=(p2.x + offset * ux, p2.y + offset * uy),
+            "",
+            xy=(p2.x + offset * ux, p2.y + offset * uy),
             xytext=(p1.x + offset * ux, p1.y + offset * uy),
-            arrowprops=dict(
-                arrowstyle="->", color=color, lw=2,
-                linestyle=":", mutation_scale=25,
-            ),
+            arrowprops={
+                "arrowstyle": "->",
+                "color": color,
+                "lw": 2,
+                "linestyle": ":",
+                "mutation_scale": 25,
+            },
         )
 
 
 def _draw_vvr(
-    ax, sgeom, cline,
+    ax,
+    sgeom,
+    cline,
     vvr: gpd.GeoDataFrame,
     show_signaleringslijn: bool,
     compact: bool,
@@ -482,9 +561,11 @@ def _draw_vvr(
         for part in flatten_geom_to_lines(row.geometry):
             try:
                 ax.plot(
-                    *part.xy, color=VVR_COLOR,
+                    *part.xy,
+                    color=VVR_COLOR,
                     lw=1.5 if compact else 2.5,
-                    zorder=7, solid_capstyle="round",
+                    zorder=7,
+                    solid_capstyle="round",
                 )
             except (NotImplementedError, AttributeError):
                 pass
@@ -496,8 +577,11 @@ def _draw_vvr(
                 for part in flatten_geom_to_lines(pline):
                     try:
                         ax.plot(
-                            *part.xy, color=SIGNALERINGSLIJN_COLOR,
-                            lw=1.5, zorder=6, solid_capstyle="round",
+                            *part.xy,
+                            color=SIGNALERINGSLIJN_COLOR,
+                            lw=1.5,
+                            zorder=6,
+                            solid_capstyle="round",
                         )
                     except (NotImplementedError, AttributeError):
                         pass

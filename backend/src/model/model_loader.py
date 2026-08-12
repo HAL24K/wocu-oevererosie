@@ -23,7 +23,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
 
 import pandas as pd
 
@@ -58,11 +57,11 @@ class ModelLoader:
     end_year: int = 2035
     step: int = 1
     rolling: bool = True
-    shift_config: Optional[FeatureShiftConfig] = field(default=None)
+    shift_config: FeatureShiftConfig | None = field(default=None)
 
     # Internal — loaded lazily
-    _baseline_velocities: Optional[dict] = field(default=None, repr=False)
-    _bundle: Optional[dict] = field(default=None, repr=False)
+    _baseline_velocities: dict | None = field(default=None, repr=False)
+    _bundle: dict | None = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
         self.model_path = Path(self.model_path)
@@ -79,7 +78,7 @@ class ModelLoader:
     def predict(
         self,
         start_points: dict[str, dict],
-        features_df: Optional[pd.DataFrame] = None,
+        features_df: pd.DataFrame | None = None,
     ) -> pd.DataFrame:
         """Run iterative prediction for all configured years.
 
@@ -100,9 +99,7 @@ class ModelLoader:
             )
 
         if features_df is None:
-            raise ValueError(
-                f"features_df is required for ML model '{self.model}'."
-            )
+            raise ValueError(f"features_df is required for ML model '{self.model}'.")
         return predict_iterative_ml(
             bundle=self._load_bundle(),
             features_df=features_df,
@@ -127,6 +124,7 @@ class ModelLoader:
     def _load_baseline(self) -> dict[str, float]:
         if self._baseline_velocities is None:
             from src.model.baseline_model import BaselineErosionModel
+
             bm = BaselineErosionModel.load_model(self.model_path)
             self._baseline_velocities = bm.model
         return self._baseline_velocities

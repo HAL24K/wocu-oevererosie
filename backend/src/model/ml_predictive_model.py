@@ -9,15 +9,16 @@ TODO: figure out a better way of multi-timestep prediction. Right now we train i
 """
 
 import logging
-import numpy as np
-import pandas as pd
 import pathlib
 import pickle
 
-import src.data.config as DATA_CONFIG
+import numpy as np
+import pandas as pd
+
 import src.constants as CONST
-import src.utils as UTILS
+import src.data.config as DATA_CONFIG
 import src.model.utils as MODEL_UTILS
+import src.utils as UTILS
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -72,9 +73,9 @@ class PredictiveModel:
 
         # the keys of the column kinds have to be of the allowed values
         for column_kind in self.column_kinds:
-            assert (
-                column_kind in allowed_column_kinds
-            ), f"Column kind {column_kind} is not among the allowed ones: {allowed_column_kinds}."
+            assert column_kind in allowed_column_kinds, (
+                f"Column kind {column_kind} is not among the allowed ones: {allowed_column_kinds}."
+            )
 
         # the columns in the training data have to be in the column kinds
         # TODO: do we need to make sure that all columns are in the column kinds are unique?
@@ -107,7 +108,7 @@ class PredictiveModel:
 
         TODO: make this more robust to a change in order of the columns.
         """
-        return sorted(list(set(self.training_data.columns) - set(self.target_columns)))
+        return sorted(set(self.training_data.columns) - set(self.target_columns))
 
     def train(self, retrain: bool = False):
         """Train the data."""
@@ -195,7 +196,7 @@ class PredictiveModel:
             match column_kind:
                 case CONST.KnownColumnTypes.UNKNOWN_NUMERIC.value:
                     # TODO: finish this!
-                    column_renaming = {
+                    {
                         original_column: UTILS.get_temporally_previous_column_name(
                             original_column
                         )

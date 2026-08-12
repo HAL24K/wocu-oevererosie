@@ -24,12 +24,12 @@ import logging
 
 import geopandas as gpd
 import numpy as np
-import pandas as pd
 
 logger = logging.getLogger(__name__)
 
 
 # ── Core geometry ──────────────────────────────────────────────────────────
+
 
 def _menger_curvature_signed(
     p1: np.ndarray,
@@ -51,8 +51,8 @@ def _menger_curvature_signed(
     c = np.linalg.norm(p3 - p1)
     if a * b * c == 0:
         return 0.0, 0.0
-    cross = np.cross(p2 - p1, p3 - p1)   # positive = left turn
-    area  = abs(cross) / 2.0
+    cross = np.cross(p2 - p1, p3 - p1)  # positive = left turn
+    area = abs(cross) / 2.0
     kappa = (2.0 * area) / (a * b * c)
     return float(kappa), float(np.sign(cross))
 
@@ -77,18 +77,18 @@ def _compute_curvature_arrays(
     curvatures, bend_side, bend_exposure : (N,) arrays
     """
     n = len(coords)
-    curvatures  = np.zeros(n)
+    curvatures = np.zeros(n)
     cross_signs = np.zeros(n)
 
     for i in range(n):
-        i_left  = max(0, i - n_neighbors)
+        i_left = max(0, i - n_neighbors)
         i_right = min(n - 1, i + n_neighbors)
         if i_left == i or i_right == i:
-            continue   # edge region — not enough context
+            continue  # edge region — not enough context
         kappa, sign = _menger_curvature_signed(
             coords[i_left], coords[i], coords[i_right]
         )
-        curvatures[i]  = kappa
+        curvatures[i] = kappa
         cross_signs[i] = sign
 
     # Determine inner / outer from cross product sign and bank side.
@@ -96,20 +96,19 @@ def _compute_curvature_arrays(
     # Raw convention is inverted after computation based on area sanity check
     # (outer arc must be geometrically larger than inner arc).
     if bank == "l":
-        bend_side = np.where(cross_signs > 0,  1.0,
-                    np.where(cross_signs < 0, -1.0, 0.0))
+        bend_side = np.where(cross_signs > 0, 1.0, np.where(cross_signs < 0, -1.0, 0.0))
     else:
-        bend_side = np.where(cross_signs < 0,  1.0,
-                    np.where(cross_signs > 0, -1.0, 0.0))
+        bend_side = np.where(cross_signs < 0, 1.0, np.where(cross_signs > 0, -1.0, 0.0))
 
     # Invert signs — verified correct by area sanity check
-    bend_side     = -bend_side
+    bend_side = -bend_side
     bend_exposure = curvatures * bend_side
 
     return curvatures, bend_side, bend_exposure
 
 
 # ── Public API ─────────────────────────────────────────────────────────────
+
 
 def add_curvature_features(
     scope: gpd.GeoDataFrame,
@@ -178,28 +177,29 @@ def add_curvature_features(
 
     # Initialise output columns
     for n in scales:
-        scope_m[f"curvature_n{n}"]     = np.nan
-        scope_m[f"bend_side_n{n}"]     = np.nan
+        scope_m[f"curvature_n{n}"] = np.nan
+        scope_m[f"bend_side_n{n}"] = np.nan
         scope_m[f"bend_exposure_n{n}"] = np.nan
 
     groups = scope_m.groupby([river_col, bank_col])
     n_groups = groups.ngroups
     logger.info(
         "Computing curvature at scales %s for %d (river, bank) groups.",
-        scales, n_groups,
+        scales,
+        n_groups,
     )
 
     for (river, bank), grp in groups:
         grp_sorted = grp.sort_values(chainage_col)
-        coords = np.array([
-            (geom.centroid.x, geom.centroid.y)
-            for geom in grp_sorted.geometry
-        ])
+        coords = np.array(
+            [(geom.centroid.x, geom.centroid.y) for geom in grp_sorted.geometry]
+        )
 
         if len(coords) < 3:
             logger.debug(
                 "Skipping (%s, %s) — fewer than 3 regions, curvature undefined.",
-                river, bank,
+                river,
+                bank,
             )
             continue
 
@@ -207,9 +207,9 @@ def add_curvature_features(
             curvatures, bend_side, bend_exposure = _compute_curvature_arrays(
                 coords, bank=bank, n_neighbors=n
             )
-            scope_m.loc[grp_sorted.index, f"curvature_n{n}"]     = curvatures
-            scope_m.loc[grp_sorted.index, f"bend_side_n{n}"]      = bend_side
-            scope_m.loc[grp_sorted.index, f"bend_exposure_n{n}"]  = bend_exposure
+            scope_m.loc[grp_sorted.index, f"curvature_n{n}"] = curvatures
+            scope_m.loc[grp_sorted.index, f"bend_side_n{n}"] = bend_side
+            scope_m.loc[grp_sorted.index, f"bend_exposure_n{n}"] = bend_exposure
 
     # Log summary
     for n in scales:
@@ -217,8 +217,10 @@ def add_curvature_features(
         logger.info(
             "  n=%d: range [%.6f, %.6f] 1/m, non-null=%d/%d",
             n,
-            scope_m[col].min(), scope_m[col].max(),
-            scope_m[col].notna().sum(), len(scope_m),
+            scope_m[col].min(),
+            scope_m[col].max(),
+            scope_m[col].notna().sum(),
+            len(scope_m),
         )
 
     # Restore original CRS
@@ -229,6 +231,7 @@ def add_curvature_features(
 
 
 # ── Convenience ────────────────────────────────────────────────────────────
+
 
 def curvature_feature_cols(scales: list[int] | None = None) -> list[str]:
     """Return the list of column names produced by add_curvature_features."""

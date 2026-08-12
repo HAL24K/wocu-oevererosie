@@ -2,11 +2,12 @@
 
 import json
 from pathlib import Path
-from typing import List, Optional, Set, Union
 
 import geopandas as gpd
 import numpy as np
 import pandas as pd
+from shapely import offset_curve
+from shapely.geometry import MultiPoint, Point
 
 
 def ensure_location_id_column(df: pd.DataFrame) -> pd.DataFrame:
@@ -14,10 +15,6 @@ def ensure_location_id_column(df: pd.DataFrame) -> pd.DataFrame:
     if "position_id" in df.columns and "location_id" not in df.columns:
         return df.rename(columns={"position_id": "location_id"})
     return df
-
-
-from shapely import offset_curve
-from shapely.geometry import MultiPoint, Point
 
 
 def _scalar_distance(p, geom) -> float:
@@ -42,7 +39,7 @@ def offset_line_toward(
     centerline,
     dist: float,
     reference_geom,
-) -> Optional[object]:
+) -> object | None:
     """
     Offset centerline by dist toward the side where reference_geom lies.
 
@@ -73,7 +70,7 @@ def point_from_offset(
     centerline,
     dist: float,
     ref_geom,
-) -> Optional[Point]:
+) -> Point | None:
     """
     Compute point at midpoint of centerline offset by dist toward ref_geom.
 
@@ -92,9 +89,9 @@ def dist_signaleringslijn(centerline, vvr_geom, n_samples: int = 200) -> float:
     Samples n_points along the centerline and returns the minimum distance
     to the VVR geometry (or its boundary for Polygons).
     """
-    if vvr_geom.geom_type == 'LineString':
+    if vvr_geom.geom_type == "LineString":
         line_geoms = [vvr_geom]
-    elif vvr_geom.geom_type == 'MultiLineString':
+    elif vvr_geom.geom_type == "MultiLineString":
         line_geoms = list(vvr_geom.geoms)
     else:
         line_geoms = [vvr_geom]
@@ -149,6 +146,7 @@ def compute_qualifying_regions(
     Regions with >= min_shift in dist between consecutive timepoints.
     Returns DataFrame indexed by location_id with d_t1, d_t2, d_t3, shift_t1t2, shift_t2t3.
     """
+
     def mean_dist_furthest(group):
         return group.nlargest(n_points, "dist")["dist"].mean()
 
@@ -158,9 +156,9 @@ def compute_qualifying_regions(
         .reset_index(name="mean_dist")
     )
     ts_counts = agg.groupby("location_id")["dtm_date"].nunique()
-    agg = agg[agg["location_id"].isin(ts_counts[ts_counts == n_timepoints].index)].sort_values(
-        ["location_id", "dtm_date"]
-    )
+    agg = agg[
+        agg["location_id"].isin(ts_counts[ts_counts == n_timepoints].index)
+    ].sort_values(["location_id", "dtm_date"])
     agg["rank"] = agg.groupby("location_id").cumcount()
     wide = agg.pivot(index="location_id", columns="rank", values="mean_dist").rename(
         columns={0: "d_t1", 1: "d_t2", 2: "d_t3"}
@@ -173,16 +171,18 @@ def compute_qualifying_regions(
 
 
 def pick_across_clusters(
-    ids: List[str],
-    clusters: List[str] = None,
+    ids: list[str],
+    clusters: list[str] = None,
     n: int = 4,
-) -> List[str]:
+) -> list[str]:
     """Pick one id per cluster first, then fill remaining slots."""
     if clusters is None:
         clusters = ["rijn", "ijssel", "maas", "neder"]
     selected = []
     for cluster in clusters:
-        match = next((lid for lid in ids if cluster in lid and lid not in selected), None)
+        match = next(
+            (lid for lid in ids if cluster in lid and lid not in selected), None
+        )
         if match:
             selected.append(match)
     for lid in ids:
@@ -193,11 +193,15 @@ def pick_across_clusters(
     return selected
 
 
-def get_nvo_location_ids(vvr: gpd.GeoDataFrame, scope: gpd.GeoDataFrame) -> Set[str]:
+def get_nvo_location_ids(vvr: gpd.GeoDataFrame, scope: gpd.GeoDataFrame) -> set[str]:
     """Location IDs where VVR intersects scope (from spatial join)."""
     scope_for_join = scope[["location_id", "geometry"]].copy()
-    vvr_for_join = vvr.to_crs(scope_for_join.crs) if vvr.crs != scope_for_join.crs else vvr
-    joined = gpd.sjoin(vvr_for_join[["geometry"]], scope_for_join, how="left", predicate="intersects")
+    vvr_for_join = (
+        vvr.to_crs(scope_for_join.crs) if vvr.crs != scope_for_join.crs else vvr
+    )
+    joined = gpd.sjoin(
+        vvr_for_join[["geometry"]], scope_for_join, how="left", predicate="intersects"
+    )
     return set(joined["location_id"].dropna().astype(str).unique())
 
 
@@ -228,7 +232,7 @@ def ensure_axes_list(axes) -> list:
 
 def compute_vvr_crossing_year(
     predicted_dist_df: pd.DataFrame,
-    nvo_location_ids: Set[str],
+    nvo_location_ids: set[str],
     centerlines: gpd.GeoDataFrame,
     scope: gpd.GeoDataFrame,
     signaleringslijn: gpd.GeoDataFrame,
@@ -242,8 +246,15 @@ def compute_vvr_crossing_year(
         location_id, dist_to_vvr_m, crossing_year, velocity_m_per_yr, years_to_crossing,
         dist_{y} for each prediction year present in predicted_dist_df.
     """
-    sig = signaleringslijn.to_crs(28992) if signaleringslijn.crs.to_epsg() != 28992 else signaleringslijn
-    cl, sc = centerlines.set_index("location_id")["geometry"], scope.set_index("location_id")["geometry"]
+    sig = (
+        signaleringslijn.to_crs(28992)
+        if signaleringslijn.crs.to_epsg() != 28992
+        else signaleringslijn
+    )
+    cl, sc = (
+        centerlines.set_index("location_id")["geometry"],
+        scope.set_index("location_id")["geometry"],
+    )
     has_vel = "velocity_m_per_yr" in predicted_dist_df.columns
 
     # Derive prediction years from the data — no hardcoded range
@@ -254,10 +265,16 @@ def compute_vvr_crossing_year(
         cline, sgeom = cl.get(loc_id), sc.get(loc_id)
         if cline is None or sgeom is None:
             continue
-        pred = predicted_dist_df[predicted_dist_df["location_id"] == loc_id].sort_values("year")
+        pred = predicted_dist_df[
+            predicted_dist_df["location_id"] == loc_id
+        ].sort_values("year")
         if pred.empty:
             continue
-        vvr = sig[sig.intersects(sgeom.buffer(10))].geometry.union_all().intersection(sgeom)
+        vvr = (
+            sig[sig.intersects(sgeom.buffer(10))]
+            .geometry.union_all()
+            .intersection(sgeom)
+        )
         if vvr is None or vvr.is_empty:
             continue
         try:
@@ -285,7 +302,9 @@ def compute_vvr_crossing_year(
             "dist_to_vvr_m": dist_to_vvr,
             "crossing_year": crossing_year,
             "velocity_m_per_yr": vel,
-            "years_to_crossing": crossing_year - reference_year if crossing_year else None,
+            "years_to_crossing": crossing_year - reference_year
+            if crossing_year
+            else None,
         }
         for y in all_years:
             row[f"dist_{y}"] = dist_by_year.get(y)

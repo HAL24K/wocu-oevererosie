@@ -1,14 +1,18 @@
 """Tests for the ML predictive model"""
 
-import numpy as np
 import pickle
+
+import numpy as np
 import pytest
 import sklearn.linear_model as sklm
 
-import src.data.data_handler as DH
 import src.constants as CONST
-
+import src.data.data_handler as DH
 import src.model.ml_predictive_model as MLPM
+
+# Builds its inputs through DataHandler, which calls live WFS services, so these
+# need network access. Excluded from CI via -m "not integration".
+pytestmark = pytest.mark.integration
 
 NUMBER_OF_FUTURES = 2
 

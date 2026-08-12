@@ -3,8 +3,8 @@ FastAPI application entry point.
 """
 
 import logging
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -31,12 +31,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info(f"Starting {settings.api_title} v{settings.api_version}")
     logger.info(f"Environment: {settings.environment}")
     logger.info(f"Debug mode: {settings.debug}")
-    
+
     # TODO: Load ML model here
     # logger.info("Loading ML models...")
-    
+
     yield
-    
+
     # Shutdown
     logger.info("Shutting down application")
     # TODO: Cleanup resources (close connections, unload models, etc.)
@@ -45,12 +45,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 def create_application() -> FastAPI:
     """
     Create and configure the FastAPI application.
-    
+
     Returns:
         FastAPI: Configured FastAPI application
     """
     settings = get_settings()
-    
+
     app = FastAPI(
         title=settings.api_title,
         version=settings.api_version,
@@ -58,7 +58,7 @@ def create_application() -> FastAPI:
         debug=settings.debug,
         lifespan=lifespan,
     )
-    
+
     # Configure CORS
     app.add_middleware(
         CORSMiddleware,
@@ -67,13 +67,13 @@ def create_application() -> FastAPI:
         allow_methods=settings.cors_allow_methods,
         allow_headers=settings.cors_allow_headers,
     )
-    
+
     # Health check endpoint
     @app.get("/health", tags=["health"])
     async def health_check() -> JSONResponse:
         """
         Health check endpoint.
-        
+
         Returns:
             JSONResponse: Health status
         """
@@ -84,13 +84,13 @@ def create_application() -> FastAPI:
                 "environment": settings.environment,
             }
         )
-    
+
     # Root endpoint
     @app.get("/", tags=["root"])
     async def root() -> JSONResponse:
         """
         Root endpoint with API information.
-        
+
         Returns:
             JSONResponse: API information
         """
@@ -102,12 +102,12 @@ def create_application() -> FastAPI:
                 "health": "/health",
             }
         )
-    
+
     # TODO: Register routers here
     # from app.api.routes import predictions, data
     # app.include_router(predictions.router, prefix="/api/v1/predictions", tags=["predictions"])
     # app.include_router(data.router, prefix="/api/v1/data", tags=["data"])
-    
+
     return app
 
 
@@ -117,7 +117,7 @@ app = create_application()
 
 if __name__ == "__main__":
     import uvicorn
-    
+
     settings = get_settings()
     uvicorn.run(
         "app.main:app",
@@ -127,4 +127,3 @@ if __name__ == "__main__":
         reload_excludes=[".venv/*", "*.pyc", "__pycache__/*"],
         log_level=settings.log_level.lower(),
     )
-

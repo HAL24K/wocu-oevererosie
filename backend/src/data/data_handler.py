@@ -1,18 +1,19 @@
 """This class takes in the shape data, enriches them and generates inputs for a machine learning model."""
 
 import logging
+
+import geopandas as gpd
 import numpy as np
 import pandas as pd
-import geopandas as gpd
 import shapely.geometry.base
 import torch
 from shapely.geometry import LineString
 
 import src.constants as CONST
-import src.utils as UTILS
 import src.data.config as DATA_CONFIG
-import src.data.data_collector as DC
 import src.data.custom_pytorch_dataset as CPD
+import src.data.data_collector as DC
+import src.utils as UTILS
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -61,7 +62,7 @@ class DataHandler:
 
         # TODO: define this correctly
         logger.warning(
-            f"Setting the number extra features to 0, even though it should be automatically calculated."
+            "Setting the number extra features to 0, even though it should be automatically calculated."
         )
         self.number_of_extra_futures = 0
 
@@ -98,7 +99,7 @@ class DataHandler:
             logger.warning("Erosion data already processed, skipping.")
             return
 
-        processed_erosion_data = list()
+        processed_erosion_data = []
 
         available_region_ids = self.prediction_regions[
             self.config.prediction_region_id_column_name
@@ -147,7 +148,9 @@ class DataHandler:
             ]
         ):
             if use_precalculated_dist:
-                local_distances_bank_to_border = local_erosion_data[CONST.RAW_DIST_COLUMN]
+                local_distances_bank_to_border = local_erosion_data[
+                    CONST.RAW_DIST_COLUMN
+                ]
             else:
                 local_distances_bank_to_border = (
                     self.calculate_river_bank_distances_to_erosion_border(
@@ -237,7 +240,7 @@ class DataHandler:
             f"with the key {CONST.AggregationOperations.CENTERLINE_SHAPE.value}."
         )
 
-        direction_factors = list()
+        direction_factors = []
         for _, row in erosion_data.iterrows():
             # TODO: can this be vectorized for the love of god?!
             local_point = row["geometry"]
@@ -270,19 +273,19 @@ class DataHandler:
 
     def create_data_from_remote(self, show_progress: bool = True):
         """For each prediction region, get the WFS data and calculate the features.
-        
+
         Args:
             show_progress: Whether to display a progress bar during data fetching (default: True).
         """
         from tqdm.auto import tqdm
-        
+
         wfs_features = []
         regions = self.prediction_regions.geometry.values
-        
+
         # Wrap in tqdm for progress tracking
         if show_progress:
             regions = tqdm(regions, desc="Fetching WFS data", unit="region")
-        
+
         for region in regions:
             data_collector = DC.DataCollector(
                 source_shape=region,
@@ -336,141 +339,142 @@ class DataHandler:
         self.remote_data_downloaded = True
 
     def load_remote_data_from_geopackage(
-        self, 
-        gpkg_path: str,
-        show_progress: bool = True
+        self, gpkg_path: str, show_progress: bool = True
     ):
         """Load pre-fetched WFS data from a GeoPackage and calculate features.
-        
+
         This method loads WFS data that was previously saved by WFSDataBundler,
         avoiding the need to fetch live data from WFS services. This is much
         faster for large datasets (minutes vs hours).
-        
+
         Args:
             gpkg_path: Path to GeoPackage file containing WFS layers
             show_progress: Whether to display a progress bar (default: True)
-            
+
         The GeoPackage must contain layers named: wfs_{service}_{layer}
         For example: wfs_land_use_BrpGewas, wfs_building_location_bag_pand
-        
+
         This produces the same output as create_data_from_remote().
         """
         from pathlib import Path
-        
+
         gpkg_path = Path(gpkg_path)
         if not gpkg_path.exists():
             raise FileNotFoundError(f"GeoPackage not found: {gpkg_path}")
-        
+
         logger.info(f"Loading WFS data from {gpkg_path.name}")
-        
+
         # Step 1: List all layers in the geopackage
-        all_layers = gpd.list_layers(str(gpkg_path))['name'].tolist()
+        all_layers = gpd.list_layers(str(gpkg_path))["name"].tolist()
         # New format: {service}/{layer} (e.g., land_use/BrpGewas, building_location/bag:pand)
-        wfs_layers = [layer for layer in all_layers if '/' in layer]
-        
+        wfs_layers = [layer for layer in all_layers if "/" in layer]
+
         if not wfs_layers:
             raise ValueError(
                 f"No WFS layers found in {gpkg_path.name}. "
                 f"Layers must be named: {{service}}/{{layer}}"
             )
-        
+
         logger.info(f"Found {len(wfs_layers)} WFS layers in geopackage")
-        
+
         # Step 2: Load each WFS layer and organize into nested dict
         bundled_wfs_data = {}
-        
+
         for layer_name in wfs_layers:
             # Parse layer name: {service}/{layer}
             # E.g., "land_use/BrpGewas" → service='land_use', layer='BrpGewas'
             #       "building_location/bag:pand" → service='building_location', layer='bag:pand'
-            if '/' not in layer_name:
+            if "/" not in layer_name:
                 logger.warning(f"Skipping layer with unexpected name: {layer_name}")
                 continue
-            
-            service_name, original_layer = layer_name.split('/', 1)
-            
+
+            service_name, original_layer = layer_name.split("/", 1)
+
             # Load the layer
             try:
                 layer_gdf = gpd.read_file(gpkg_path, layer=layer_name)
-                
+
                 # Organize into nested dictionary
                 if service_name not in bundled_wfs_data:
                     bundled_wfs_data[service_name] = {}
-                
+
                 bundled_wfs_data[service_name][original_layer] = layer_gdf
                 logger.info(f"Loaded {len(layer_gdf)} features from {layer_name}")
-                
+
             except Exception as e:
                 logger.error(f"Failed to load layer {layer_name}: {e}")
                 continue
-        
+
         if not bundled_wfs_data:
             raise ValueError(f"No WFS data could be loaded from {gpkg_path.name}")
-        
+
         logger.info(f"Loaded {len(bundled_wfs_data)} WFS services")
-        
+
         # Step 3: Process bundled data into features
         self._process_bundled_data_into_features(bundled_wfs_data, show_progress)
-        
+
         self.remote_data_downloaded = True
         logger.info("Successfully loaded WFS data from geopackage")
 
     def _process_bundled_data_into_features(
-        self,
-        bundled_wfs_data: dict,
-        show_progress: bool = True
+        self, bundled_wfs_data: dict, show_progress: bool = True
     ):
         """Process pre-loaded WFS data into features for each prediction region.
-        
+
         This method spatially filters the bundled WFS data for each region
         and generates features using the same logic as create_data_from_remote().
-        
+
         Args:
             bundled_wfs_data: Nested dict {service: {layer: GeoDataFrame}}
             show_progress: Whether to display a progress bar
         """
         from tqdm.auto import tqdm
-        
+
         wfs_features = []
         regions = self.prediction_regions.iterrows()
-        
+
         # Wrap in tqdm for progress tracking
         if show_progress:
             regions = tqdm(
                 regions,
                 total=len(self.prediction_regions),
                 desc="Processing regions",
-                unit="region"
+                unit="region",
             )
-        
-        for idx, region_row in regions:
+
+        for _idx, region_row in regions:
             region_geom = region_row.geometry
-            
+
             # Buffer the region geometry
             # NOTE: Assumes prediction_regions are in RD (EPSG:28992) with meters
             region_buffered = region_geom.buffer(self.config.prediction_region_buffer)
-            
+
             single_region_features = {}
-            
+
             # Loop through ALL configured layers (not just what's in bundled_wfs_data)
             # This ensures we create columns even for layers with no data
-            for layer_name, feature_config in self.config.feature_creation_config.items():
+            for (
+                layer_name,
+                feature_config,
+            ) in self.config.feature_creation_config.items():
                 # Skip non-WFS layers (e.g., river_centerline)
                 if layer_name == CONST.RIVER_CENTERLINE:
                     continue
-                
+
                 # Find this layer in the bundled data
                 layer_gdf = None
-                for service_name, service_layers in bundled_wfs_data.items():
+                for _service_name, service_layers in bundled_wfs_data.items():
                     if layer_name in service_layers:
                         layer_gdf = service_layers[layer_name]
                         break
-                
+
                 # If layer not found in bundled data, create empty GeoDataFrame
                 # This handles cases where a layer had no features (e.g., no buildings in rural areas)
                 if layer_gdf is None:
-                    layer_gdf = gpd.GeoDataFrame(geometry=[], crs=self.prediction_regions.crs)
-                
+                    layer_gdf = gpd.GeoDataFrame(
+                        geometry=[], crs=self.prediction_regions.crs
+                    )
+
                 # Spatial filter: only keep features that intersect the buffered region
                 # Ensure CRS matches
                 if len(layer_gdf) > 0:
@@ -479,29 +483,29 @@ class DataHandler:
                     filtered_data = layer_gdf[layer_gdf.intersects(region_buffered)]
                 else:
                     filtered_data = layer_gdf  # Empty, no filtering needed
-                
+
                 # Generate features for this region and layer
                 single_layer_features = self._generate_region_features(
                     region_geom,
                     filtered_data,
                     feature_config,
                 )
-                
+
                 # Name features: {layer_name}_{agg_function}
                 single_layer_features = {
                     f"{layer_name}_{agg_function}": feature_value
                     for agg_function, feature_value in single_layer_features.items()
                 }
-                
+
                 single_region_features.update(single_layer_features)
-            
+
             # Flatten nested dictionaries
             single_region_features = UTILS.flatten_dictionary(single_region_features)
             wfs_features.append(single_region_features)
-        
+
         # Convert to DataFrame
         wfs_features = pd.DataFrame(wfs_features)
-        
+
         # Merge with existing scope_region_features
         self.scope_region_features = pd.concat(
             [self.scope_region_features, wfs_features], axis=1
@@ -511,7 +515,7 @@ class DataHandler:
         """Add the downloaded data to the processed data."""
         if not self.remote_data_downloaded:
             logger.warning(
-                f"The remote data has not been downloaded yet, please do so first."
+                "The remote data has not been downloaded yet, please do so first."
             )
             return
 
@@ -666,7 +670,7 @@ class DataHandler:
 
         logger.info(
             f"Dropped {number_of_complete_features - number_of_nonna_features} samples "
-            f"({100 * (number_of_complete_features - number_of_nonna_features)/number_of_complete_features:.2f}% "
+            f"({100 * (number_of_complete_features - number_of_nonna_features) / number_of_complete_features:.2f}% "
             f"of the original) that contained missing values."
         )
         logger.info(
@@ -710,9 +714,9 @@ class DataHandler:
 
         TODO: for the known futures, implement the future filling in - probably has to be in the model!
         """
-        assert column_type in [
-            col_type.value for col_type in CONST.KnownColumnTypes
-        ], f"Unknown column type {column_type} for column {column}."
+        assert column_type in [col_type.value for col_type in CONST.KnownColumnTypes], (
+            f"Unknown column type {column_type} for column {column}."
+        )
 
         if use_differences and CONST.NUMERIC not in column_type:
             logger.warning(
@@ -746,16 +750,16 @@ class DataHandler:
                 ordered_categories = {
                     element: i for i, element in enumerate(ordered_categories)
                 }
-            except KeyError:
+            except KeyError as err:
                 raise KeyError(
                     f"Unknown categories for {column}, please define them first."
-                )
+                ) from err
 
-            self.processed_erosion_data[
-                temporary_column_name
-            ] = self.processed_erosion_data[column].map(
-                lambda x: ordered_categories.get(
-                    x, CONST.DEFAULT_UNKNOWN_CATEGORY_LABEL
+            self.processed_erosion_data[temporary_column_name] = (
+                self.processed_erosion_data[column].map(
+                    lambda x: ordered_categories.get(
+                        x, CONST.DEFAULT_UNKNOWN_CATEGORY_LABEL
+                    )
                 )
             )
 
@@ -870,9 +874,9 @@ class DataHandler:
     def prepare_feature_array(self, column_type: str) -> torch.Tensor:
         """Prepare the feature array for the pytorch dataset."""
         known_column_types = [col_type.value for col_type in CONST.KnownColumnTypes]
-        assert (
-            column_type in known_column_types
-        ), f"Unknown column type {column_type}, pick one of {known_column_types}."
+        assert column_type in known_column_types, (
+            f"Unknown column type {column_type}, pick one of {known_column_types}."
+        )
 
         feature_values = []
         for column in getattr(self.config, f"{column_type}_columns"):

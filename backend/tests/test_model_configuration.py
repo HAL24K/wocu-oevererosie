@@ -1,9 +1,9 @@
 """Test the model configuration class."""
 
 import pytest
+from pydantic import ValidationError
 
 import src.model.configuration as CONFIG
-from pydantic import ValidationError
 
 
 def test_invalid_model_configuration():

@@ -1,27 +1,25 @@
 """Utilities that are not a part of any of the classes."""
 
-import geopandas as gpd
 import logging
-import pyproj
-import numpy as np
 import re
-import torch
 
-from shapely.ops import transform
-from shapely.geometry.base import BaseGeometry
+import geopandas as gpd
+import numpy as np
+import pyproj
+import torch
 from shapely.geometry import LineString, Point
-from typing import Union
+from shapely.geometry.base import BaseGeometry
+from shapely.ops import transform
 
 import src.constants as CONST
-
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
 def transform_shape_crs(
-    from_epsg: Union[int, str],
-    to_epsg: Union[int, str],
+    from_epsg: int | str,
+    to_epsg: int | str,
     input_shape: BaseGeometry,
 ) -> BaseGeometry:
     """Transforms the shape from one CRS to another.
@@ -53,9 +51,9 @@ def get_epsg_from_urn(urn_string: str) -> str:
     found_epsgs = re.findall(epsg_regex, urn_string)
 
     if found_epsgs:
-        assert (
-            len(found_epsgs) == 1
-        ), f"More than one EPSG found in URN string {urn_string}: {found_epsgs}"
+        assert len(found_epsgs) == 1, (
+            f"More than one EPSG found in URN string {urn_string}: {found_epsgs}"
+        )
 
         return found_epsgs[0]
 
@@ -103,9 +101,9 @@ def get_object_density(base_shape: BaseGeometry, geo_data: gpd.GeoDataFrame) -> 
         return 0.0
 
     assert geo_data.geometry.geom_type.nunique() == 1, "Only one geometry type allowed"
-    assert (
-        geo_data.geometry.geom_type.unique()[0] == "Point"
-    ), "Only Point geometry allowed"
+    assert geo_data.geometry.geom_type.unique()[0] == "Point", (
+        "Only Point geometry allowed"
+    )
 
     return len(geo_data[geo_data.within(base_shape)]) / base_shape.area
 
@@ -148,7 +146,7 @@ def get_area_fraction(base_shape: BaseGeometry, geo_data: gpd.GeoDataFrame) -> f
 def get_majority_class(
     base_shape: BaseGeometry,
     geo_data: gpd.GeoDataFrame,
-    columns: Union[list[str], str],
+    columns: list[str] | str,
 ) -> dict[str, str | None]:
     """Get the majority class from each required column in the geo_data.
 
@@ -163,23 +161,23 @@ def get_majority_class(
         logger.warning(
             f"The geodataframe is empty and the majority class cannot be calculated for {columns}."
         )
-        return {col: None for col in columns}
+        return dict.fromkeys(columns)
 
-    assert set(geo_data.columns).issuperset(
-        columns
-    ), f"Columns {set(columns) - set(geo_data.columns)} not found in geo_data (it contains {geo_data.columns})."
+    assert set(geo_data.columns).issuperset(columns), (
+        f"Columns {set(columns) - set(geo_data.columns)} not found in geo_data (it contains {geo_data.columns})."
+    )
 
     majority_classes = geo_data.loc[geo_data.intersects(base_shape), columns].mode()
 
     if len(majority_classes) == 0:
         # no data intersects the region
         # TODO: do we return None here or some "none string" so that we don't have missing features?
-        return {col: None for col in columns}
+        return dict.fromkeys(columns)
     elif len(majority_classes) > 1:
         # TODO: improve the log, so that it tells which columns and which values were dropped.
         #   note: mode returns a new DF with multiple rows if at least one col has multiple modes; other cols have NaNs
         logger.warning(
-            f"Multiple majority classes found in some of the columns, we only take the first one."
+            "Multiple majority classes found in some of the columns, we only take the first one."
         )
 
     majority_classes = majority_classes.iloc[0].to_dict()
@@ -251,9 +249,9 @@ def get_relevant_centerline(
         f"River centerline geodataframe must only have one geometery type, "
         f"yours has {geo_data.geometry.geom_type.nunique()}"
     )
-    assert (
-        geo_data.geometry.geom_type.unique()[0] == "LineString"
-    ), f"The river centerline must be a LineString, yours is {geo_data.geometry.geom_type.unique()[0]}"
+    assert geo_data.geometry.geom_type.unique()[0] == "LineString", (
+        f"The river centerline must be a LineString, yours is {geo_data.geometry.geom_type.unique()[0]}"
+    )
 
     # get the closest centerline
     closest_centerline = geo_data.loc[

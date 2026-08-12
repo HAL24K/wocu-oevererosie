@@ -1,7 +1,7 @@
 """Schema of the WFS service information."""
 
-from pydantic.dataclasses import dataclass
 from pydantic import Field
+from pydantic.dataclasses import dataclass
 
 import src.constants as CONST
 

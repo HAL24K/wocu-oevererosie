@@ -1,10 +1,9 @@
 """Code fot the deep learning model."""
 
 import logging
-import torch.nn as nn
+
 import lightning as L
 
-import src.constants as CONST
 import src.model.configuration as CONFIG
 
 logger = logging.getLogger(__name__)

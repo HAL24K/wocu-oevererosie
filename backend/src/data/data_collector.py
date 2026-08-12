@@ -3,14 +3,14 @@
 import json
 import logging
 
-from owslib.wfs import WebFeatureService
 import geopandas as gpd
+from owslib.wfs import WebFeatureService
 from shapely.geometry.base import BaseGeometry
 
-import src.constants as CONST
 import src.config as CONFIG
-import src.utils as U
+import src.constants as CONST
 import src.data.schema_wfs_service as SWS
+import src.utils as U
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -189,20 +189,20 @@ class DataCollector:
 
     def get_data_from_all_wfs(self):
         """Loop through all the known WFS services and get data overlapping with the source shape.
-        
+
         Includes retry logic for handling transient network errors.
         """
         for wfs_service in self.wfs_services:
             logger.info(f"Getting data from the WFS service {wfs_service}.")
-            
+
             # Retry logic for this service
             for attempt in range(self.max_retries):
                 try:
-                    self.relevant_geospatial_data[wfs_service] = self.load_data_from_single_wfs(
-                        wfs_service
+                    self.relevant_geospatial_data[wfs_service] = (
+                        self.load_data_from_single_wfs(wfs_service)
                     )
                     break  # Success, exit retry loop
-                    
+
                 except Exception as e:
                     if attempt < self.max_retries - 1:
                         logger.warning(

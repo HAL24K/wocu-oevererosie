@@ -1,7 +1,7 @@
 """Test the features of the baseline model."""
 
-import pytest
 import pandas as pd
+import pytest
 
 import src.constants as CONST
 import src.model.baseline_model as BM

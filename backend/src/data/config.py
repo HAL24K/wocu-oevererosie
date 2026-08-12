@@ -1,13 +1,10 @@
 """Configuration for various objects in the code."""
 
-from typing import Callable, List, Optional, Dict
-
 from pydantic import Field, model_validator
 from pydantic.dataclasses import dataclass
-from typing_extensions import Self
 
-import src.constants as CONST
 import src.config as CONFIG
+import src.constants as CONST
 import src.data.schema_wfs_service as SWS
 
 
@@ -30,20 +27,20 @@ class DataConfiguration:
         ),
         ge=0,
     )
-    known_numerical_columns: List[str] = Field(
+    known_numerical_columns: list[str] = Field(
         default=CONST.DEFAULT_KNOWN_NUMERICAL_COLUMNS,
         description="The names of the numerical columns where we know the future values.",
     )
-    unknown_numerical_columns: List[str] = Field(
+    unknown_numerical_columns: list[str] = Field(
         default=CONST.DEFAULT_UNKNOWN_NUMERICAL_COLUMNS,
         description="The names of the numerical columns where we do not know the future values. "
         "Should include the targets.",
     )
-    known_categorical_columns: List[str] = Field(
+    known_categorical_columns: list[str] = Field(
         default=CONST.DEFAULT_KNOWN_CATEGORICAL_COLUMNS,
         description="The names of the categorical columns where we know the future values.",
     )
-    unknown_categorical_columns: List[str] = Field(
+    unknown_categorical_columns: list[str] = Field(
         default=CONST.DEFAULT_UNKNOWN_CATEGORICAL_COLUMNS,
         description="The names of the categorical columns where we do not know the future values. ",
     )
@@ -59,7 +56,7 @@ class DataConfiguration:
         default=CONST.DEFAULT_PREDICTION_REGION_BUFFER,
         description="The buffer by which the prediction region is inflated to get more geospatial data.",
     )
-    known_wfs_services: List[SWS.WfsService] = Field(
+    known_wfs_services: list[SWS.WfsService] = Field(
         default=CONFIG.KNOWN_WFS_SERVICES,
         description="The known WFS services to collect data from.",
     )

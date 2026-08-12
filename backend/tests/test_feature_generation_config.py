@@ -1,8 +1,8 @@
 """Test the feature generation config functionality"""
 
 import pytest
-
 from pydantic_core import ValidationError
+
 import src.data.feature_generation_config_schema as FGCS
 
 

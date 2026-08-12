@@ -2,6 +2,7 @@
 
 import logging
 import re
+
 import torch.nn as nn
 
 import src.constants as CONST
@@ -39,7 +40,7 @@ class LinearModule(nn.Module):
     ):
         super().__init__()
 
-        all_layer_sizes = [in_features] + hidden_layer_sizes + [out_features]
+        [in_features] + hidden_layer_sizes + [out_features]
 
         self.layers = nn.ModuleList()
         self.use_batch_norm = use_batch_norm

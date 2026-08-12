@@ -6,9 +6,13 @@ TODO: explicitly test various WFS versions whether the API is the same
 import geopandas as gpd
 import pytest
 
-import src.data.data_collector as DC
-import src.constants as CONST
 import src.config as CONFIG
+import src.constants as CONST
+import src.data.data_collector as DC
+
+# These tests call live WFS services (PDOK / RWS), so they need network access
+# and are sensitive to upstream schema drift. Excluded from CI via -m "not integration".
+pytestmark = pytest.mark.integration
 
 
 @pytest.fixture

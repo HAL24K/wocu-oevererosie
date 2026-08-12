@@ -1,9 +1,9 @@
 """All the hardcoded values live here. This is the place to change them if needed."""
 
 from enum import Enum
+
 import torch
 import torch.nn as nn
-
 
 # where the Netherlands is
 CENTRE_NL_LON = 5.2913
@@ -80,7 +80,9 @@ RIVER_BANK_POINT_STATUS = "status"
 
 # column names used in the processed data
 DISTANCE_TO_CENTERLINE = "distance_to_centerline"  # Processed column: mean dist of N furthest bank pts to centreline
-RAW_DIST_COLUMN = "dist"  # Column name in raw WOCU geopackages (per-point distance to centreline)
+RAW_DIST_COLUMN = (
+    "dist"  # Column name in raw WOCU geopackages (per-point distance to centreline)
+)
 DIRECTION_FACTOR = "direction_factor"
 
 DEFAULT_NUMBER_OF_LAGS = 1
@@ -180,9 +182,7 @@ DEFAULT_NONLINEARITY_FUNCTION = (
     nn.ReLU
 )  # default nonlinearity function for the linear layers in the model
 
-DEFAULT_COLUMN_TYPE_NOT_PRESENT = (
-    []
-)  # if a specific column type is not present just passa an empty list
+DEFAULT_COLUMN_TYPE_NOT_PRESENT = []  # if a specific column type is not present just passa an empty list
 
 DEFAULT_EMBEDDING_DIMENSION = (
     3  # how many elements to use to represent a categorical column

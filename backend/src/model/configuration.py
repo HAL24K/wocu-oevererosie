@@ -1,6 +1,6 @@
 """Configuration for the deep learning model."""
 
-from typing import Callable, List, Optional, Dict
+from collections.abc import Callable
 
 from pydantic import Field, model_validator
 from pydantic.dataclasses import dataclass
@@ -12,14 +12,14 @@ import src.constants as CONST
 class ModelConfiguration:
     """Configuration of the deep learning model."""
 
-    unknown_continuous_columns: List[str] = Field(
+    unknown_continuous_columns: list[str] = Field(
         description=(
             "The names of the unknown continuous features, i.e. the defects, corresponding to the third "
             "dimension of the corresponding part of the dataset."
         )
     )
 
-    unknown_categorical_columns: List[str] = Field(
+    unknown_categorical_columns: list[str] = Field(
         default=CONST.DEFAULT_COLUMN_TYPE_NOT_PRESENT,
         description=(
             "The categorical feature names, corresponding to the third "
@@ -28,12 +28,12 @@ class ModelConfiguration:
     )
 
     # TODO: specify default propagation function
-    known_continuous_columns: List[str] = Field(
+    known_continuous_columns: list[str] = Field(
         default=CONST.DEFAULT_COLUMN_TYPE_NOT_PRESENT,
         description="The known continuous columns (we know thier future values) to use in the model.",
     )
 
-    known_categorical_columns: List[str] = Field(
+    known_categorical_columns: list[str] = Field(
         default=CONST.DEFAULT_COLUMN_TYPE_NOT_PRESENT,
         description=(
             "The categorical feature names, corresponding to the third "

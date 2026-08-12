@@ -4,8 +4,9 @@ In practice, we have geospatial data provided by the user or downloaded from a W
 features for a particular prediction region.
 """
 
-from pydantic import Field, create_model
 from typing import Optional
+
+from pydantic import Field, create_model
 
 import src.constants as CONST
 

@@ -16,12 +16,10 @@ Usage::
 
 from __future__ import annotations
 
-from typing import Optional
-
 import numpy as np
 import pandas as pd
 
-from src.model.export_utils import load_model_bundle, predict as _bundle_predict
+from src.model.export_utils import predict as _bundle_predict
 from src.model.feature_shifter import FeatureShiftConfig, FeatureShifter
 
 
@@ -67,12 +65,14 @@ def predict_iterative_baseline(
         )
 
         for year in prediction_years:
-            rows.append({
-                "location_id": loc_id,
-                "year": year,
-                "predicted_dist_m": current_dist,
-                "velocity_m_per_yr": velocity,
-            })
+            rows.append(
+                {
+                    "location_id": loc_id,
+                    "year": year,
+                    "predicted_dist_m": current_dist,
+                    "velocity_m_per_yr": velocity,
+                }
+            )
             current_dist += velocity * step
 
     return pd.DataFrame(rows)
@@ -87,7 +87,7 @@ def predict_iterative_ml(
     end_year: int = 2035,
     step: int = 1,
     rolling: bool = True,
-    shift_config: Optional[FeatureShiftConfig] = None,
+    shift_config: FeatureShiftConfig | None = None,
 ) -> pd.DataFrame:
     """Iterative prediction using an ML model from a saved bundle.
 
@@ -147,12 +147,14 @@ def predict_iterative_ml(
         new_dists = feats[config.dist_feature].values + np.asarray(velocities) * step
 
         for i, loc_id in enumerate(locs):
-            rows.append({
-                "location_id": loc_id,
-                "year": year,
-                "predicted_dist_m": float(new_dists[i]),
-                "velocity_m_per_yr": float(velocities[i]),
-            })
+            rows.append(
+                {
+                    "location_id": loc_id,
+                    "year": year,
+                    "predicted_dist_m": float(new_dists[i]),
+                    "velocity_m_per_yr": float(velocities[i]),
+                }
+            )
 
         if rolling:
             shifter.step(locs, velocities=velocities, dists=new_dists, step_size=step)

@@ -23,10 +23,10 @@ Usage when loading:
 
 from __future__ import annotations
 
-import joblib
 from pathlib import Path
 from typing import Any
 
+import joblib
 import numpy as np
 import pandas as pd
 
@@ -101,7 +101,9 @@ def get_model(bundle: dict[str, Any], name: str) -> Any:
         return cache[name]
     path = bundle.get("_models_path")
     if not path:
-        raise ValueError("Bundle was not loaded via load_model_bundle (missing _models_path)")
+        raise ValueError(
+            "Bundle was not loaded via load_model_bundle (missing _models_path)"
+        )
     model = joblib.load(Path(path) / f"model_{name}.joblib")
     cache[name] = model
     return model

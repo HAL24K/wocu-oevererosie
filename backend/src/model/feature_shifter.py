@@ -18,7 +18,6 @@ calling step().
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -43,10 +42,10 @@ class FeatureShiftConfig:
     # Hydrology pairs (t1_col, t2_col): t1 ← t2, t2 held
     hydrology_pairs: list[tuple[str, str]] = field(
         default_factory=lambda: [
-            ("n_events_t1",       "n_events_t2"),
-            ("max_rise_rate_t1",  "max_rise_rate_t2"),
+            ("n_events_t1", "n_events_t2"),
+            ("max_rise_rate_t1", "max_rise_rate_t2"),
             ("drawdown_index_t1", "drawdown_index_t2"),
-            ("flood_days_t1",     "flood_days_t2"),
+            ("flood_days_t1", "flood_days_t2"),
         ]
     )
 
@@ -144,11 +143,11 @@ class FeatureShifter:
         # 3. Hydrology shift: t1 ← t2;  t2 unchanged (hold last known)
         for t1_feat, t2_feat in cfg.hydrology_pairs:
             if t1_feat in self._state.columns and t2_feat in self._state.columns:
-                self._state.loc[loc_index, t1_feat] = (
-                    self._state.loc[loc_index, t2_feat].values
-                )
+                self._state.loc[loc_index, t1_feat] = self._state.loc[
+                    loc_index, t2_feat
+                ].values
 
-    def get(self, loc_ids: Optional[list[str]] = None) -> pd.DataFrame:
+    def get(self, loc_ids: list[str] | None = None) -> pd.DataFrame:
         """Return the current feature state, optionally filtered to loc_ids."""
         if loc_ids is None:
             return self._state

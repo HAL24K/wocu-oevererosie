@@ -22,11 +22,10 @@ Output schema (29 columns, same as 20260314 reference):
 """
 
 from pathlib import Path
-from typing import Optional
 
+import geopandas as gpd
 import numpy as np
 import pandas as pd
-import geopandas as gpd
 
 import src.constants as CONST
 
@@ -50,30 +49,46 @@ HIGH_WATER_THRESHOLD: dict[str, float] = {
     "genemuiden": 300,
 }
 
-DT_HOURS = 1 / 6   # 10-minute sampling interval expressed in hours
-GAP_HOURS = 72     # gap below which two HW events are merged into one
+DT_HOURS = 1 / 6  # 10-minute sampling interval expressed in hours
+GAP_HOURS = 72  # gap below which two HW events are merged into one
 
 HW_METRIC_COLS = ["n_events", "max_rise_rate", "drawdown_index"]
-HW_WINDOW_COLS = (
-    [f"{c}_t{t}" for t in [1, 2] for c in HW_METRIC_COLS]
-    + ["flood_days_t1", "flood_days_t2"]
-)
+HW_WINDOW_COLS = [f"{c}_t{t}" for t in [1, 2] for c in HW_METRIC_COLS] + [
+    "flood_days_t1",
+    "flood_days_t2",
+]
 
 # Output column order — must match 20260314 reference schema
 COLS_OUT = [
-    "v_train", "v_test",
-    "dist_t1", "dist_t2", "dist_t3",
-    "train_span_yr", "test_span_yr",
+    "v_train",
+    "v_test",
+    "dist_t1",
+    "dist_t2",
+    "dist_t3",
+    "train_span_yr",
+    "test_span_yr",
     "is_nvo",
-    "river", "river_enc",
-    "vegetation_class", "vegetation_class_enc",
-    "land_use", "land_use_enc",
+    "river",
+    "river_enc",
+    "vegetation_class",
+    "vegetation_class_enc",
+    "land_use",
+    "land_use_enc",
     "erosion_vol_rate_t1",
-    "soil_group", "soil_group_enc",
-    "n_events_t1", "max_rise_rate_t1", "drawdown_index_t1", "flood_days_t1",
-    "n_events_t2", "max_rise_rate_t2", "drawdown_index_t2", "flood_days_t2",
-    "bend_exposure_n5", "bend_exposure_n8",
-    "split", "cluster",
+    "soil_group",
+    "soil_group_enc",
+    "n_events_t1",
+    "max_rise_rate_t1",
+    "drawdown_index_t1",
+    "flood_days_t1",
+    "n_events_t2",
+    "max_rise_rate_t2",
+    "drawdown_index_t2",
+    "flood_days_t2",
+    "bend_exposure_n5",
+    "bend_exposure_n8",
+    "split",
+    "cluster",
 ]
 
 # Vegetation mix classes consolidated to 'Other'
@@ -91,7 +106,7 @@ def build_features(
     stations_gpkg: Path,
     discharge_dir: Path,
     reference_features_v2: Path,
-    high_water_threshold: Optional[dict[str, float]] = None,
+    high_water_threshold: dict[str, float] | None = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Build region_features and region_inference_features from the split tables.
 
@@ -196,16 +211,22 @@ def build_features(
     hw_metrics = _compute_all_hw_metrics(disc_raw, hw_thresh)
 
     hw_feat_split = split.apply(
-        _hw_window_stats, axis=1,
-        hw_metrics=hw_metrics, station_annual=station_annual, has_t3=True,
+        _hw_window_stats,
+        axis=1,
+        hw_metrics=hw_metrics,
+        station_annual=station_annual,
+        has_t3=True,
     )
     no_ev = hw_feat_split[HW_WINDOW_COLS].isna().all(axis=1)
     hw_feat_split.loc[no_ev, HW_WINDOW_COLS] = 0
     split[HW_WINDOW_COLS] = hw_feat_split[HW_WINDOW_COLS]
 
     hw_feat_inf = inference.apply(
-        _hw_window_stats, axis=1,
-        hw_metrics=hw_metrics, station_annual=station_annual, has_t3=False,
+        _hw_window_stats,
+        axis=1,
+        hw_metrics=hw_metrics,
+        station_annual=station_annual,
+        has_t3=False,
     )
     no_ev_inf = hw_feat_inf[HW_WINDOW_COLS].isna().all(axis=1)
     hw_feat_inf.loc[no_ev_inf, HW_WINDOW_COLS] = 0
@@ -238,13 +259,16 @@ def build_features(
 
     # ── Assemble output ───────────────────────────────────────────────────────
     features_out = split[[c for c in COLS_OUT if c in split.columns]]
-    inf_cols_out = [c for c in COLS_OUT if c not in ("v_test", "split") and c in inference.columns]
+    inf_cols_out = [
+        c for c in COLS_OUT if c not in ("v_test", "split") and c in inference.columns
+    ]
     inference_out = inference[inf_cols_out]
 
     return features_out, inference_out
 
 
 # ── Public helpers ─────────────────────────────────────────────────────────────
+
 
 def encode_col(series: pd.Series, category_key: str) -> pd.Series:
     """Ordinal-encode a categorical series using KNOWN_CATEGORIES from constants.
@@ -274,6 +298,7 @@ def soil_group_fn(code: object) -> object:
 
 # ── Private helpers ────────────────────────────────────────────────────────────
 
+
 def _load_scope(scope_gpkg: Path, all_ids) -> gpd.GeoDataFrame:
     scope_raw = gpd.read_file(scope_gpkg, layer="vlakken_scope")
     if "position_id" in scope_raw.columns and "location_id" not in scope_raw.columns:
@@ -282,9 +307,7 @@ def _load_scope(scope_gpkg: Path, all_ids) -> gpd.GeoDataFrame:
     return scope_raw.loc[scope_raw.index.intersection(all_ids)]
 
 
-def _load_discharge(
-    discharge_dir: Path, hw_thresh: dict
-) -> tuple[pd.DataFrame, dict]:
+def _load_discharge(discharge_dir: Path, hw_thresh: dict) -> tuple[pd.DataFrame, dict]:
     """Load cleaned discharge timeseries and pre-compute P90 annual flood days."""
     disc_files = sorted(discharge_dir.glob("*.parquet"))
     frames = []
@@ -304,8 +327,11 @@ def _load_discharge(
     station_annual = {}
     for code, grp in disc_daily.groupby("station_code"):
         p90 = grp["discharge_m3s"].quantile(0.90)
+        # B023: the lambda closes over the loop variable `p90`, but .agg() runs it
+        # eagerly within this iteration, so it always sees the current station's
+        # threshold. Safe as written; keep the aggregation eager if this changes.
         station_annual[code] = grp.groupby("year").agg(
-            days_above_p90=("discharge_m3s", lambda x: (x > p90).sum())
+            days_above_p90=("discharge_m3s", lambda x: (x > p90).sum())  # noqa: B023
         )
 
     return disc_raw, station_annual
@@ -337,8 +363,13 @@ def _compute_hw_metrics_for_station(
         g = grp.dropna(subset=["discharge_m3s"]).sort_values("timestamp")
         if g.empty:
             rows.append(
-                {"station_id": station_code, "year": year,
-                 "n_events": np.nan, "max_rise_rate": np.nan, "drawdown_index": np.nan}
+                {
+                    "station_id": station_code,
+                    "year": year,
+                    "n_events": np.nan,
+                    "max_rise_rate": np.nan,
+                    "drawdown_index": np.nan,
+                }
             )
             continue
 
@@ -365,12 +396,15 @@ def _compute_hw_metrics_for_station(
         rise_mask = g["exceed"] & (g["dQ_dt"] > 0)
         rec_mask = g["exceed"] & (g["dQ_dt"] < 0)
         max_rise = g.loc[rise_mask, "dQ_dt"].max() if rise_mask.any() else np.nan
-        drawdown = (
-            np.abs(g.loc[rec_mask, "dQ_dt"]).max() if rec_mask.any() else np.nan
-        )
+        drawdown = np.abs(g.loc[rec_mask, "dQ_dt"]).max() if rec_mask.any() else np.nan
         rows.append(
-            {"station_id": station_code, "year": year, "n_events": len(merged),
-             "max_rise_rate": max_rise, "drawdown_index": drawdown}
+            {
+                "station_id": station_code,
+                "year": year,
+                "n_events": len(merged),
+                "max_rise_rate": max_rise,
+                "drawdown_index": drawdown,
+            }
         )
     return pd.DataFrame(rows)
 
@@ -411,8 +445,16 @@ def _hw_window_stats(
             sub = hw_metrics.loc[code]
             sub = sub.to_frame().T if isinstance(sub, pd.Series) else sub
             for c in HW_METRIC_COLS:
-                sub_t1 = sub.loc[sub.index.intersection(years_t1)] if years_t1 else pd.DataFrame()
-                sub_t2 = sub.loc[sub.index.intersection(years_t2)] if years_t2 else pd.DataFrame()
+                sub_t1 = (
+                    sub.loc[sub.index.intersection(years_t1)]
+                    if years_t1
+                    else pd.DataFrame()
+                )
+                sub_t2 = (
+                    sub.loc[sub.index.intersection(years_t2)]
+                    if years_t2
+                    else pd.DataFrame()
+                )
                 out[f"{c}_t1"] = sub_t1[c].mean() if len(sub_t1) > 0 else np.nan
                 out[f"{c}_t2"] = sub_t2[c].mean() if len(sub_t2) > 0 else np.nan
         except KeyError:
@@ -424,8 +466,12 @@ def _hw_window_stats(
 
     if code in station_annual:
         ann = station_annual[code]
-        sub_t1 = ann.loc[ann.index.intersection(years_t1)] if years_t1 else pd.DataFrame()
-        sub_t2 = ann.loc[ann.index.intersection(years_t2)] if years_t2 else pd.DataFrame()
+        sub_t1 = (
+            ann.loc[ann.index.intersection(years_t1)] if years_t1 else pd.DataFrame()
+        )
+        sub_t2 = (
+            ann.loc[ann.index.intersection(years_t2)] if years_t2 else pd.DataFrame()
+        )
         out["flood_days_t1"] = (
             sub_t1["days_above_p90"].mean() if len(sub_t1) > 0 else np.nan
         )

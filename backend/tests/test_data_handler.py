@@ -3,19 +3,23 @@
 TODO: test for when there is no remote or other data nearby
 """
 
+import geopandas as gpd
 import numpy as np
 import pandas as pd
 import pytest
-import geopandas as gpd
 import torch
+from conftest import default_data_configuration, real_erosion_border
 from shapely.geometry import LineString, Point
 
+import src.constants as CONST
+import src.data.config as DATA_CONFIG
+import src.data.custom_pytorch_dataset as CPD
 import src.data.data_handler as DH
 import src.paths as PATHS
-import src.data.config as DATA_CONFIG
-import src.constants as CONST
-import src.data.custom_pytorch_dataset as CPD
-from conftest import real_erosion_border, default_data_configuration
+
+# DataHandler enriches regions from live WFS services, so these tests need
+# network access. Excluded from CI via -m "not integration".
+pytestmark = pytest.mark.integration
 
 
 @pytest.fixture
@@ -129,15 +133,16 @@ def test_erosion_data_processing(
     # we also update the erosion data with nonrobust points that line on the line and in the nonfiltering case
     # should influence us a lot
     internal_erosion_data = erosion_data_for_test.copy()
-    
+
     # Add synthetic points for ALL regions, not just the first one
     additional_nonrobust_points = []
     additional_robust_points = []
-    
+
     for region_id in prediction_regions_for_test[CONST.PREDICTION_REGION_ID]:
         # Add non-robust points for each region
         additional_nonrobust_points.extend(
-            CONST.DEFAULT_NO_OF_POINTS_FOR_DISTANCE_CALCULATION * [
+            CONST.DEFAULT_NO_OF_POINTS_FOR_DISTANCE_CALCULATION
+            * [
                 {
                     CONST.RIVER_BANK_POINT_STATUS: "NON OK POINT",
                     CONST.PREDICTION_REGION_ID: region_id,
@@ -148,10 +153,11 @@ def test_erosion_data_processing(
                 }
             ]
         )
-        
+
         # Add robust points for each region
         additional_robust_points.extend(
-            CONST.DEFAULT_NO_OF_POINTS_FOR_DISTANCE_CALCULATION * [
+            CONST.DEFAULT_NO_OF_POINTS_FOR_DISTANCE_CALCULATION
+            * [
                 {
                     CONST.RIVER_BANK_POINT_STATUS: CONST.OK_POINT_LABEL,
                     CONST.PREDICTION_REGION_ID: region_id,
@@ -165,7 +171,7 @@ def test_erosion_data_processing(
                 }
             ]
         )
-    
+
     additional_nonrobust_points_gdf = gpd.GeoDataFrame(
         additional_nonrobust_points, crs=internal_erosion_data.crs
     )
@@ -237,13 +243,11 @@ def test_erosion_data_processing(
         # * if they are absent - not filtered out, we have data with zero distance
         if filter_out_bad_points:
             assert (
-                data_handler.processed_erosion_data[CONST.DISTANCE_TO_CENTERLINE]
-                != 0
+                data_handler.processed_erosion_data[CONST.DISTANCE_TO_CENTERLINE] != 0
             ).all()
         else:
             assert (
-                data_handler.processed_erosion_data[CONST.DISTANCE_TO_CENTERLINE]
-                == 0
+                data_handler.processed_erosion_data[CONST.DISTANCE_TO_CENTERLINE] == 0
             ).any()
 
     # check that we don't recompute if we don't need to

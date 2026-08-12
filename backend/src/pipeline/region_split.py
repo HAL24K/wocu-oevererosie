@@ -25,22 +25,37 @@ CLUSTERS = ["ijssel1", "ijssel2", "maas1", "maas2", "maas3", "rijn", "nederrijn"
 QUALITY_COL = "estimate_reliability_height_model"
 
 SPLIT_COLS = [
-    "cluster", "n_timestamps",
-    "t1", "t2", "t3",
-    "train_span_yr", "test_span_yr",
-    "dist_t1", "dist_t2", "dist_t3",
-    "v_train", "v_test",
-    "is_nvo", "quality", "split",
-    "erosion_vol_train_rate", "erosion_vol_test_rate", "erosion_vol_rate_t1",
+    "cluster",
+    "n_timestamps",
+    "t1",
+    "t2",
+    "t3",
+    "train_span_yr",
+    "test_span_yr",
+    "dist_t1",
+    "dist_t2",
+    "dist_t3",
+    "v_train",
+    "v_test",
+    "is_nvo",
+    "quality",
+    "split",
+    "erosion_vol_train_rate",
+    "erosion_vol_test_rate",
+    "erosion_vol_rate_t1",
 ]
 
 INFERENCE_COLS = [
-    "cluster", "n_timestamps",
-    "t1", "t2",
+    "cluster",
+    "n_timestamps",
+    "t1",
+    "t2",
     "train_span_yr",
-    "dist_t1", "dist_t2",
+    "dist_t1",
+    "dist_t2",
     "v_train",
-    "is_nvo", "quality",
+    "is_nvo",
+    "quality",
 ]
 
 
@@ -67,7 +82,7 @@ def build_region_split(
     ts_counts = dist_per_year.groupby("location_id")["year"].count()
 
     locs_2ts = ts_counts[ts_counts == 2].index
-    eligible  = ts_counts[ts_counts >= 3].index
+    eligible = ts_counts[ts_counts >= 3].index
 
     # ── Build pivot records ───────────────────────────────────────────────────
     split_records = (
@@ -102,9 +117,9 @@ def build_region_split(
         ["location_id", "geometry"]
     ].to_crs(vvr_polys.crs)
     nvo_ids = set(
-        gpd.sjoin(scope_ok, vvr_polys[["geometry"]], how="inner", predicate="intersects")[
-            "location_id"
-        ]
+        gpd.sjoin(
+            scope_ok, vvr_polys[["geometry"]], how="inner", predicate="intersects"
+        )["location_id"]
     )
     features_ok["is_nvo"] = features_ok.index.isin(nvo_ids)
     inference_ok["is_nvo"] = inference_ok.index.isin(nvo_ids)
@@ -124,12 +139,15 @@ def build_region_split(
 
     # ── Select output columns ─────────────────────────────────────────────────
     region_split = features_ok[[c for c in SPLIT_COLS if c in features_ok.columns]]
-    region_inference = inference_ok[[c for c in INFERENCE_COLS if c in inference_ok.columns]]
+    region_inference = inference_ok[
+        [c for c in INFERENCE_COLS if c in inference_ok.columns]
+    ]
 
     return region_split, region_inference
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def get_cluster(loc_id: str) -> str:
     """Map a location_id to its cluster name based on prefix."""

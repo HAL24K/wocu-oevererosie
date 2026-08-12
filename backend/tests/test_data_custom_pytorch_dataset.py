@@ -1,7 +1,7 @@
 """Test the custom_pytoch_dataset code."""
 
-import pytest
 import numpy as np
+import pytest
 
 import src.constants as CONST
 import src.data.custom_pytorch_dataset as CPD

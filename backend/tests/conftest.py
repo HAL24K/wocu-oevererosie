@@ -1,14 +1,14 @@
 """Tools for all the tests."""
 
 import geopandas as gpd
-from shapely.geometry import Point, LineString, Polygon
-from shapely.wkt import loads
 import pytest
+from shapely.geometry import LineString, Point, Polygon
+from shapely.wkt import loads
 
 import src.constants as CONST
+import src.data.config as DATA_CONFIG
 import src.paths as PATHS
 import src.utils as U
-import src.data.config as DATA_CONFIG
 
 
 def point_near_zaltbommel_wgs84():

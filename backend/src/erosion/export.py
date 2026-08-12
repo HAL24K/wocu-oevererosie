@@ -78,6 +78,7 @@ def export_predictions(
     Returns:
         Path to the output GeoPackage.
     """
+
     def _log(msg: str) -> None:
         if verbose:
             print(msg, flush=True)
@@ -94,7 +95,9 @@ def export_predictions(
         if _sidecar.exists():
             _sidecar.unlink()
             _log(f"      removed stale sidecar: {_sidecar.name}")
-    _log(f"      done  ({output_gpkg.stat().st_size / 1e6:.1f} MB)  {time.time()-t:.1f}s")
+    _log(
+        f"      done  ({output_gpkg.stat().st_size / 1e6:.1f} MB)  {time.time() - t:.1f}s"
+    )
 
     # --- Step 2: Write predicted_bank_positions via temp GPKG + SQLite ATTACH ---
     bank_export = predicted_bank_positions[
@@ -110,7 +113,9 @@ def export_predictions(
 
     tmp_gpkg = output_gpkg.with_suffix(".tmp.gpkg")
     bank_export.to_file(tmp_gpkg, layer=bank_layer, driver="GPKG")
-    _log(f"      to_file done  {time.time()-t:.1f}s  ({tmp_gpkg.stat().st_size/1e6:.1f} MB)")
+    _log(
+        f"      to_file done  {time.time() - t:.1f}s  ({tmp_gpkg.stat().st_size / 1e6:.1f} MB)"
+    )
 
     t = time.time()
     for _ext in ("-wal", "-shm"):
@@ -119,15 +124,15 @@ def export_predictions(
             _sidecar.unlink()
     _attach_copy_layer(tmp_gpkg, output_gpkg, bank_layer)
     tmp_gpkg.unlink()
-    _log(f"      sqlite ATTACH copy done  {time.time()-t:.1f}s")
+    _log(f"      sqlite ATTACH copy done  {time.time() - t:.1f}s")
 
     # --- Step 3: Compute crossing year per VVR polygon ---
     _log(f"[3/{n_steps}] Computing crossing year per VVR polygon ...")
     t = time.time()
     crossing_lookup = vvr_crossing.set_index("location_id")["crossing_year"].dropna()
-    scope_matched = scope_raw[
-        scope_raw["location_id"].isin(crossing_lookup.index)
-    ][["location_id", "geometry"]].copy()
+    scope_matched = scope_raw[scope_raw["location_id"].isin(crossing_lookup.index)][
+        ["location_id", "geometry"]
+    ].copy()
 
     vvr_geom = gpd.read_file(output_gpkg, layer=vvr_layer)
     vvr_pts = vvr_geom.to_crs(scope_matched.crs).copy()
@@ -141,7 +146,9 @@ def export_predictions(
         scope_raw["location_id"].isin(vvr_crossing["location_id"])
     ][["location_id", "geometry"]].copy()
 
-    joined_all = gpd.sjoin(vvr_pts[["geometry"]], scope_all_predicted, how="left", predicate="within")
+    joined_all = gpd.sjoin(
+        vvr_pts[["geometry"]], scope_all_predicted, how="left", predicate="within"
+    )
     has_any_prediction = joined_all.groupby(joined_all.index)["location_id"].count() > 0
 
     joined_all[crossing_col] = joined_all["location_id"].map(crossing_lookup)
@@ -152,27 +159,38 @@ def export_predictions(
     #   predicted but no crossing → NO_CROSSING_SENTINEL (9999)
     #   no matching scope region  → NULL (no prediction available)
     NO_CROSSING_SENTINEL = 9999
-    earliest = earliest.where(earliest.notna(), other=pd.Series(
-        {idx: NO_CROSSING_SENTINEL if has_any_prediction.get(idx, False) else float("nan")
-         for idx in earliest.index}
-    ))
+    earliest = earliest.where(
+        earliest.notna(),
+        other=pd.Series(
+            {
+                idx: NO_CROSSING_SENTINEL
+                if has_any_prediction.get(idx, False)
+                else float("nan")
+                for idx in earliest.index
+            }
+        ),
+    )
 
     n_crossing = (earliest < NO_CROSSING_SENTINEL).sum()
-    n_safe     = (earliest == NO_CROSSING_SENTINEL).sum()
-    n_null     = earliest.isna().sum()
-    _log(f"      done  {time.time()-t:.1f}s  → {n_crossing:,} crossing  "
-         f"{n_safe:,} safe (={NO_CROSSING_SENTINEL})  {n_null:,} no-prediction (NULL)")
+    n_safe = (earliest == NO_CROSSING_SENTINEL).sum()
+    n_null = earliest.isna().sum()
+    _log(
+        f"      done  {time.time() - t:.1f}s  → {n_crossing:,} crossing  "
+        f"{n_safe:,} safe (={NO_CROSSING_SENTINEL})  {n_null:,} no-prediction (NULL)"
+    )
 
     # --- Step 4: Patch crossing_col into vvr_layer ---
     _log(f"[4/{n_steps}] Patching {vvr_layer}.{crossing_col} ...")
     t = time.time()
     vvr_geom[crossing_col] = vvr_geom.index.map(earliest)
     vvr_geom.to_file(output_gpkg, layer=vvr_layer, driver="GPKG")
-    _log(f"      done  {time.time()-t:.1f}s")
+    _log(f"      done  {time.time() - t:.1f}s")
 
     # --- Step 5 (optional): Write signaleringslijn layer ---
     if signaleringslijn is not None:
-        _log(f"[5/{n_steps}] Writing {signalering_layer} ({len(signaleringslijn):,} features) ...")
+        _log(
+            f"[5/{n_steps}] Writing {signalering_layer} ({len(signaleringslijn):,} features) ..."
+        )
         t = time.time()
         sig_export = signaleringslijn.to_crs(target_crs)
         tmp_sig = output_gpkg.with_suffix(".sig.tmp.gpkg")
@@ -183,7 +201,7 @@ def export_predictions(
                 _sidecar.unlink()
         _attach_copy_layer(tmp_sig, output_gpkg, signalering_layer)
         tmp_sig.unlink()
-        _log(f"      done  {time.time()-t:.1f}s")
+        _log(f"      done  {time.time() - t:.1f}s")
 
     return output_gpkg
 
