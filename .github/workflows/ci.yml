@@ -1,29 +1,52 @@
+name: CI
+
 on:
   push:
-    tags:
-      - "**"
     branches:
       - "**"
+    tags:
+      - "**"
+  pull_request:
+
 jobs:
   test:
+    name: lint, format, unit tests
     runs-on: ubuntu-22.04
-    strategy:
-      fail-fast: false
+    # All Python code lives in backend/; the repo root holds only docs and data.
+    defaults:
+      run:
+        working-directory: backend
+
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
         with:
-          python-version: "3.12.4"
-      - run: pip install pipenv
-      - run: |
-          pipenv sync --dev
-          pipenv run black src --check --diff
-          PYTHONPATH=. pipenv run pytest --log-cli-level=DEBUG -n auto --cov src --cov-report term --junitxml=pytest.xml --cov-report xml:coverage.xml
-      - name: Pytest coverage comment
-        if: ${{ ! startsWith(github.ref, 'refs/tags/') }}
-        uses: MishaKav/pytest-coverage-comment@main
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+
+      - name: Install dependencies
+        # --frozen fails if uv.lock has drifted from pyproject.toml, so a stale
+        # lockfile surfaces here rather than as a mismatched environment.
+        run: uv sync --frozen
+
+      - name: Lint
+        run: uv run ruff check src app tests
+
+      - name: Format
+        run: uv run ruff format --check src app tests
+
+      - name: Unit tests
+        # Integration tests are excluded: they call live WFS services (PDOK/RWS),
+        # which makes them slow and dependent on upstream schema stability.
+        # Run them locally with: ./run_tests.sh -m integration
+        run: uv run pytest tests/ -m "not integration" --cov=src --cov=app --cov-report=term-missing --cov-report=xml
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          pytest-xml-coverage-path: ./${{ matrix.context }}/coverage.xml
-          junitxml-path: ./${{ matrix.context }}/pytest.xml
-          unique-id-for-comment: ${{ matrix.context }}
-          title: "Coverage for ${{ matrix.context }}"
+          name: coverage-xml
+          path: backend/coverage.xml
+          if-no-files-found: ignore
