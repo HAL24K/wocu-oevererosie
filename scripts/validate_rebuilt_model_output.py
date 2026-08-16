@@ -5,7 +5,7 @@ Acceptance tests for the rebuilt 20260303_model_results.gpkg.
 Validates predicted_bank_positions and vvr_rates_of_change layers against
 expected structure and consistency rules.
 
-Run from backend/: python scripts/validate_rebuilt_model_output.py
+Run from : python scripts/validate_rebuilt_model_output.py
 """
 
 from __future__ import annotations

@@ -7,7 +7,7 @@ It loads the baseline model, processed erosion data, and bank points to regenera
 - predicted_bank_positions: bank position predictions for 2025-2035 per location
 - vvr_rates_of_change: updates predicted_vvr_crossing_year using model velocities
 
-Run from backend/: python scripts/rebuild_20260303_model_results.py
+Run from : python scripts/rebuild_20260303_model_results.py
 """
 
 from __future__ import annotations

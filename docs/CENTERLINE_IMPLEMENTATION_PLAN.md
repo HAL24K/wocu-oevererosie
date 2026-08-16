@@ -13,7 +13,7 @@ Switch the baseline erosion model from using `erosion_border` to `centerline` as
 ## Implementation Phases
 
 ### ✅ Phase 0: Validation (Current Step)
-**Notebook**: `backend/notebooks/04_model/validate_centerline_approach.ipynb`
+**Notebook**: `notebooks/04_model/validate_centerline_approach.ipynb`
 
 **Goals:**
 - Examine centerline geometry structure (LineString vs MultiLineString)
@@ -28,7 +28,7 @@ Switch the baseline erosion model from using `erosion_border` to `centerline` as
 ### Phase 1: Update Infrastructure (No Breaking Changes)
 
 #### 1.1 Update Constants
-**File**: `backend/src/constants.py`
+**File**: `src/constants.py`
 
 ```python
 # Add new constants (keep existing ones!)
@@ -47,7 +47,7 @@ DEFAULT_UNKNOWN_NUMERICAL_COLUMNS = [
 ---
 
 #### 1.2 Add New DataHandler Method
-**File**: `backend/src/data/data_handler.py`
+**File**: `src/data/data_handler.py`
 
 **Add new method** (alongside existing erosion_border method):
 
@@ -96,7 +96,7 @@ def calculate_river_bank_distances_to_erosion_border(self, ...):
 ---
 
 #### 1.3 Make BaselineModel Flexible
-**File**: `backend/src/model/baseline_model.py`
+**File**: `src/model/baseline_model.py`
 
 **Modify class initialization**:
 
@@ -155,7 +155,7 @@ class BaselineErosionModel:
 ### Phase 2: Implement Centerline Distance Calculation
 
 #### 2.1 Complete DataHandler Method
-**File**: `backend/src/data/data_handler.py`
+**File**: `src/data/data_handler.py`
 
 **Based on validation notebook findings**, implement one of these approaches:
 
@@ -195,7 +195,7 @@ def calculate_river_bank_distances_to_centerline(
 ---
 
 #### 2.2 Update process_erosion_features()
-**File**: `backend/src/data/data_handler.py`
+**File**: `src/data/data_handler.py`
 
 ```python
 def process_erosion_features(
@@ -238,7 +238,7 @@ def process_erosion_features(
 ### Phase 3: Update Notebooks
 
 #### 3.1 Keep Demo Notebook Unchanged
-**File**: `backend/notebooks/04_model/demo_baseline_model.ipynb`
+**File**: `notebooks/04_model/demo_baseline_model.ipynb`
 
 **Action**: Add markdown note at top:
 
@@ -257,7 +257,7 @@ the more general **centerline approach**.
 ---
 
 #### 3.2 Update Full Dataset Notebook
-**File**: `backend/notebooks/04_model/baseline_model_full_dataset.ipynb`
+**File**: `notebooks/04_model/baseline_model_full_dataset.ipynb`
 
 **Changes needed:**
 
@@ -295,7 +295,7 @@ baseline_model = BaselineErosionModel(
 ### Phase 4: Testing & Validation
 
 #### 4.1 Unit Tests
-**File**: `backend/tests/test_baseline_model.py`
+**File**: `tests/test_baseline_model.py`
 
 Add new tests:
 
@@ -322,7 +322,7 @@ def test_baseline_model_both_approaches_consistent():
 ```
 
 #### 4.2 Integration Test
-**File**: `backend/tests/test_data_handler.py`
+**File**: `tests/test_data_handler.py`
 
 ```python
 def test_calculate_distances_to_centerline():

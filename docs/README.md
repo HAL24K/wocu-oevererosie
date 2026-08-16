@@ -10,13 +10,13 @@
 | [CENTERLINE_IMPLEMENTATION_PLAN.md](CENTERLINE_IMPLEMENTATION_PLAN.md) | Design notes for the centreline approach | Touching geometry |
 
 The root [README](../README.md) covers setup, the pipeline map and known issues.
-[backend/notebooks/README.md](../backend/notebooks/README.md) says which notebook is
+[notebooks/README.md](../notebooks/README.md) says which notebook is
 the pipeline and which 57 are history.
 
 ## legacy/
 
 Phase-1 material. Accurate about the `DataCollector → DataHandler → BaselineErosionModel`
-stack that now lives in `backend/src/legacy/`, and **wrong about the current pipeline** —
+stack that now lives in `src/legacy/`, and **wrong about the current pipeline** —
 it predates it.
 
 | Document | Note |
@@ -30,5 +30,5 @@ it predates it.
 
 - No record of why the target is `v_test` (a velocity) rather than a position or a volume.
 - No spec for the concept viewer, so "output suitable for a viewer" cannot be checked.
-- The hybrid delivery's `notitie_hybride_model.docx` lives in `backend/data/02_processed/hybrid/`
+- The hybrid delivery's `notitie_hybride_model.docx` lives in `data/02_processed/hybrid/`
   and has not been read into any decision here.

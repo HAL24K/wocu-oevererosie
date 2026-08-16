@@ -207,7 +207,7 @@ polygons          →   each region          →   • 60% Grasland      →   Y
 ## 📁 Code Structure
 
 ```
-backend/src/
+src/
   ├── data/
   │   ├── data_collector.py    # Component 1
   │   ├── data_handler.py      # Component 3
@@ -215,6 +215,6 @@ backend/src/
   └── model/
       └── baseline_model.py    # Component 4
 
-backend/notebooks/
+notebooks/
   └── 04_model/demo_baseline_model.ipynb  # Full demo
 ```

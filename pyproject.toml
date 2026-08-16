@@ -3,12 +3,12 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["app", "src"]
+packages = ["src"]
 
 [project]
-name = "wocu-oevererosie-backend"
+name = "wocu-oevererosie"
 version = "1.0.0"
-description = "River bank erosion prediction backend API"
+description = "River bank erosion prediction for Dutch rivers"
 requires-python = ">=3.12,<3.13"
 dependencies = [
     # Core web framework
@@ -61,7 +61,6 @@ addopts = [
     "-v",
     "--tb=short",
     "--strict-markers",
-    "--cov=app",
     "--cov=src",
     "--cov-report=term-missing",
     "--cov-report=html",
@@ -74,7 +73,7 @@ markers = [
 ]
 
 [tool.coverage.run]
-source = ["app", "src"]
+source = ["src"]
 omit = [
     "*/tests/*",
     "*/test_*.py",
@@ -146,4 +145,4 @@ ignore = [
 "src/legacy/data/feature_generation_config_schema.py" = ["UP045"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["app", "src"]
+known-first-party = ["src"]

@@ -1,6 +1,6 @@
 """
 Visualise "3 closest" vs "3 furthest" point selection for several scope regions.
-Saves to backend/scripts/point_selection_viz.png
+Saves to scripts/point_selection_viz.png
 """
 
 import geopandas as gpd

@@ -186,12 +186,12 @@ data_handler.generate_pytorch_features()
 
 ## Files Modified
 
-- `backend/src/data/data_handler.py`:
+- `src/data/data_handler.py`:
   - Added `load_remote_data_from_geopackage()` method
   - Added `_process_bundled_data_into_features()` helper method
   - +200 lines of code
 
-- `backend/notebooks/test_datahandler_geopackage_loading.ipynb`:
+- `notebooks/test_datahandler_geopackage_loading.ipynb`:
   - Complete test suite for new functionality
   - Compares both methods
   - Reports performance metrics

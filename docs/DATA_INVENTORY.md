@@ -26,7 +26,7 @@
 
 ### **Key Datasets**
 
-**Local Files** (in `backend/data/`):
+**Local Files** (in `data/`):
 - **AHN Data**: Elevation measurements from 3 versions (AHN3, AHN4, AHN5)
 - **Shore Points**: `punten_oever` - Points along river banks with erosion measurements
 - **Prediction Regions**: `vlakken_scope` - Polygons defining areas for prediction
@@ -355,7 +355,7 @@ The project uses **Web Feature Services (WFS)** to automatically fetch geospatia
 ### **Overview**
 - **Purpose**: Enrich erosion data with geospatial context (land use, buildings, vegetation)
 - **How it works**: For each prediction region, the `DataCollector` class fetches data within the bounding box
-- **Configured in**: `backend/src/config.py` → `KNOWN_WFS_SERVICES`
+- **Configured in**: `src/config.py` → `KNOWN_WFS_SERVICES`
 
 ---
 
@@ -437,7 +437,7 @@ The project uses **Web Feature Services (WFS)** to automatically fetch geospatia
 
 ### **WFS Configuration Details**
 
-**File**: `backend/src/config.py`
+**File**: `src/config.py`
 
 ```python
 KNOWN_WFS_SERVICES = [
@@ -629,7 +629,7 @@ import pandas as pd
 import sqlite3
 
 # Load and join
-gpkg_path = "backend/data/BRO_DownloadBodemkaart.gpkg"
+gpkg_path = "data/BRO_DownloadBodemkaart.gpkg"
 conn = sqlite3.connect(gpkg_path)
 
 soilarea = gpd.read_file(gpkg_path, layer="soilarea")
@@ -690,9 +690,9 @@ AGGREGATION_COLUMNS = {
 
 ### **Exploration Script**
 
-**File**: `backend/scripts/explore_bodemkaart.py`
+**File**: `scripts/explore_bodemkaart.py`
 
-**Run**: `python backend/scripts/explore_bodemkaart.py`
+**Run**: `python scripts/explore_bodemkaart.py`
 
 **Output**: 
 - Lists all 16 layers (2 geographic + 14 lookup tables)
@@ -705,7 +705,7 @@ AGGREGATION_COLUMNS = {
 ### **Next Steps**
 
 - [ ] Create preprocessing script to join tables
-- [ ] Add to `AGGREGATION_COLUMNS` in `backend/src/config.py`
+- [ ] Add to `AGGREGATION_COLUMNS` in `src/config.py`
 - [ ] Test feature extraction with test regions
 - [ ] Validate soil type distribution along river banks
 - [ ] Integrate into full data pipeline
@@ -874,14 +874,14 @@ response = requests.post(
 
 ### **Test Scripts**
 
-**1. `backend/scripts/test_waterweb_api.py`**
+**1. `scripts/test_waterweb_api.py`**
 - Tests catalog access
 - Gets latest observations for all 3 study areas
 - Downloads 7-day historical sample
 - Calculates basic statistics
 - **Status**: ✅ All tests passing
 
-**2. `backend/scripts/find_nearest_waterweb_stations.py`**
+**2. `scripts/find_nearest_waterweb_stations.py`**
 - Loads 18,974 station locations from CSV
 - Calculates distance to study area centers
 - Tests up to 20 nearest stations for each area
@@ -1047,7 +1047,7 @@ response = requests.post(
 - [ ] Was July phase1 a proof of concept for all-3-areas expansion?
 
 #### 📦 **File Cleanup**
-- [ ] Create `backend/data/archive/` folder
+- [ ] Create `data/archive/` folder
 - [ ] Move old files:
   - `all_results_20250121_v2.gpkg`
   - `draft_oever_degradation_data.gpkg`

@@ -47,7 +47,7 @@ but none of it is on the path to a prediction.
 
 ## Conventions
 
-- Notebooks bootstrap with an `os.chdir` to `backend/` plus `sys.path.insert`. Since
+- Notebooks bootstrap with an `os.chdir` to `` plus `sys.path.insert`. Since
   `uv sync` installs the project editable this is no longer needed for imports, but it
   still sets the working directory that relative data paths depend on.
 - Kernel: **WOCU erosion (3.12)** — see the root README for registering it.

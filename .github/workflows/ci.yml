@@ -12,11 +12,6 @@ jobs:
   test:
     name: lint, format, unit tests
     runs-on: ubuntu-22.04
-    # All Python code lives in backend/; the repo root holds only docs and data.
-    defaults:
-      run:
-        working-directory: backend
-
     steps:
       - uses: actions/checkout@v4
 
@@ -24,7 +19,7 @@ jobs:
         uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
-          cache-dependency-glob: backend/uv.lock
+          cache-dependency-glob: uv.lock
 
       - name: Install dependencies
         # --frozen fails if uv.lock has drifted from pyproject.toml, so a stale
@@ -32,21 +27,21 @@ jobs:
         run: uv sync --frozen
 
       - name: Lint
-        run: uv run ruff check src app tests
+        run: uv run ruff check src tests
 
       - name: Format
-        run: uv run ruff format --check src app tests
+        run: uv run ruff format --check src tests
 
       - name: Unit tests
         # Integration tests are excluded: they call live WFS services (PDOK/RWS),
         # which makes them slow and dependent on upstream schema stability.
         # Run them locally with: ./run_tests.sh -m integration
-        run: uv run pytest tests/ -m "not integration" --cov=src --cov=app --cov-report=term-missing --cov-report=xml
+        run: uv run pytest tests/ -m "not integration" --cov=src --cov-report=term-missing --cov-report=xml
 
       - name: Upload coverage
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: coverage-xml
-          path: backend/coverage.xml
+          path: coverage.xml
           if-no-files-found: ignore

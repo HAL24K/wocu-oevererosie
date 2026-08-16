@@ -1,4 +1,4 @@
-# backend/data
+# data
 
 Git-ignored. Several GB of GeoPackages; the git remote does **not** back this up.
 

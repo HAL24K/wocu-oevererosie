@@ -8,7 +8,7 @@ Usage in training notebook:
     from src.model.export_utils import save_model_bundle
 
     save_model_bundle(
-        path=Path("backend/artifacts/models_v2"),
+        path=Path("artifacts/models_v2"),
         models={"ols": ols_vt, "ridge_num": ridge_num, "ridge_cat": ridge_cat, "lgb": lgb_model},
         config={"FEATS_2": FEATS_2, "FEATS_3": FEATS_3, "FEATS_4": FEATS_4, "FEATS_LGB": FEATS_LGB, ...},
         results=RESULTS,
@@ -17,7 +17,7 @@ Usage in training notebook:
 Usage when loading:
     from src.model.export_utils import load_model_bundle, predict
 
-    bundle = load_model_bundle(Path("backend/artifacts/models_v2"))
+    bundle = load_model_bundle(Path("artifacts/models_v2"))
     preds = predict(bundle, df, model_name="lgb")
 """
 
