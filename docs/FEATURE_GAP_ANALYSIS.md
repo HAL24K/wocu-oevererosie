@@ -1,6 +1,8 @@
 # Feature Gap Analysis
 
-Comparison of **metrics currently in the explore_features notebook** vs **features listed in `feature_requirements_matrix.csv`** and **`data_sources_inventory_updated.csv`** — to identify potentially interesting metrics not yet taken along.
+Both CSVs referenced here live alongside this file in `docs/`.
+
+Comparison of **metrics currently in the explore_features notebook** vs **features listed in `feature_requirements_matrix.csv`** and **`data_sources_inventory.csv`** — to identify potentially interesting metrics not yet taken along.
 
 ---
 
@@ -65,6 +67,6 @@ Comparison of **metrics currently in the explore_features notebook** vs **featur
 ## Overlap between the two CSVs
 
 - **feature_requirements_matrix.csv** — feature-centric: what asset managers want, priority, data source.
-- **data_sources_inventory_updated.csv** — data-centric: what raw data exists, status, how to extract.
+- **data_sources_inventory.csv** — data-centric: what raw data exists, status, how to extract.
 
 They describe the same features from different angles. The gap analysis above merges both views.
