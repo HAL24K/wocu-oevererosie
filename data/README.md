@@ -10,6 +10,7 @@ Git-ignored. Several GB of GeoPackages; the git remote does **not** back this up
 03_features/     model-ready feature tables, one folder per experiment
 04_model_outputs/ trained bundles and prediction GeoPackages, one folder per experiment
 archive/         superseded and phase-1 material — see below
+water_stations_timeseries/cleaned/  the discharge parquets the pipeline reads
 ```
 
 Experiment folders under `03_features/` and `04_model_outputs/` share a name.
@@ -54,22 +55,34 @@ file the pipeline reads. It differs — `summary_scope` has 27,067 rows against 
 polygons against 1,410. No run has used it. Compared in
 `notebooks/04_model/compare_postprocessed_gpkg_20260310_vs_20260330.ipynb`.
 
-## archive/superseded/
+## archive/
 
-Moved out of the working tree, not deleted.
+Moved out of the working tree, not deleted. 3.4 GB.
+
+`superseded/` — replaced by something newer:
 
 | File | Why |
 |---|---|
-| `20260315_model_results` | Extensionless byte-twin of `20260315_model_results.gpkg` (md5-identical) |
+| `20260315_model_results` | Extensionless byte-twin of the `.gpkg` beside it (md5-identical) |
 | `wocu_output_fase2_v4.gpkg` | Superseded by `wocu_output_fase2_20260210.gpkg` |
 | `wocu_post_processed_fase2_20260212/20260223.gpkg` | Superseded by 20260310 |
-| `wocu_lgb_predictions_20260313/20260314.gpkg`, `wocu_erosion_predictions_20260313.gpkg` | Old outputs that were sitting in `02_processed/` instead of `04_model_outputs/` |
+| `wocu_lgb_predictions_20260313/20260314.gpkg`, `wocu_erosion_predictions_20260313.gpkg` | Old outputs that sat in `02_processed/` instead of `04_model_outputs/` |
+| `wocu_output_fase2_v4_w_*.gpkg`, `all_wfs_data_batch_*.gpkg`, `phase1_*_complete_*.gpkg` | Phase-1 WFS-enriched products, matching `src/legacy/` |
 | `hybrid_model_results_20260708.gpkg` | Superseded by the 20260710 delivery |
-| `vegetatiemonitor.gpkg` | 371 MB, never referenced in code. Actual vegetation, blocked on RWS access |
+| `vegetatiemonitor.gpkg` | 371 MB, never referenced in code. Blocked on RWS access |
 | `all_water_stations.gpkg` | 367 MB, superseded by the 156 KB `water_stations_for_modeling.gpkg` |
+| `station_attribution.gpkg` | Loose output of an old station-matching run |
 
-`archive/` also holds phase-1 material: `sam/` (the 2025 SAM exports, superseded by the
-hybrid), `luke_for_feedback/`, and `feedback.zip`.
+`superseded/experiments/` — the 20260217, 20260303 and 20260312 model-output
+folders in full, plus the prediction GeoPackages from 20260314. That experiment's
+`bundle.joblib` and four `model_*.joblib` stay in place: they are small, and their
+metrics are the honest baseline the current run is compared against.
+
+`water/` — the old `archive_water/` tree: station caches, historical JSON, and
+reliability GeoPackages from the water-station selection work.
+
+Also here from phase 1: `sam/` (the 2025 SAM exports, superseded by the hybrid),
+`luke_for_feedback/`, and `feedback.zip`.
 
 ## Known duplication outside the repo
 

@@ -84,6 +84,10 @@ src/erosion/
    plot_utils.py               scope-region figures
 ```
 
+`scripts/` holds two live utilities — `viz_point_selection.py` (the furthest-points
+figure) and `find_nearest_waterweb_stations.py`. Six one-off API and GeoPackage probes
+are in `scripts/archive/`.
+
 Shared: `src/constants.py` (category dictionaries, column names), `src/paths.py`.
 
 `src/legacy/` is phase-1 code — the `DataCollector → DataHandler → BaselineErosionModel`
