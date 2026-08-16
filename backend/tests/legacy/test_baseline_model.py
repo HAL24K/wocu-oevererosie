@@ -4,7 +4,7 @@ import pandas as pd
 import pytest
 
 import src.constants as CONST
-import src.model.baseline_model as BM
+import src.legacy.model.baseline_model as BM
 
 
 @pytest.fixture

@@ -3,7 +3,7 @@
 import pytest
 from pydantic_core import ValidationError
 
-import src.data.feature_generation_config_schema as FGCS
+import src.legacy.data.feature_generation_config_schema as FGCS
 
 
 def test_correct_definitions():

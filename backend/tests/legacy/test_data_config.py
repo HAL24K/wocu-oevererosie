@@ -2,7 +2,7 @@
 
 import pytest
 
-import src.data.config as DATA_CONFIG
+import src.legacy.data.config as DATA_CONFIG
 
 
 def test_valid_setup():

@@ -10,10 +10,10 @@ import torch
 from shapely.geometry import LineString
 
 import src.constants as CONST
-import src.data.config as DATA_CONFIG
-import src.data.custom_pytorch_dataset as CPD
-import src.data.data_collector as DC
-import src.utils as UTILS
+import src.legacy.data.config as DATA_CONFIG
+import src.legacy.data.custom_pytorch_dataset as CPD
+import src.legacy.data.data_collector as DC
+import src.legacy.utils as UTILS
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)

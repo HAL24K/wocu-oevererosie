@@ -123,7 +123,7 @@ class ModelLoader:
 
     def _load_baseline(self) -> dict[str, float]:
         if self._baseline_velocities is None:
-            from src.model.baseline_model import BaselineErosionModel
+            from src.legacy.model.baseline_model import BaselineErosionModel
 
             bm = BaselineErosionModel.load_model(self.model_path)
             self._baseline_velocities = bm.model

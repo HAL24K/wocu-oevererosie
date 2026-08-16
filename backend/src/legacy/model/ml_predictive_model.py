@@ -16,9 +16,9 @@ import numpy as np
 import pandas as pd
 
 import src.constants as CONST
-import src.data.config as DATA_CONFIG
-import src.model.utils as MODEL_UTILS
-import src.utils as UTILS
+import src.legacy.data.config as DATA_CONFIG
+import src.legacy.model.utils as MODEL_UTILS
+import src.legacy.utils as UTILS
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)

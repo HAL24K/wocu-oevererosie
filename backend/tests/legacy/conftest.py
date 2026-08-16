@@ -6,9 +6,9 @@ from shapely.geometry import LineString, Point, Polygon
 from shapely.wkt import loads
 
 import src.constants as CONST
-import src.data.config as DATA_CONFIG
+import src.legacy.data.config as DATA_CONFIG
+import src.legacy.utils as U
 import src.paths as PATHS
-import src.utils as U
 
 
 def point_near_zaltbommel_wgs84():

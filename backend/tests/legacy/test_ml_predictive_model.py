@@ -7,8 +7,8 @@ import pytest
 import sklearn.linear_model as sklm
 
 import src.constants as CONST
-import src.data.data_handler as DH
-import src.model.ml_predictive_model as MLPM
+import src.legacy.data.data_handler as DH
+import src.legacy.model.ml_predictive_model as MLPM
 
 # Builds its inputs through DataHandler, which calls live WFS services, so these
 # need network access. Excluded from CI via -m "not integration".

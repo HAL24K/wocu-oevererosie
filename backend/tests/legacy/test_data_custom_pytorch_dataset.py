@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 import src.constants as CONST
-import src.data.custom_pytorch_dataset as CPD
+import src.legacy.data.custom_pytorch_dataset as CPD
 
 
 @pytest.fixture

@@ -4,8 +4,8 @@ TODO: These should technically be user-provided, so place them as such
 """
 
 import src.constants as CONST
-import src.data.schema_wfs_service as SWS
-from src.data.feature_generation_config_schema import (
+import src.legacy.data.schema_wfs_service as SWS
+from src.legacy.data.feature_generation_config_schema import (
     FeatureGenerationConfiguration as FGC,
 )
 

@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 
 import src.constants as CONST
-import src.data.config as DATA_CONFIG
+import src.legacy.data.config as DATA_CONFIG
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)

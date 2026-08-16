@@ -7,10 +7,10 @@ import geopandas as gpd
 from owslib.wfs import WebFeatureService
 from shapely.geometry.base import BaseGeometry
 
-import src.config as CONFIG
 import src.constants as CONST
-import src.data.schema_wfs_service as SWS
-import src.utils as U
+import src.legacy.config as CONFIG
+import src.legacy.data.schema_wfs_service as SWS
+import src.legacy.utils as U
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)

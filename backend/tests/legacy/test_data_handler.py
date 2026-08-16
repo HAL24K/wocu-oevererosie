@@ -12,9 +12,9 @@ from conftest import default_data_configuration, real_erosion_border
 from shapely.geometry import LineString, Point
 
 import src.constants as CONST
-import src.data.config as DATA_CONFIG
-import src.data.custom_pytorch_dataset as CPD
-import src.data.data_handler as DH
+import src.legacy.data.config as DATA_CONFIG
+import src.legacy.data.custom_pytorch_dataset as CPD
+import src.legacy.data.data_handler as DH
 import src.paths as PATHS
 
 # DataHandler enriches regions from live WFS services, so these tests need

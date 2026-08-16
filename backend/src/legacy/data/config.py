@@ -3,9 +3,9 @@
 from pydantic import Field, model_validator
 from pydantic.dataclasses import dataclass
 
-import src.config as CONFIG
 import src.constants as CONST
-import src.data.schema_wfs_service as SWS
+import src.legacy.config as CONFIG
+import src.legacy.data.schema_wfs_service as SWS
 
 
 @dataclass

@@ -6,7 +6,7 @@ import pytest
 from shapely.geometry import LineString, Point, Polygon
 
 import src.constants as CONST
-import src.utils as U
+import src.legacy.utils as U
 
 
 def test_transform_shape_crs(shapes_near_zaltbommel):

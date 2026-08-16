@@ -4,7 +4,7 @@ import pytest
 import torch
 
 import src.constants as CONST
-import src.model.utils as U
+import src.legacy.model.utils as U
 
 
 @pytest.fixture

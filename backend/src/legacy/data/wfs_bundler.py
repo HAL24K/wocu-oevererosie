@@ -8,8 +8,8 @@ import geopandas as gpd
 import pandas as pd
 from tqdm.auto import tqdm
 
-import src.data.config as DATA_CONFIG
-import src.data.data_collector as DC
+import src.legacy.data.config as DATA_CONFIG
+import src.legacy.data.data_collector as DC
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)

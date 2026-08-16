@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-import src.model.configuration as CONFIG
+import src.legacy.model.configuration as CONFIG
 
 
 def test_invalid_model_configuration():

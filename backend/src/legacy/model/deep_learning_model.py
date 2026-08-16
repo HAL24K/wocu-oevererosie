@@ -4,7 +4,7 @@ import logging
 
 import lightning as L
 
-import src.model.configuration as CONFIG
+import src.legacy.model.configuration as CONFIG
 
 logger = logging.getLogger(__name__)
 

@@ -143,7 +143,7 @@ ignore = [
 # Optional[...] here are runtime values handed to pydantic's create_model, not
 # annotations. Rewriting them to `X | None` changes what pydantic receives, so
 # leave them as-is.
-"src/data/feature_generation_config_schema.py" = ["UP045"]
+"src/legacy/data/feature_generation_config_schema.py" = ["UP045"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["app", "src"]
