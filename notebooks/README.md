@@ -1,54 +1,55 @@
 # Notebooks
 
-There are 58 notebooks here and only one of them is the pipeline.
+```
+04_model/20260617a/00_master.ipynb   the pipeline
+reference/                           6 · kept for a specific reason
+archive/                             27 · superseded, kept for traceability
+```
 
-## The one that matters
+Was 58 notebooks across 14 directories with no signposting. 24 were deleted in
+`3f0…` — near-duplicate model comparisons, notebooks that never ran a cell, and
+pre-March exploration. All recoverable from git history.
+
+## The pipeline
 
 ```
 04_model/20260617a/00_master.ipynb
 ```
 
-Runs the whole pipeline end to end by calling `src.pipeline`. Driven by a single
-`EXPERIMENT` string; duplicate the folder and change it to start a new run. Its first
-markdown cell holds the most accurate flow diagram in the repository.
+Runs everything end to end by calling `src.pipeline`. Driven by a single `EXPERIMENT`
+string; duplicate the folder, change it, re-run. The first markdown cell holds the most
+accurate flow diagram in the repository.
 
 Last executed 2026-06-17: 8,094 regions, 2026–2050, 202,350 predicted bank positions,
 4/4 acceptance checks. Steps 1–3 reproduce the 20260314 feature parquets byte-for-byte.
 
-## Everything else
+## reference/
 
-Historical. Kept because the reasoning behind several decisions exists nowhere else,
-but none of it is on the path to a prediction.
+Not current, but each is here for a reason that outlives it.
+
+| Notebook | Why it is kept |
+|---|---|
+| `20260311_preprocess_region_split_v2.ipynb` | **Live dependency.** Produced `data/02_processed/erosion/region_features_v2.parquet`, which `feature_engineering.py` still reads for `bend_exposure`. Deleting this loses the provenance of two model features |
+| `20260311_explore_point_selection.ipynb` | The only rationale for taking the **3 furthest** OK points rather than the nearest — a deliberate worst-case convention that shapes every velocity in the model |
+| `02c_eda_clean_discharge.ipynb` | Produced `data/water_stations_timeseries/cleaned/discharge/`, read by the hydrology features |
+| `compare_postprocessed_gpkg_20260310_vs_20260330.ipynb` | The open question of whether to move to the newer delivery. Never executed |
+| `01_segmented_bank_lines.ipynb` | Asks whether ~100 m is the right prediction unit; compares 1/5/10/20 sub-segments. **Written but never run** |
+| `01_eda_shipping_passages.ipynb` | Why shipping intensity was assessed and *not* adopted — block resolution too coarse for ~12k regions |
+
+## archive/
 
 | Folder | What it is |
 |---|---|
-| `04_model/20260314_pipeline_building/` | The six-notebook sequence `20260617a` replaced. Superseded but directly comparable |
-| `04_model/20260313_pipeline_building/` | The attempt before that |
-| `04_model/20260311_working_results/` | Feature exploration, point-selection study, first iterative prediction |
-| `04_model/*.ipynb` (loose) | March model comparisons and one-off analyses. Several near-duplicate names — `20260311_model_comparison` vs `..._OK` vs `20260312_...` — none is current |
-| `04_model/archive/` | Pre-March work |
-| `01_water_stations/` | Discharge and water-level acquisition and cleaning. Produced `data/water_stations_timeseries/cleaned/`, which the pipeline still reads |
-| `02_wfs_pipeline/` | WFS acquisition for the phase-1 stack. Corresponds to `src/legacy/` |
-| `03_height_erosion/` | Early temporal exploration of `punten_oever` |
-| `05_shipping/` | Shipping-passage EDA (2026-05). Assessed as a feature, not adopted — block resolution too coarse for ~12k regions |
-| `06_visualization/` | Sub-region segmentation study (2026-06). **Written but never executed** — an open question about whether ~100 m is the right prediction unit |
-
-## Decisions that live only in here
-
-- **Bank position uses the mean of the 3 *furthest* OK points**, not the nearest — a
-  deliberate worst-case reading. Rationale in `04_model/20260311_working_results/20260311_explore_point_selection.ipynb`
-  and `scripts/viz_point_selection.py`.
-- **`bend_exposure` came from `20260311_working_results/20260311_preprocess_region_split_v2.ipynb`**,
-  which is why `feature_engineering.py` still reads it from a parquet instead of
-  computing it.
-- **The 20260330 delivery was compared against 20260310** in
-  `04_model/compare_postprocessed_gpkg_20260310_vs_20260330.ipynb`. The pipeline still
-  uses 20260310.
+| `pipeline-generations/` | The 20260311 → 20260313 → 20260314 sequences that `20260617a` replaced. Directly comparable to the current run, which is why they survive |
+| `phase1/` | The WFS/DataHandler era, matching `src/legacy/`. Includes the notebooks that first built the vegetation and land-use context layers |
+| `water-stations/` | Discharge and water-level acquisition, cleaning and station selection. The cleaned output is still a pipeline input; only the notebooks are archived |
 
 ## Conventions
 
-- Notebooks bootstrap with an `os.chdir` to `` plus `sys.path.insert`. Since
+- Notebooks bootstrap with an `os.chdir` to the repo root plus `sys.path.insert`. Since
   `uv sync` installs the project editable this is no longer needed for imports, but it
   still sets the working directory that relative data paths depend on.
-- Kernel: **WOCU erosion (3.12)** — see the root README for registering it.
-- Outputs are committed, deliberately: they are the only record of what a run produced.
+- Kernel: **WOCU erosion (3.12)** — see the root README.
+- Outputs are committed deliberately: for the pipeline notebook they are the only record
+  of what a run produced. This costs ~80 MB across the repository, almost all of it
+  stored figures rather than code.
