@@ -1,10 +1,19 @@
 # Notebooks
 
 ```
-04_model/20260617a/00_master.ipynb   the pipeline
+04_model/20260617a/00_master.ipynb   the pipeline, cell by cell
+01_scenarios.ipynb                   parameter replay per workflow step
 reference/                           6 · kept for a specific reason
 archive/                             27 · superseded, kept for traceability
 ```
+
+## Scenario playground
+
+`01_scenarios.ipynb` — expensive inputs load once, then each section is a
+PARAMS cell + run cell + comparison for one workflow step: point-selection
+width (step 1), the hybrid within-year rule, split-seed luck (step 2), a
+LightGBM grid (step 4), and model choice over the 25-year horizon (step 5).
+Committed executed, so the latest results are readable without a kernel.
 
 Was 58 notebooks across 14 directories with no signposting. 24 were deleted in
 `3f0…` — near-duplicate model comparisons, notebooks that never ran a cell, and

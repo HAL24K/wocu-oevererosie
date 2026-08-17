@@ -23,7 +23,8 @@ reproduce the 20260617a reference run. Useful flags: `--no-export` (skip the 185
 GeoPackage), `--resume` (reuse per-step parquets), `--end-year`.
 
 The master notebook (`notebooks/04_model/20260617a/00_master.ipynb`) documents the same
-flow interactively. Everything else in `notebooks/` is history — see
+flow interactively, and `notebooks/01_scenarios.ipynb` replays individual steps with
+different parameters against cached inputs. Everything else in `notebooks/` is history — see
 [`notebooks/README.md`](notebooks/README.md).
 
 ---
