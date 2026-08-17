@@ -10,18 +10,21 @@ Rijkswaterstaat.
 
 ## Start here
 
-The pipeline is one notebook calling importable modules:
+One command runs the whole pipeline and writes a browsable report:
 
+```bash
+uv run python -m src.pipeline --experiment 20260817a
 ```
-notebooks/04_model/20260617a/00_master.ipynb
-```
 
-Open it, read the first markdown cell — it carries an accurate diagram of the whole
-flow — then the config cell, which holds every input path and parameter in one place.
-To start a new experiment, duplicate that folder, change the `EXPERIMENT` string, and
-re-run.
+Outputs land in `data/03_features/<experiment>/` and `data/04_model_outputs/<experiment>/`,
+including `report.html` — figures and tables for every step, viewable in a browser.
+Inputs and parameters live in `src/pipeline/config.py` (`ExperimentConfig`); defaults
+reproduce the 20260617a reference run. Useful flags: `--no-export` (skip the 185 MB
+GeoPackage), `--resume` (reuse per-step parquets), `--end-year`.
 
-Everything else in `notebooks/` is history. See [`notebooks/README.md`](notebooks/README.md).
+The master notebook (`notebooks/04_model/20260617a/00_master.ipynb`) documents the same
+flow interactively. Everything else in `notebooks/` is history — see
+[`notebooks/README.md`](notebooks/README.md).
 
 ---
 
@@ -65,6 +68,8 @@ delivery (points or lines)
    │                           (location_id, date, dist_m, source)
    ▼
 src/pipeline/
+   config.py                   ExperimentConfig — all paths and parameters
+   run.py                      orchestrator + CLI; writes report.html per run
    bank_distances.py           01 · reduce a point cloud to one distance per region-year
    region_split.py             02 · pivot to t1/t2/t3, quality filter, train/test split
    feature_engineering.py      03 · vegetation, land use, soil, hydrology, bend exposure

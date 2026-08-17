@@ -124,3 +124,36 @@ Items collected during development. Roughly ordered by priority within each sect
 - `compute_vvr_crossing_year` — integer years, dynamic year range
 - Export to GeoPackage working end-to-end (verified 2026–2050)
 - 100-region visual validation in `02_iterative_prediction.ipynb`
+
+
+---
+
+## 2026-08-17 abstraction audit
+
+Done in the `ExperimentConfig` change set:
+
+- **A1. Config cell → `ExperimentConfig`** (`src/pipeline/config.py`). Paths and
+  parameters are an object; defaults reproduce the 20260617a reference.
+- **A2. Notebook-only orchestration → `src/pipeline/run.py`.** start_points,
+  combined feature table, geometry projection and acceptance checks now live in
+  code. `uv run python -m src.pipeline --experiment <name>`.
+- **A3. Run report** (`src/pipeline/report.py`): per-run `report.html` with
+  figures + tables next to the model outputs — the browsable notebook output,
+  without the notebook.
+- **A4. `bank_distances` delegated to `HeightModelPointSource`** — one top-N
+  implementation instead of two.
+- **A5. `location_id` normalisation consolidated** to
+  `src.sources.geometry.normalise_location_id` (was implemented three times).
+
+Still open, deliberately:
+
+- **A6. `cluster` vs `river`** — two derivations of near-identical information
+  (prefix list in `region_split`, regex in `feature_engineering`). Unifying
+  changes an encoded feature, so it belongs with a modelling change.
+- **A7. t1/t2/t3 hardcoding** (`region_split._build_split_row` keeps `.tail(3)`).
+  Generalising to an observation series is the hybrid-era change.
+- **A8. `train.py` evaluation** — test-set early stopping and the random spatial
+  split. Modelling decisions, tracked in README → Known issues.
+- **A9. `curvature.py` still unwired** — bend_exposure read from the March
+  parquet instead of computed.
+- **A10. `src/legacy/` deletion** once WFS layers are confirmed frozen.

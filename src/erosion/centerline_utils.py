@@ -9,12 +9,16 @@ import pandas as pd
 from shapely import offset_curve
 from shapely.geometry import MultiPoint, Point
 
+from src.sources.geometry import normalise_location_id
+
 
 def ensure_location_id_column(df: pd.DataFrame) -> pd.DataFrame:
-    """Rename position_id to location_id if present. Returns a copy."""
-    if "position_id" in df.columns and "location_id" not in df.columns:
-        return df.rename(columns={"position_id": "location_id"})
-    return df
+    """Rename position_id to location_id if present. Returns a copy.
+
+    Thin alias for :func:`src.sources.geometry.normalise_location_id`, kept for
+    the many existing call sites in notebooks and this package.
+    """
+    return normalise_location_id(df)
 
 
 def _scalar_distance(p, geom) -> float:

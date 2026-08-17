@@ -20,6 +20,8 @@ import geopandas as gpd
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
+from src.sources.geometry import normalise_location_id
+
 CLUSTERS = ["ijssel1", "ijssel2", "maas1", "maas2", "maas3", "rijn", "nederrijn"]
 
 QUALITY_COL = "estimate_reliability_height_model"
@@ -98,7 +100,7 @@ def build_region_split(
 
     # ── Quality filter ────────────────────────────────────────────────────────
     scope_quality = gpd.read_file(proc_gpkg, layer="summary_scope")
-    scope_quality = _ensure_location_id(scope_quality)
+    scope_quality = normalise_location_id(scope_quality)
     # 20260330+ files have duplicate rows per location_id (one per type_oever segment);
     # deduplicate before building the quality map — quality value is the same across dupes.
     scope_quality = scope_quality.drop_duplicates(subset=["location_id"])
@@ -112,7 +114,7 @@ def build_region_split(
 
     # ── is_nvo via spatial join ───────────────────────────────────────────────
     vvr_polys = gpd.read_file(proc_gpkg, layer="vvr_rates_of_change")
-    scope_geom = _ensure_location_id(scope_quality)
+    scope_geom = normalise_location_id(scope_quality)
     scope_ok = scope_geom[scope_geom["location_id"].isin(features_ok.index)][
         ["location_id", "geometry"]
     ].to_crs(vvr_polys.crs)
@@ -229,9 +231,3 @@ def _join_erosion_volume(features_ok: pd.DataFrame, proc_gpkg: Path) -> pd.DataF
     features_ok["erosion_vol_rate_t1"] = features_ok["erosion_vol_train_rate"]
 
     return features_ok
-
-
-def _ensure_location_id(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
-    if "position_id" in gdf.columns and "location_id" not in gdf.columns:
-        gdf = gdf.rename(columns={"position_id": "location_id"})
-    return gdf
