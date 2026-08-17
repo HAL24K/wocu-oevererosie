@@ -47,6 +47,13 @@ Every path below appears in the config cell of
 
 Not yet processed: nothing hybrid-derived exists in `03_features/` or `04_model_outputs/`.
 
+## QGIS exploration
+
+`02_processed/exploration_targets.gpkg` — 9 named regions worth looking at
+(far-bank suspects, clean height-model references, the densest hybrid region,
+the strongest March erosion), each with a note saying what to look for. Load it
+first, open its attribute table, and right-click → Zoom to Feature.
+
 ## 20260330 is newer than what we use
 
 `02_processed/erosion/wocu_post_processed_fase2_20260330.gpkg` postdates the 20260310
