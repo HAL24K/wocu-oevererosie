@@ -157,3 +157,31 @@ Still open, deliberately:
 - **A9. `curvature.py` still unwired** — bend_exposure read from the March
   parquet instead of computed.
 - **A10. `src/legacy/` deletion** once WFS layers are confirmed frozen.
+
+
+---
+
+## A7 spec — multi-t ingestion (drafted 2026-08-19, motivated by the span table)
+
+Evidence: on the 20260819-hybrid run, v_test std by test span — 1 yr: 11.41,
+2 yr: 7.14, 3 yr: 2.90 (March regime: 2.19). The .tail(3) triple turns annual
+observations into 1-year velocity noise; the data is fine, the definition isn't.
+
+Replace the t1/t2/t3 triple in region_split with the full per-region series
+{(date_i, dist_i)} that BankObservations already carries:
+
+- **v_hat**    robust slope (Theil–Sen) over all observations up to the holdout
+               window — signed velocity (deposition negative), never a 1-year diff
+- **target**   slope (or displacement) over a FIXED multi-year holdout window,
+               so train and test regions share one noise regime
+- **accel**    slope(recent half) − slope(older half): accelerating / decelerating,
+               the feature asset managers actually asked for (dynamism index,
+               FEATURE_GAP_ANALYSIS "derivable" row)
+- **resid_std** residual std around the fit — a free measurement-quality feature
+               that will absorb much of the segmentation noise
+- **n_obs, span** kept as features, no longer as noise amplifiers
+
+Sub-year observations feed the fit directly (real dates, fractional years) —
+no more within_year collapse. Touches region_split + feature_engineering +
+FeatureShifter (rolling update of v_hat); predictor and export unchanged.
+Grouped-by-region split becomes mandatory the moment sub-region units exist.
