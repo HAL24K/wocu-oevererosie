@@ -54,6 +54,13 @@ Not yet processed: nothing hybrid-derived exists in `03_features/` or `04_model_
 the strongest March erosion), each with a note saying what to look for. Load it
 first, open its attribute table, and right-click → Zoom to Feature.
 
+`02_processed/scope_coverage.gpkg` — the union of `vlakken_scope` and the
+hybrid's `model_preference` (16,377 regions), classified by `coverage`:
+pref_height / pref_segmentation / new_in_hybrid / no_pref_unmeasurable /
+**no_pref_was_OK** — the last being 326 regions that were quality-OK in March
+yet received no preference in the hybrid delivery. Open question for the
+delivery team; style categorized on `coverage`.
+
 ## 20260330 is newer than what we use
 
 `02_processed/erosion/wocu_post_processed_fase2_20260330.gpkg` postdates the 20260310
