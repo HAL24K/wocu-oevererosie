@@ -42,7 +42,12 @@ import pandas as pd
 import shapely
 
 from src.pipeline.config import ExperimentConfig
-from src.sources.geometry import LOCATION_ID, ScopeGeometry, normalise_location_id
+from src.sources.geometry import (
+    DEFAULT_CRS,
+    LOCATION_ID,
+    ScopeGeometry,
+    normalise_location_id,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -296,8 +301,14 @@ class RegionInspector:
         pred_years: tuple[int, ...] = (2026, 2027, 2028, 2029, 2030),
         figsize: tuple[float, float] = (13.5, 8.0),
         save: Path | None = None,
+        basemap: bool = True,
     ) -> plt.Figure:
-        """Draw the two-panel inspection figure for one region."""
+        """Draw the two-panel inspection figure for one region.
+
+        ``basemap=True`` puts OpenStreetMap tiles behind the map panel
+        (needs network the first time; tiles are cached). If the tiles
+        cannot be fetched the figure is drawn without them.
+        """
         stats = self.line_stats[self.line_stats[LOCATION_ID] == loc_id]
         if stats.empty:
             raise KeyError(f"{loc_id}: no measurable lines in the hybrid delivery")
@@ -308,14 +319,14 @@ class RegionInspector:
         model = stats["model"].iloc[0]
         fig.suptitle(f"{loc_id}   ·   preferred model: {model}", fontsize=12)
 
-        self._draw_map(ax_map, loc_id, stats, model, pred_years)
+        self._draw_map(ax_map, loc_id, stats, model, pred_years, basemap)
         self._draw_timeseries(ax_ts, loc_id, stats)
 
         if save is not None:
             fig.savefig(save, dpi=140, bbox_inches="tight")
         return fig
 
-    def _draw_map(self, ax, loc_id, stats, model, pred_years) -> None:
+    def _draw_map(self, ax, loc_id, stats, model, pred_years, basemap) -> None:
         sgeom = self.geometry.polygons.get(loc_id)
         cline = self.geometry.centrelines.get(loc_id)
 
@@ -326,17 +337,21 @@ class RegionInspector:
 
         if sgeom is not None:
             bx, by = sgeom.exterior.xy
+            # translucent over a basemap (the QGIS opacity trick), solid without
             ax.fill(
                 bx,
                 by,
                 fc=MODEL_FILL.get(model, "#eeeeee"),
                 ec="#aaaaaa",
                 lw=1.0,
+                alpha=0.45 if basemap else 1.0,
                 zorder=1,
             )
             minx, miny, maxx, maxy = sgeom.bounds
             ax.set_xlim(minx - 50, maxx + 50)
             ax.set_ylim(miny - 50, maxy + 50)
+        if basemap:
+            self._add_basemap(ax)
         if cline is not None:
             xs, ys = cline.xy
             ax.plot(xs, ys, color="black", lw=2.2, zorder=5)
@@ -394,6 +409,38 @@ class RegionInspector:
                 lw=0.5,
                 zorder=8,
             )
+
+    @staticmethod
+    def _add_basemap(ax) -> None:
+        """OpenStreetMap tiles behind the map panel; skipped when offline.
+
+        OSM's tile policy requires an identifying user agent (contextily's
+        random default gets a 403). If OSM still refuses, fall back to the
+        visually similar CartoDB Voyager tiles.
+        """
+        try:
+            import contextily as ctx
+            import contextily.tile
+
+            contextily.tile.USER_AGENT = "wocu-oevererosie/1.0 (erosion POC)"
+        except ImportError as exc:
+            logger.warning("basemap skipped: %s", exc)
+            return
+        for provider in (
+            ctx.providers.OpenStreetMap.Mapnik,
+            ctx.providers.CartoDB.Voyager,
+        ):
+            try:
+                ctx.add_basemap(
+                    ax,
+                    crs=f"EPSG:{DEFAULT_CRS}",
+                    source=provider,
+                    attribution_size=4,
+                    zorder=0,
+                )
+                return
+            except Exception as exc:  # no network or tile server refused
+                logger.warning("basemap %s failed: %s", provider.get("name"), exc)
 
     def _draw_timeseries(self, ax, loc_id, stats) -> None:
         ax.set_xlabel("survey date", fontsize=8)

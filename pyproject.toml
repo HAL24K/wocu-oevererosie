@@ -50,6 +50,7 @@ dependencies = [
     "altair>=5.0.0",
     "plotly>=5.16.0",
     "lightgbm>=4.6.0",
+    "contextily>=1.7.1",
 ]
 
 [tool.pytest.ini_options]
