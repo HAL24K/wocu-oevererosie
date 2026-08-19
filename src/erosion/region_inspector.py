@@ -381,17 +381,32 @@ class RegionInspector:
         figsize: tuple[float, float] = (8.0, 9.0),
         save: Path | None = None,
         basemap: bool = True,
+        style: str = "polyline",
+        end_style: str = "parallel",
     ) -> plt.Figure:
         """One region: the predicted bank at R=1 versus R=``n_segments``.
 
         R=1 is what the pipeline does today — one scalar, drawn as a full
         offset line with the perpendicular arrow showing the measurement.
-        R>1 anchors each centreline sub-segment on its *own* half's latest
-        observed distance and applies the same regional velocity.
+        R>1 anchors each centreline sub-segment on its *own* latest observed
+        distance and applies the same regional velocity.
+
+        ``style="polyline"`` stitches the segment anchors into one predicted
+        bank line; ``"segments"`` draws unconnected per-segment offset lines.
+        ``end_style`` controls the polyline's ends: ``"parallel"`` runs them
+        parallel with the centreline out to the region border, ``"open"``
+        stops at the outermost anchors.
         """
         fig, ax = plt.subplots(figsize=figsize, constrained_layout=True)
         self._draw_resolution_map(
-            ax, loc_id, pred_year, n_segments, basemap=basemap, compact=False
+            ax,
+            loc_id,
+            pred_year,
+            n_segments,
+            basemap=basemap,
+            compact=False,
+            style=style,
+            end_style=end_style,
         )
         fig.suptitle(
             f"{loc_id}   ·   predicted {pred_year} bank: R=1 vs R={n_segments}",
@@ -409,6 +424,8 @@ class RegionInspector:
         n_cols: int = 5,
         basemap: bool = False,
         save: Path | None = None,
+        style: str = "polyline",
+        end_style: str = "parallel",
     ) -> plt.Figure:
         """Small-multiple grid of :meth:`inspect_resolution` map panels."""
         import math
@@ -424,7 +441,14 @@ class RegionInspector:
         for ax, loc_id in zip(axes_flat, loc_ids, strict=False):
             try:
                 self._draw_resolution_map(
-                    ax, loc_id, pred_year, n_segments, basemap=basemap, compact=True
+                    ax,
+                    loc_id,
+                    pred_year,
+                    n_segments,
+                    basemap=basemap,
+                    compact=True,
+                    style=style,
+                    end_style=end_style,
                 )
             except (KeyError, IndexError) as exc:
                 ax.set_title(f"{loc_id}\n{exc}", fontsize=6)
@@ -439,8 +463,59 @@ class RegionInspector:
             fig.savefig(save, dpi=140, bbox_inches="tight")
         return fig
 
+    def resolution_progression(
+        self,
+        loc_id: str,
+        segments: tuple[int, ...] = (2, 5, 10),
+        pred_year: int = 2027,
+        basemap: bool = True,
+        save: Path | None = None,
+        style: str = "polyline",
+        end_style: str = "parallel",
+    ) -> plt.Figure:
+        """One region at increasing resolution, side by side.
+
+        Shows how the stitched predicted bank converges on the real bank
+        shape as R grows: at R=1 (dashed in every panel) the prediction is a
+        parallel line, at high R it is a polyline tracking the bank.
+        """
+        fig, axes = plt.subplots(
+            1,
+            len(segments),
+            figsize=(4.6 * len(segments), 6.2),
+            constrained_layout=True,
+        )
+        for ax, k in zip(np.atleast_1d(axes).flatten(), segments, strict=False):
+            self._draw_resolution_map(
+                ax,
+                loc_id,
+                pred_year,
+                k,
+                basemap=basemap,
+                compact=True,
+                style=style,
+                end_style=end_style,
+            )
+            ax.set_title(f"R={k}", fontsize=10)
+        fig.suptitle(
+            f"{loc_id}   ·   predicted {pred_year} bank as resolution "
+            "increases (dashed = today's R=1 scalar)",
+            fontsize=11,
+        )
+        if save is not None:
+            fig.savefig(save, dpi=140, bbox_inches="tight")
+        return fig
+
     def _draw_resolution_map(
-        self, ax, loc_id, pred_year, n_segments, basemap, compact
+        self,
+        ax,
+        loc_id,
+        pred_year,
+        n_segments,
+        basemap,
+        compact,
+        style: str = "polyline",
+        end_style: str = "parallel",
     ) -> None:
         from shapely.ops import substring
 
@@ -553,6 +628,8 @@ class RegionInspector:
 
         # R=n: per-segment anchors + the same regional velocity
         length = cline.length
+        anchors: list = []  # segment midpoints on their offset lines
+        first_start = last_end = None
         for i in range(n_segments):
             seg_samples = ref[ref["seg"] == i]
             if seg_samples.empty:
@@ -567,9 +644,15 @@ class RegionInspector:
             off = offset_line_toward(sub, seg_dist, seg_pts)
             if off is None or off.is_empty:
                 continue
-            ax.plot(*off.xy, color=color, lw=2.4 if compact else 3.2, zorder=8)
-            if not compact:
-                mid = off.interpolate(0.5, normalized=True)
+            mid = off.interpolate(0.5, normalized=True)
+            if style == "segments":
+                ax.plot(*off.xy, color=color, lw=2.4 if compact else 3.2, zorder=8)
+            else:
+                if first_start is None:
+                    first_start = off.interpolate(0.0, normalized=True)
+                last_end = off.interpolate(1.0, normalized=True)
+                anchors.append(mid)
+            if not compact and n_segments <= 4:
                 ax.annotate(
                     f"{seg_dist:.0f} m",
                     (mid.x, mid.y),
@@ -580,6 +663,30 @@ class RegionInspector:
                     zorder=9,
                     bbox={"fc": color, "ec": "none", "alpha": 0.9, "pad": 1},
                 )
+        if style != "segments" and anchors:
+            # one predicted bank polyline through the segment anchors; ends
+            # either stop at the outermost anchors or run parallel with the
+            # centreline out to the region border
+            pts = list(anchors)
+            if end_style == "parallel" and first_start is not None:
+                pts = [first_start, *pts, last_end]
+            ax.plot(
+                [p.x for p in pts],
+                [p.y for p in pts],
+                color=color,
+                lw=2.4 if compact else 3.2,
+                zorder=8,
+                solid_capstyle="round",
+            )
+            ax.scatter(
+                [p.x for p in anchors],
+                [p.y for p in anchors],
+                c=color,
+                s=14 if compact else 24,
+                edgecolors="black",
+                lw=0.4,
+                zorder=9,
+            )
 
         # signaleringslijn
         if sgeom is not None:
