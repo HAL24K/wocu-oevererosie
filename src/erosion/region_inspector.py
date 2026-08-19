@@ -410,6 +410,58 @@ class RegionInspector:
                 zorder=8,
             )
 
+        ax.legend(
+            handles=self._map_legend_handles(
+                model, stats["year"].unique(), pred["year"].astype(int).unique()
+            ),
+            loc="upper center",
+            bbox_to_anchor=(0.5, -0.09),
+            ncol=3,
+            fontsize=6,
+            framealpha=0.9,
+            handlelength=1.6,
+            columnspacing=1.0,
+        )
+
+    @staticmethod
+    def _map_legend_handles(model, measured_years, pred_years) -> list:
+        """QGIS-style legend: one swatch per year class actually drawn."""
+        import matplotlib.patches as mpatches
+
+        handles = [
+            plt.Line2D([0], [0], color="black", lw=2.2, label="centreline"),
+            mpatches.Patch(
+                fc=MODEL_FILL.get(model, "#eeeeee"),
+                ec="#aaaaaa",
+                label=f"scope region ({model})",
+            ),
+        ]
+        seen: list[str] = []
+        for year in sorted(measured_years):
+            cls = year_class(year)
+            if cls not in seen:
+                seen.append(cls)
+                handles.append(
+                    plt.Line2D([0], [0], color=measured_color(year), lw=2.0, label=cls)
+                )
+        for year in sorted(pred_years):
+            handles.append(
+                plt.Line2D(
+                    [0],
+                    [0],
+                    marker="s",
+                    ls="none",
+                    markerfacecolor=predicted_color(year),
+                    markeredgecolor="black",
+                    markersize=6,
+                    label=f"{year} (pred)",
+                )
+            )
+        handles.append(
+            plt.Line2D([0], [0], color=VVR_PURPLE, lw=2.0, label="signaleringslijn")
+        )
+        return handles
+
     @staticmethod
     def _add_basemap(ax) -> None:
         """OpenStreetMap tiles behind the map panel; skipped when offline.
@@ -449,6 +501,7 @@ class RegionInspector:
         ax.grid(alpha=0.25, lw=0.5)
 
         # vertical connectors where one date carries several lines
+        connector_labelled = False
         for date, grp in stats.groupby("date"):
             if len(grp) > 1:
                 ax.plot(
@@ -457,7 +510,9 @@ class RegionInspector:
                     color="#999999",
                     lw=1.0,
                     zorder=2,
+                    label=None if connector_labelled else "several lines, one survey",
                 )
+                connector_labelled = True
         ax.scatter(
             stats["date"],
             stats["dist_p50"],
