@@ -241,6 +241,13 @@ class HybridLineSource(BankObservationSource):
         layer: Layer name holding the bank lines.
         n_points: Number of furthest samples averaged per (region, date).
         n_samples: Points sampled along each line.
+        mask: Optional structures to mask out (e.g. the ``Kribben_BKN``
+            groynes). Samples falling within ``mask_buffer_m`` of any mask
+            feature are dropped *before* aggregation: at a groyne the water's
+            edge is the structure flank, not the riverbank, so those samples
+            measure the wrong thing. Masking clips samples, never whole
+            lines — the rest of a line that wraps a groyne survives.
+        mask_buffer_m: Padding around the mask features, in metres.
     """
 
     def __init__(
@@ -250,13 +257,18 @@ class HybridLineSource(BankObservationSource):
         layer: str = "lines",
         n_points: int = DEFAULT_N_POINTS,
         n_samples: int = DEFAULT_N_SAMPLES,
+        mask: gpd.GeoDataFrame | None = None,
+        mask_buffer_m: float = 15.0,
     ) -> None:
         self.gpkg = Path(gpkg)
         self.geometry = geometry
         self.layer = layer
         self.n_points = n_points
         self.n_samples = n_samples
+        self.mask = mask
+        self.mask_buffer_m = mask_buffer_m
         self.skipped_no_centreline: set[str] = set()
+        self.n_samples_masked: int = 0
 
     def load(self) -> BankObservations:
         lines = normalise_location_id(gpd.read_file(self.gpkg, layer=self.layer))
@@ -293,7 +305,7 @@ class HybridLineSource(BankObservationSource):
         pts = shapely.line_interpolate_point(line_geoms, fracs, normalized=True)
         dist = shapely.distance(pts, cline_geoms)
 
-        return pd.DataFrame(
+        out = pd.DataFrame(
             {
                 LOCATION_ID: np.repeat(lines[LOCATION_ID].values, self.n_samples),
                 "date": np.repeat(pd.to_datetime(lines["date"]).values, self.n_samples),
@@ -303,7 +315,25 @@ class HybridLineSource(BankObservationSource):
                 ),
                 "dist": dist,
             }
-        ).dropna(subset=["dist"])
+        )
+
+        if self.mask is not None and len(self.mask):
+            blocked = shapely.union_all(
+                self.mask.geometry.buffer(self.mask_buffer_m).values
+            )
+            shapely.prepare(blocked)
+            inside = shapely.contains(blocked, pts)
+            self.n_samples_masked = int(inside.sum())
+            logger.info(
+                "Masked %d of %d samples within %.0f m of %d structures",
+                self.n_samples_masked,
+                len(out),
+                self.mask_buffer_m,
+                len(self.mask),
+            )
+            out = out[~inside]
+
+        return out.dropna(subset=["dist"])
 
     def _aggregate(self, samples: pd.DataFrame) -> pd.DataFrame:
         """Mean of the furthest n_points samples per (location_id, date)."""
