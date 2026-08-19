@@ -142,6 +142,7 @@ class RegionInspector:
         self.n_samples = n_samples
         self.geometry = ScopeGeometry(centreline_gpkg=self.cfg.raw_gpkg)
         self._lines: gpd.GeoDataFrame | None = None
+        self._samples: pd.DataFrame | None = None
         self._line_stats: pd.DataFrame | None = None
         self._predictions: gpd.GeoDataFrame | None = None
         self._signalering: gpd.GeoDataFrame | None = None
@@ -162,6 +163,27 @@ class RegionInspector:
         return self._lines
 
     @property
+    def samples(self) -> pd.DataFrame:
+        """Every sampled point on every measurable line, one row per sample.
+
+        Columns: location_id, date, year, model, ``station`` (normalised
+        position of the sample's projection onto the centreline, 0..1),
+        ``dist`` (metres from the centreline) and the sample's x/y. The index
+        repeats the line's index in :attr:`lines`.
+        """
+        if self._samples is None:
+            usable = self.lines[
+                self.lines[LOCATION_ID].isin(self.geometry.centrelines.index)
+            ]
+            self._samples = self._sample_points(usable)
+            logger.info(
+                "Sampled %d lines across %d regions",
+                usable.shape[0],
+                usable[LOCATION_ID].nunique(),
+            )
+        return self._samples
+
+    @property
     def line_stats(self) -> pd.DataFrame:
         """Per-line distance summary: location_id, date, year, model, p50, max.
 
@@ -169,15 +191,17 @@ class RegionInspector:
         this line" number; the far-bank artefact separates cleanly on it.
         """
         if self._line_stats is None:
-            usable = self.lines[
-                self.lines[LOCATION_ID].isin(self.geometry.centrelines.index)
-            ]
-            self._line_stats = self._sample_line_distances(usable)
-            logger.info(
-                "Measured %d lines across %d regions",
-                len(self._line_stats),
-                self._line_stats[LOCATION_ID].nunique(),
-            )
+            g = self.samples.groupby(level=0, sort=False)
+            self._line_stats = pd.DataFrame(
+                {
+                    LOCATION_ID: g[LOCATION_ID].first(),
+                    "date": g["date"].first(),
+                    "year": g["year"].first(),
+                    "model": g["model"].first(),
+                    "dist_p50": g["dist"].median(),
+                    "dist_max": g["dist"].max(),
+                }
+            ).sort_values([LOCATION_ID, "date"])
         return self._line_stats
 
     @property
@@ -206,8 +230,8 @@ class RegionInspector:
 
     # ── distance sampling ───────────────────────────────────────────────────
 
-    def _sample_line_distances(self, lines: gpd.GeoDataFrame) -> pd.DataFrame:
-        """Median/max distance to the centreline for each individual line."""
+    def _sample_points(self, lines: gpd.GeoDataFrame) -> pd.DataFrame:
+        """Sample each line and measure every sample against its centreline."""
         fractions = np.linspace(0.0, 1.0, self.n_samples)
         line_geoms = np.repeat(lines.geometry.values, self.n_samples)
         cline_geoms = np.repeat(
@@ -217,19 +241,24 @@ class RegionInspector:
         pts = shapely.line_interpolate_point(
             line_geoms, np.tile(fractions, len(lines)), normalized=True
         )
-        dist = shapely.distance(pts, cline_geoms).reshape(len(lines), self.n_samples)
+        coords = shapely.get_coordinates(pts)
+
+        def rep(col):
+            return np.repeat(lines[col].values, self.n_samples)
 
         return pd.DataFrame(
             {
-                LOCATION_ID: lines[LOCATION_ID].values,
-                "date": lines["date"].values,
-                "year": lines["year"].values,
-                "model": lines["model"].values,
-                "dist_p50": np.nanmedian(dist, axis=1),
-                "dist_max": np.nanmax(dist, axis=1),
+                LOCATION_ID: rep(LOCATION_ID),
+                "date": rep("date"),
+                "year": rep("year"),
+                "model": rep("model"),
+                "station": shapely.line_locate_point(cline_geoms, pts, normalized=True),
+                "dist": shapely.distance(pts, cline_geoms),
+                "x": coords[:, 0],
+                "y": coords[:, 1],
             },
-            index=lines.index,
-        ).sort_values([LOCATION_ID, "date"])
+            index=np.repeat(lines.index.values, self.n_samples),
+        ).dropna(subset=["dist"])
 
     # ── far-bank screening ──────────────────────────────────────────────────
 
@@ -292,6 +321,307 @@ class RegionInspector:
         out = gap[gap["flag"] != ""].copy()
         out["score"] = out["max_multiline_gap_m"].fillna(0) + out["max_abs_v"].fillna(0)
         return out.sort_values("score", ascending=False)
+
+    # ── resolution (R > 1) ──────────────────────────────────────────────────
+
+    def resolution_candidates(
+        self,
+        min_gap_m: float = 10.0,
+        min_dates: int = 3,
+        min_consistency: float = 0.8,
+    ) -> pd.DataFrame:
+        """Rank regions where one scalar per region is most misleading.
+
+        For every survey the samples are split at the centreline midpoint and
+        each half's median distance is compared. A region qualifies when the
+        halves disagree by more than ``min_gap_m``, on ``min_dates`` or more
+        surveys, with the same sign on at least ``min_consistency`` of them —
+        i.e. a *persistent* along-channel gradient, not survey noise. Far-bank
+        suspects are excluded (that is a data problem, not a resolution
+        problem), as are regions without predictions to redraw.
+
+        ``median_gap_m`` is signed: positive means the downstream half sits
+        further from the centreline.
+        """
+        s = self.samples
+        half = np.where(s["station"] < 0.5, "h1", "h2")
+        per = (
+            s.groupby([s[LOCATION_ID], s["date"], half])["dist"]
+            .median()
+            .unstack()
+            .dropna()
+        )
+        per["gap"] = per["h2"] - per["h1"]
+        g = per.groupby(LOCATION_ID)["gap"]
+        out = pd.DataFrame(
+            {
+                "n_dates": g.size(),
+                "median_gap_m": g.median(),
+                "consistency": g.apply(
+                    lambda x: float((np.sign(x) == np.sign(x.median())).mean())
+                ),
+            }
+        )
+        keep = (
+            (out["n_dates"] >= min_dates)
+            & (out["median_gap_m"].abs() >= min_gap_m)
+            & (out["consistency"] >= min_consistency)
+            & ~out.index.isin(self.farbank_candidates().index)
+            & out.index.isin(set(self.predictions[LOCATION_ID]))
+        )
+        out = out[keep].copy()
+        out["model"] = self.line_stats.groupby(LOCATION_ID)["model"].first()
+        return out.sort_values("median_gap_m", key=abs, ascending=False)
+
+    def inspect_resolution(
+        self,
+        loc_id: str,
+        pred_year: int = 2027,
+        n_segments: int = 2,
+        figsize: tuple[float, float] = (8.0, 9.0),
+        save: Path | None = None,
+        basemap: bool = True,
+    ) -> plt.Figure:
+        """One region: the predicted bank at R=1 versus R=``n_segments``.
+
+        R=1 is what the pipeline does today — one scalar, drawn as a full
+        offset line with the perpendicular arrow showing the measurement.
+        R>1 anchors each centreline sub-segment on its *own* half's latest
+        observed distance and applies the same regional velocity.
+        """
+        fig, ax = plt.subplots(figsize=figsize, constrained_layout=True)
+        self._draw_resolution_map(
+            ax, loc_id, pred_year, n_segments, basemap=basemap, compact=False
+        )
+        fig.suptitle(
+            f"{loc_id}   ·   predicted {pred_year} bank: R=1 vs R={n_segments}",
+            fontsize=11,
+        )
+        if save is not None:
+            fig.savefig(save, dpi=140, bbox_inches="tight")
+        return fig
+
+    def resolution_grid(
+        self,
+        loc_ids: list[str],
+        pred_year: int = 2027,
+        n_segments: int = 2,
+        n_cols: int = 5,
+        basemap: bool = False,
+        save: Path | None = None,
+    ) -> plt.Figure:
+        """Small-multiple grid of :meth:`inspect_resolution` map panels."""
+        import math
+
+        n_rows = math.ceil(len(loc_ids) / n_cols)
+        fig, axes = plt.subplots(
+            n_rows,
+            n_cols,
+            figsize=(3.2 * n_cols, 3.8 * n_rows),
+            constrained_layout=True,
+        )
+        axes_flat = np.array(axes).flatten()
+        for ax, loc_id in zip(axes_flat, loc_ids, strict=False):
+            try:
+                self._draw_resolution_map(
+                    ax, loc_id, pred_year, n_segments, basemap=basemap, compact=True
+                )
+            except (KeyError, IndexError) as exc:
+                ax.set_title(f"{loc_id}\n{exc}", fontsize=6)
+        for ax in axes_flat[len(loc_ids) :]:
+            ax.set_visible(False)
+        fig.suptitle(
+            f"Predicted {pred_year} bank: R=1 (dashed, one scalar) vs "
+            f"R={n_segments} (solid, per-segment anchors) · greens = measured",
+            fontsize=11,
+        )
+        if save is not None:
+            fig.savefig(save, dpi=140, bbox_inches="tight")
+        return fig
+
+    def _draw_resolution_map(
+        self, ax, loc_id, pred_year, n_segments, basemap, compact
+    ) -> None:
+        from shapely.ops import substring
+
+        from src.erosion.centerline_utils import offset_line_toward
+
+        stats = self.line_stats[self.line_stats[LOCATION_ID] == loc_id]
+        if stats.empty:
+            raise KeyError("no measurable lines")
+        model = stats["model"].iloc[0]
+        sgeom = self.geometry.polygons.get(loc_id)
+        cline = self.geometry.centrelines.get(loc_id)
+        if cline is None:
+            raise KeyError("no centreline")
+
+        pred = self.predictions[self.predictions[LOCATION_ID] == loc_id]
+        pred_dist = pred.loc[pred["year"] == pred_year, "predicted_dist_m"]
+        if pred_dist.empty:
+            raise KeyError(f"no {pred_year} prediction")
+        pred_dist = float(pred_dist.iloc[0])
+
+        dpy = self.dist_per_year
+        dpy = dpy[dpy[LOCATION_ID] == loc_id].sort_values("year")
+        if dpy.empty:
+            raise KeyError("not in the pipeline run")
+        # the regional velocity displacement the model added since last observed
+        delta = pred_dist - float(dpy["dist_m"].iloc[-1])
+
+        # base
+        ax.set_aspect("equal")
+        ax.tick_params(labelsize=5 if compact else 6)
+        if compact:
+            ax.set_title(loc_id, fontsize=7)
+        else:
+            ax.set_xlabel("Easting (m RD)", fontsize=8)
+            ax.set_ylabel("Northing (m RD)", fontsize=8)
+        if sgeom is not None:
+            bx, by = sgeom.exterior.xy
+            ax.fill(
+                bx,
+                by,
+                fc=MODEL_FILL.get(model, "#eeeeee"),
+                ec="#aaaaaa",
+                lw=1.0,
+                alpha=0.45 if basemap else 1.0,
+                zorder=1,
+            )
+            minx, miny, maxx, maxy = sgeom.bounds
+            ax.set_xlim(minx - 40, maxx + 40)
+            ax.set_ylim(miny - 40, maxy + 40)
+        if basemap:
+            self._add_basemap(ax)
+        xs, ys = cline.xy
+        ax.plot(xs, ys, color="black", lw=1.6 if compact else 2.2, zorder=5)
+
+        # measured lines
+        for _, row in self.lines.loc[stats.index].iterrows():
+            for part in _line_parts(row.geometry):
+                ax.plot(
+                    *part.xy,
+                    color=measured_color(row["year"]),
+                    lw=1.3 if compact else 2.0,
+                    alpha=0.9,
+                    zorder=4,
+                )
+
+        # reference survey: most recent date whose samples cover every segment
+        s = self.samples[self.samples[LOCATION_ID] == loc_id].copy()
+        s["seg"] = np.minimum((s["station"] * n_segments).astype(int), n_segments - 1)
+        ref = None
+        for date in sorted(s["date"].unique(), reverse=True):
+            cand = s[s["date"] == date]
+            if cand["seg"].nunique() == n_segments:
+                ref = cand
+                break
+        if ref is None:
+            ref = s[s["date"] == s["date"].max()]
+        bank_pts = gpd.GeoSeries(gpd.points_from_xy(ref["x"], ref["y"]))
+
+        color = predicted_color(pred_year)
+
+        # R=1: today's algorithm — one scalar for the whole region
+        r1 = offset_line_toward(cline, pred_dist, bank_pts)
+        if r1 is not None and not r1.is_empty:
+            ax.plot(*r1.xy, color=color, lw=2.0, ls="--", zorder=7)
+            p0 = cline.interpolate(0.5, normalized=True)
+            p1 = r1.interpolate(0.5, normalized=True)
+            ax.annotate(
+                "",
+                xy=(p1.x, p1.y),
+                xytext=(p0.x, p0.y),
+                arrowprops={
+                    "arrowstyle": "->",
+                    "color": color,
+                    "ls": ":",
+                    "lw": 1.2 if compact else 1.6,
+                },
+            )
+            if not compact:
+                mid = r1.interpolate(0.35, normalized=True)
+                ax.annotate(
+                    f"R=1 · {pred_dist:.0f} m",
+                    (mid.x, mid.y),
+                    fontsize=6.5,
+                    color=color,
+                    ha="center",
+                    va="bottom",
+                    zorder=9,
+                    bbox={"fc": "white", "ec": "none", "alpha": 0.75, "pad": 1},
+                )
+
+        # R=n: per-segment anchors + the same regional velocity
+        length = cline.length
+        for i in range(n_segments):
+            seg_samples = ref[ref["seg"] == i]
+            if seg_samples.empty:
+                continue
+            seg_dist = float(seg_samples["dist"].median()) + delta
+            sub = substring(
+                cline, length * i / n_segments, length * (i + 1) / n_segments
+            )
+            seg_pts = gpd.GeoSeries(
+                gpd.points_from_xy(seg_samples["x"], seg_samples["y"])
+            )
+            off = offset_line_toward(sub, seg_dist, seg_pts)
+            if off is None or off.is_empty:
+                continue
+            ax.plot(*off.xy, color=color, lw=2.4 if compact else 3.2, zorder=8)
+            if not compact:
+                mid = off.interpolate(0.5, normalized=True)
+                ax.annotate(
+                    f"{seg_dist:.0f} m",
+                    (mid.x, mid.y),
+                    fontsize=6.5,
+                    color="white",
+                    ha="center",
+                    va="center",
+                    zorder=9,
+                    bbox={"fc": color, "ec": "none", "alpha": 0.9, "pad": 1},
+                )
+
+        # signaleringslijn
+        if sgeom is not None:
+            local = self.signalering[self.signalering.intersects(sgeom.buffer(10))]
+            for geom in local.geometry:
+                for part in _line_parts(geom):
+                    ax.plot(
+                        *part.xy,
+                        color=VVR_PURPLE,
+                        lw=1.4 if compact else 2.0,
+                        zorder=6,
+                    )
+
+        if not compact:
+            handles = self._map_legend_handles(model, stats["year"].unique(), [])
+            handles += [
+                plt.Line2D(
+                    [0],
+                    [0],
+                    color=color,
+                    lw=2.0,
+                    ls="--",
+                    label=f"{pred_year} pred · R=1 (one scalar)",
+                ),
+                plt.Line2D(
+                    [0],
+                    [0],
+                    color=color,
+                    lw=3.2,
+                    label=f"{pred_year} pred · R={n_segments} (per-segment)",
+                ),
+            ]
+            ax.legend(
+                handles=handles,
+                loc="upper center",
+                bbox_to_anchor=(0.5, -0.08),
+                ncol=3,
+                fontsize=6,
+                framealpha=0.9,
+                handlelength=1.6,
+                columnspacing=1.0,
+            )
 
     # ── the figure ──────────────────────────────────────────────────────────
 
