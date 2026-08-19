@@ -32,25 +32,22 @@ cfg = ExperimentConfig(experiment="20260820-hybrid-masked")
 cfg.features_dir.mkdir(parents=True, exist_ok=True)
 
 HYBRID = cfg.data_dir / "02_processed/hybrid/hybrid_model_results_20260710.gpkg"
-KRIBS = gpd.read_file(
-    cfg.data_dir / "01_raw/scope/Levering_erosie_data.gpkg", layer="Kribben_BKN"
-).to_crs(28992)
+KRIBS = gpd.read_file(cfg.structures_gpkg, layer=cfg.structures_layer).to_crs(28992)
 V_LIMIT = 50.0
-MIN_SAMPLES = 12
 
-log.info("1 · hybrid lines → observations (kribben mask, 10 m)")
+log.info("1 · hybrid lines → observations (structure mask, %.0f m)", cfg.mask_buffer_m)
 src = HybridLineSource(
     HYBRID,
     geometry=ScopeGeometry(centreline_gpkg=cfg.raw_gpkg),
     mask=KRIBS,
-    mask_buffer_m=10.0,
+    mask_buffer_m=cfg.mask_buffer_m,
 )
 obs = src.load()
 n_before = len(obs.frame)
-frame = obs.frame[obs.frame["n_candidates"] >= MIN_SAMPLES]
+frame = obs.frame[obs.frame["n_candidates"] >= cfg.min_samples_per_obs]
 log.info(
     "    survival rule (>=%d samples): %d of %d observations kept",
-    MIN_SAMPLES,
+    cfg.min_samples_per_obs,
     len(frame),
     n_before,
 )

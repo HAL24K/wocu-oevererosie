@@ -71,7 +71,10 @@ def test_combine_backfills_test_span_and_keeps_shared_columns_only():
     assert "v_test" not in combined.columns  # not shared → dropped
 
 
-@pytest.mark.parametrize("key", ["experiment", "n_points", "seed", "raw_gpkg"])
+@pytest.mark.parametrize(
+    "key",
+    ["experiment", "n_points", "seed", "raw_gpkg", "mask_buffer_m", "structures_gpkg"],
+)
 def test_config_table_is_complete(tmp_path, key):
     cfg = ExperimentConfig(experiment="t4", data_dir=tmp_path)
     assert key in cfg.to_table()

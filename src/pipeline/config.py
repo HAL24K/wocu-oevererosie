@@ -54,8 +54,17 @@ class ExperimentConfig:
     reference_features_v2: Path | None = None
     signalering_gpkg: Path | None = None
     signalering_layer: str = "Vlak_vrije_ruimte_natuurvriendelijke_oever_ln"
+    structures_gpkg: Path | None = None
+    structures_layer: str = "Kribben_BKN"
 
     # ── parameters ────────────────────────────────────────────────────────────
+    # Structure mask: at a groyne the water's edge is the structure flank, not
+    # the riverbank. Samples within mask_buffer_m of a structure are dropped
+    # before the furthest-N selection, and a (region, date) observation needs
+    # at least min_samples_per_obs surviving samples to produce a scalar.
+    # 10 m is the empirical elbow (scripts/kribben_padding_sweep.py).
+    mask_buffer_m: float = 10.0
+    min_samples_per_obs: int = 12
     n_points: int = 3  # furthest OK points averaged per (region, year)
     test_size: float = 0.20
     seed: int = 42
@@ -78,6 +87,7 @@ class ExperimentConfig:
         "discharge_dir": "water_stations_timeseries/cleaned/discharge",
         "reference_features_v2": "02_processed/erosion/region_features_v2.parquet",
         "signalering_gpkg": "01_raw/scope/20260205_signaleringslijn.gpkg",
+        "structures_gpkg": "01_raw/scope/Levering_erosie_data.gpkg",
     }
 
     def __post_init__(self) -> None:
