@@ -185,3 +185,41 @@ Sub-year observations feed the fit directly (real dates, fractional years) —
 no more within_year collapse. Touches region_split + feature_engineering +
 FeatureShifter (rolling update of v_hat); predictor and export unchanged.
 Grouped-by-region split becomes mandatory the moment sub-region units exist.
+
+---
+
+## 2026-08-19 demo outcomes (internal, height + SAM engineers present)
+
+Received well; the PM will book the asset-manager presentation for **early
+October** — that date anchors the roadmap below.
+
+Agreed / assigned:
+
+- **Luke (height model)** investigates regions that HAD a height-model
+  measurement but no longer do — this is exactly the `no_pref_was_OK` class
+  in `data/02_processed/scope_coverage.gpkg` (326 regions, 34 with NVO).
+  Hand him that layer.
+- **Outliers + resolution merge into one work item.** Luke's point: raising
+  the resolution redefines what an outlier is (a far-bank line is only an
+  outlier *relative to its segment*). Design the line/segment-level filter
+  and the (region × segment) observation unit together, not sequentially.
+- **Outlier filtering: automatic, with manual eye validation.** Auto-flag
+  (bimodality + temporal consistency, `farbank_candidates()`), then a
+  judgement-by-eye pass over the flagged set — not a review of all 10k
+  SAM regions. The inspector notebook is the validation bench.
+- **GIS engineers** check whether a GeoPackage of bridge locations exists —
+  bridges explain a family of spurious bank lines; filtering those scope
+  regions (or masking the bridge footprint) removes them at the source.
+- **Resolution ceiling ≈ R=100.** Height model is 0.5–1 m over ~100 m scope
+  regions, so segments below ~1 m are below sensor resolution. Practical
+  sweet spot much lower (R=10–20); note HybridLineSource/inspector sampling
+  (20 pts/line) must densify as R grows or anchors starve.
+
+Commitment made in the room (track it): asked whether the hybrid-run test
+error (LGB 4.12 m/jr) can at least be **halved**, answer given was confident
+**10×**. Decomposition: halving is near-mechanical — a multi-year / robust-
+slope target definition alone collapses target noise (std 11.4 → ~2.9 at
+3-yr spans); 10× (≈0.4 m/jr) additionally needs the A7 target + line-level
+outlier filtering + resolution to deliver real signal, and honest evaluation
+(grouped split, no test-set early stopping) may *raise* measured error even
+as the model improves. Frame October numbers accordingly.
