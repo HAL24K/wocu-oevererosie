@@ -14,10 +14,6 @@ import subprocess
 import sys
 import warnings
 
-warnings.filterwarnings("ignore")
-logging.basicConfig(level=logging.INFO, format="%(message)s")
-log = logging.getLogger("prep")
-
 import geopandas as gpd
 import joblib
 import pandas as pd
@@ -26,6 +22,11 @@ from src.pipeline.config import ExperimentConfig
 from src.pipeline.feature_engineering import build_features
 from src.pipeline.region_split import build_region_split
 from src.sources import HybridLineSource, ScopeGeometry
+from src.sources.observations import BankObservations
+
+warnings.filterwarnings("ignore")
+logging.basicConfig(level=logging.INFO, format="%(message)s")
+log = logging.getLogger("prep")
 
 cfg = ExperimentConfig(experiment="20260820-hybrid-masked")
 cfg.features_dir.mkdir(parents=True, exist_ok=True)
@@ -53,8 +54,6 @@ log.info(
     len(frame),
     n_before,
 )
-from src.sources.observations import BankObservations
-
 dpy = BankObservations(frame.reset_index(drop=True)).to_dist_per_year(
     within_year="median"
 )
