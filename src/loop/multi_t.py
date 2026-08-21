@@ -277,7 +277,9 @@ def trajectory_features_pairwise(obs: pd.DataFrame, pw: pd.DataFrame) -> pd.Data
     o["t"] = o["date"].map(pd.Timestamp.toordinal) / 365.25
     o["sam"] = (o["source"] == "segmentation").astype(float)
     o = o.sort_values("t")
-    by_loc = dict(o.groupby(LOCATION_ID, sort=False))
+    # dict(groupby) is a trap: dict() calls .keys, which on a GroupBy is the
+    # grouping column name, not a method.
+    by_loc = {loc: g for loc, g in o.groupby(LOCATION_ID, sort=False)}  # noqa: C416
 
     rows = []
     for loc, t2 in zip(pw[LOCATION_ID].values, pw["t2"].values, strict=True):
