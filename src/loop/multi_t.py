@@ -63,6 +63,9 @@ TRAJ_FEATS = [
     "frac_sam",
 ]
 
+#: traj2: TRAJ_FEATS plus mean-reversion/recency signals.
+TRAJ_FEATS2 = [*TRAJ_FEATS, "resid_last", "v_recent", "slope_recent"]
+
 
 def load_obs_e8(caches: Caches, structures) -> pd.DataFrame:
     """e8-cleaned observations (one row per region-survey), cached on disk."""
@@ -110,6 +113,14 @@ def _traj_row(t: np.ndarray, y: np.ndarray, sam: np.ndarray) -> dict:
         "accel_v": accel,
         "last_gap_yr": float(t[-1] - t[-2]) if len(t) >= 2 else np.nan,
         "frac_sam": float(sam.mean()),
+        # mean-reversion / recency signals (traj2 set)
+        "resid_last": float(resid[-1]) if len(t) >= 3 else np.nan,
+        "v_recent": (
+            float((y[-1] - y[-2]) / (t[-1] - t[-2]))
+            if len(t) >= 2 and t[-1] - t[-2] > 0.1
+            else np.nan
+        ),
+        "slope_recent": _theil(t[-3:], y[-3:])[0] if len(t) >= 3 else np.nan,
     }
 
 
@@ -419,11 +430,12 @@ def assemble(
     feats = build_features_fast(split, caches)
     feat_names = list(FEATS_LGB)
 
-    if features == "traj":
-        traj = trajectory_features(obs, split["t2"].astype(int))
+    traj_cols = {"traj": TRAJ_FEATS, "traj2": TRAJ_FEATS2}.get(features)
+    if traj_cols:
+        traj = trajectory_features(obs, split["t2"].astype(int))[traj_cols]
         feats = feats.join(traj)
-        feat_names += TRAJ_FEATS
-        feats[TRAJ_FEATS] = feats[TRAJ_FEATS].fillna(0.0)
+        feat_names += traj_cols
+        feats[traj_cols] = feats[traj_cols].fillna(0.0)
 
     if training in ("pairwise", "survey"):
         if training == "pairwise":
@@ -433,9 +445,10 @@ def assemble(
                 obs, caches, split, min_span=min_span, all_pairs=all_pairs
             )
         pwf = build_features_pairwise(pw, caches)
-        if features == "traj":
+        if traj_cols:
             pwf = pd.concat(
-                [pwf, trajectory_features_pairwise(obs, pwf).fillna(0.0)], axis=1
+                [pwf, trajectory_features_pairwise(obs, pwf)[traj_cols].fillna(0.0)],
+                axis=1,
             )
         test = feats[feats["split"] == "test"].reset_index()
         cols = [LOCATION_ID, "split", "v_test"] + [
