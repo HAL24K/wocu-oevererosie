@@ -251,31 +251,66 @@ def temporal_outlier_survey(
     ctx: RuleContext,
     max_dev: float = 30.0,
     min_surveys: int = 4,
+    detrend: bool = False,
 ) -> pd.DataFrame:
     """Drop surveys that disagree with the region's own history.
 
     Repair-over-removal counterpart of the legacy region-level |v| filter: a
     survey whose median position deviates more than ``max_dev`` metres from
-    the median of the region's *other* surveys is an artefact (wrong bank,
-    side channel); the region keeps its remaining surveys. Only regions with
-    at least ``min_surveys`` surveys are touched, so a genuine rapid change
-    seen once is never silently erased.
+    the region's history is an artefact (wrong bank, side channel); the
+    region keeps its remaining surveys. Only regions with at least
+    ``min_surveys`` surveys are touched, so a genuine rapid change seen once
+    is never silently erased.
 
-    ``max_dev`` should sit far above real erosion (a few m/yr) and below the
+    With ``detrend=False`` the reference is the region's median position —
+    simple, but a genuinely fast-eroding region with a long span drifts
+    ``v × span / 2`` from its median, so a strict ``max_dev`` can clip the
+    endpoints that carry the erosion signal. With ``detrend=True`` the
+    reference is a Theil–Sen line through the region's surveys and the
+    deviation is the residual — erosion-proof at any strictness.
+
+    ``max_dev`` should sit far above real erosion noise and below the
     far-bank jump (typically 50–200 m).
     """
     pos = _survey_p50(s)
     n = pos.groupby(LOCATION_ID).transform("size")
-    med = pos.groupby(LOCATION_ID).transform("median")
-    # median of the others: recompute without self only where it matters
-    dev = (pos - med).abs()
+
+    if detrend:
+        t = pos.index.get_level_values("date").map(pd.Timestamp.toordinal)
+        frame = pd.DataFrame(
+            {"y": pos.values, "t": (np.asarray(t) / 365.25)},
+            index=pos.index,
+        )
+
+        def _resid(g: pd.DataFrame) -> pd.Series:
+            if len(g) < 3:
+                return pd.Series(0.0, index=g.index)
+            tv, yv = g["t"].values, g["y"].values
+            i, j = np.triu_indices(len(g), k=1)
+            dt = tv[j] - tv[i]
+            ok = dt != 0
+            if not ok.any():
+                return pd.Series(g["y"] - g["y"].median(), index=g.index)
+            slope = np.median((yv[j] - yv[i])[ok] / dt[ok])
+            intercept = np.median(yv - slope * tv)
+            return pd.Series(yv - (slope * tv + intercept), index=g.index)
+
+        dev = (
+            frame.groupby(LOCATION_ID, group_keys=False)
+            .apply(_resid, include_groups=False)
+            .abs()
+        )
+    else:
+        med = pos.groupby(LOCATION_ID).transform("median")
+        dev = (pos - med).abs()
+
     bad = pos.index[(dev > max_dev) & (n >= min_surveys)]
     keep = ~pd.MultiIndex.from_frame(s[SURVEY]).isin(bad)
     out = s[keep]
     ctx.stats.append(
         _stat(
             "temporal_outlier_survey",
-            {"max_dev": max_dev, "min_surveys": min_surveys},
+            {"max_dev": max_dev, "min_surveys": min_surveys, "detrend": detrend},
             s,
             out,
         )
