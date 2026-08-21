@@ -271,7 +271,13 @@ def build_features_pairwise(pw: pd.DataFrame, caches: Caches) -> pd.DataFrame:
 
 
 def trajectory_features_pairwise(obs: pd.DataFrame, pw: pd.DataFrame) -> pd.DataFrame:
-    """Trajectory descriptors per pairwise row, from surveys year <= its t2."""
+    """Trajectory descriptors per pairwise row.
+
+    Cutoff: the row's exact origin time when it carries ``origin_t``
+    (survey-level rows — a later survey in the same calendar year must not
+    leak in), else calendar year <= t2 (year-level rows, matching the
+    year-collapse semantics).
+    """
     o = obs[[LOCATION_ID, "date", "dist_m", "source"]].copy()
     o["year"] = o["date"].dt.year
     o["t"] = o["date"].map(pd.Timestamp.toordinal) / 365.25
@@ -281,15 +287,105 @@ def trajectory_features_pairwise(obs: pd.DataFrame, pw: pd.DataFrame) -> pd.Data
     # grouping column name, not a method.
     by_loc = {loc: g for loc, g in o.groupby(LOCATION_ID, sort=False)}  # noqa: C416
 
+    origin_t = pw["origin_t"].values if "origin_t" in pw.columns else None
     rows = []
-    for loc, t2 in zip(pw[LOCATION_ID].values, pw["t2"].values, strict=True):
+    for pos, (loc, t2) in enumerate(
+        zip(pw[LOCATION_ID].values, pw["t2"].values, strict=True)
+    ):
         g = by_loc.get(loc)
         if g is None:
             rows.append(dict.fromkeys(TRAJ_FEATS, np.nan))
             continue
-        h = g[g["year"] <= t2]
+        if origin_t is not None and not np.isnan(origin_t[pos]):
+            h = g[g["t"] <= origin_t[pos]]
+        else:
+            h = g[g["year"] <= t2]
         rows.append(_traj_row(h["t"].values, h["dist_m"].values, h["sam"].values))
     return pd.DataFrame(rows, index=pw.index)
+
+
+def build_survey_pairwise_train(
+    obs: pd.DataFrame,
+    caches: Caches,
+    split: pd.DataFrame,
+    min_span: float = 0.4,
+    all_pairs: bool = False,
+    min_prev_span: float = 0.15,
+) -> pd.DataFrame:
+    """One training row per survey-level increment, train regions only.
+
+    This is where the hybrid's real temporal richness lives: year collapse
+    reduces a region to <= 4 points, but the cleaned survey series holds up
+    to ~11. Rows are consecutive-survey increments (or all forward pairs
+    with ``all_pairs``), filtered to spans >= ``min_span`` years so the
+    velocity target is not dominated by measurement noise over days.
+    ``origin_t`` records the exact forecast origin for leakage-safe
+    trajectory features. Integer years still key the HW/erosion-volume
+    windows; a same-year pair simply gets empty windows (0), which is what
+    the year machinery would say too.
+    """
+    train_ids = set(split.index[split["split"] == "train"])
+    o = obs[obs[LOCATION_ID].isin(train_ids)].copy()
+    o["t"] = o["date"].map(pd.Timestamp.toordinal) / 365.25
+    o["year"] = o["date"].dt.year
+    o = o.sort_values([LOCATION_ID, "t"])
+
+    rows = []
+    for loc, g in o.groupby(LOCATION_ID, sort=False):
+        t, y, yr = g["t"].values, g["dist_m"].values, g["year"].values
+        n = len(t)
+        for i in range(1, n - 1):
+            if t[i] - t[i - 1] < min_prev_span:
+                continue
+            ends = range(i + 1, n) if all_pairs else [i + 1]
+            for j in ends:
+                span = t[j] - t[i]
+                if span < min_span:
+                    continue
+                rows.append(
+                    {
+                        LOCATION_ID: loc,
+                        "t1": int(yr[i - 1]),
+                        "t2": int(yr[i]),
+                        "t3": int(yr[j]),
+                        "dist_t1": y[i - 1],
+                        "dist_t2": y[i],
+                        "dist_t3": y[j],
+                        "train_span_yr": t[i] - t[i - 1],
+                        "test_span_yr": span,
+                        "v_train": (y[i] - y[i - 1]) / (t[i] - t[i - 1]),
+                        "v_test": (y[j] - y[i]) / span,
+                        "origin_t": t[i],
+                    }
+                )
+    pw = pd.DataFrame(rows)
+    if pw.empty:
+        return pw
+
+    from src.pipeline.region_split import get_cluster
+
+    pw["cluster"] = pw[LOCATION_ID].map(get_cluster)
+    pw["n_timestamps"] = 3
+    pw["is_nvo"] = pw[LOCATION_ID].map(caches.static["is_nvo"]).astype(bool)
+    pw["quality"] = pw[LOCATION_ID].map(caches.static["quality"])
+    ev_sum = (
+        caches.ev.groupby([LOCATION_ID, "_yb", "_ya"])["erosion_volume"]
+        .sum()
+        .reset_index()
+    )
+    for label, (a, b) in {"train": ("t1", "t2"), "test": ("t2", "t3")}.items():
+        m = pw[[LOCATION_ID, a, b]].merge(
+            ev_sum,
+            left_on=[LOCATION_ID, a, b],
+            right_on=[LOCATION_ID, "_yb", "_ya"],
+            how="left",
+        )
+        pw[f"erosion_vol_{label}_rate"] = (
+            m["erosion_volume"].fillna(0).values / pw[f"{label}_span_yr"].values
+        )
+    pw["erosion_vol_rate_t1"] = pw["erosion_vol_train_rate"]
+    pw["split"] = "train"
+    return pw
 
 
 def prepare_standard(caches: Caches, obs: pd.DataFrame, v_limit: float = 50.0):
@@ -307,6 +403,8 @@ def assemble(
     training: str = "standard",
     target: str = "year",
     v_limit: float = 50.0,
+    min_span: float = 0.4,
+    all_pairs: bool = False,
 ) -> tuple[pd.DataFrame, list[str], int]:
     """Build the modelling frame for one (features, training, target) combo.
 
@@ -327,8 +425,13 @@ def assemble(
         feat_names += TRAJ_FEATS
         feats[TRAJ_FEATS] = feats[TRAJ_FEATS].fillna(0.0)
 
-    if training == "pairwise":
-        pw = build_pairwise_train(dpy, caches, split)
+    if training in ("pairwise", "survey"):
+        if training == "pairwise":
+            pw = build_pairwise_train(dpy, caches, split)
+        else:
+            pw = build_survey_pairwise_train(
+                obs, caches, split, min_span=min_span, all_pairs=all_pairs
+            )
         pwf = build_features_pairwise(pw, caches)
         if features == "traj":
             pwf = pd.concat(
@@ -353,6 +456,10 @@ def run_t2_variant(
     target: str = "year",
     notes: str = "",
     seed: int = 42,
+    min_span: float = 0.4,
+    all_pairs: bool = False,
+    weight: bool = False,
+    objective: str | None = None,
 ) -> dict:
     """Assemble, train, score against the frozen views, append to the ledger."""
     import json
@@ -365,7 +472,13 @@ def run_t2_variant(
     from src.pipeline.train import TAIL_THRESHOLD
 
     frame, feat_names, n_far = assemble(
-        caches, obs, features=features, training=training, target=target
+        caches,
+        obs,
+        features=features,
+        training=training,
+        target=target,
+        min_span=min_span,
+        all_pairs=all_pairs,
     )
     train = frame[frame["split"] == "train"]
     test = frame[frame["split"] == "test"]
@@ -378,10 +491,17 @@ def run_t2_variant(
         num_leaves=31,
         random_state=seed,
         verbose=-1,
+        objective=objective or "regression",
+    )
+    sample_weight = (
+        np.clip(train["test_span_yr"].astype(float).values, 0.25, 2.0)
+        if weight
+        else None
     )
     model.fit(
         X_tr,
         train["v_test"],
+        sample_weight=sample_weight,
         eval_set=[(X_te, test["v_test"])],
         callbacks=[
             lgb.early_stopping(50, verbose=False),
@@ -433,7 +553,16 @@ def run_t2_variant(
         "variant": name,
         "when": datetime.now().isoformat(timespec="seconds"),
         "rules": json.dumps(
-            {"track": 2, "features": features, "training": training, "target": target}
+            {
+                "track": 2,
+                "features": features,
+                "training": training,
+                "target": target,
+                "min_span": min_span,
+                "all_pairs": all_pairs,
+                "weight": weight,
+                "objective": objective,
+            }
         ),
         "v_limit": 50.0,
         **{k: round(v, 4) if isinstance(v, float) else v for k, v in metrics.items()},
