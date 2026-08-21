@@ -27,21 +27,21 @@ kribs = gpd.read_file(
 ).to_crs(28992)
 obs = load_obs_e8(caches, make_structure_geom(kribs, 10.0))
 
-VARIANTS = [
-    dict(
+VARIANTS: list[dict] = [  # noqa: C408 — kwargs-style rows read better here
+    dict(  # noqa: C408
         name="h1-survey",
         training="survey",
         min_span=0.4,
         notes="consecutive survey increments, span >= 0.4 yr",
     ),
-    dict(
+    dict(  # noqa: C408
         name="h2-survey-weighted",
         training="survey",
         min_span=0.4,
         weight=True,
         notes="h1 + span-proportional sample weight",
     ),
-    dict(
+    dict(  # noqa: C408
         name="h3-survey-allpairs",
         training="survey",
         min_span=0.8,
@@ -49,7 +49,7 @@ VARIANTS = [
         weight=True,
         notes="all forward pairs, span >= 0.8 yr, weighted",
     ),
-    dict(
+    dict(  # noqa: C408
         name="h4-survey-huber",
         training="survey",
         min_span=0.4,
@@ -57,7 +57,7 @@ VARIANTS = [
         objective="huber",
         notes="h2 + huber objective",
     ),
-    dict(
+    dict(  # noqa: C408
         name="h5-yearpair-huber",
         training="pairwise",
         objective="huber",
