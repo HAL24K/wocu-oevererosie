@@ -210,13 +210,22 @@ def fragment_survey(
 
 
 def maze_survey(
-    s: pd.DataFrame, ctx: RuleContext, max_ratio: float = 1.8
+    s: pd.DataFrame,
+    ctx: RuleContext,
+    max_ratio: float = 1.8,
+    min_iqr: float = 0.0,
 ) -> pd.DataFrame:
     """Drop surveys whose delivered line length exceeds the region length.
 
     A bank can be at most about as long as its region's centreline; a survey
     delivering ``max_ratio``× that traces a land/water mosaic (harbours,
     floodplain pools), not a bank.
+
+    ``min_iqr`` adds a spatial-incoherence condition: the eye-check showed the
+    length ratio alone also fires on legitimate surveys whose geometry is
+    merely duplicated along the bank. A duplicated on-bank survey has a tiny
+    sample-distance spread; a true maze wanders. Requiring the survey's
+    distance IQR to exceed ``min_iqr`` metres spares the duplicates.
     """
     lm = ctx.line_metrics
     line_len = s.groupby("line_idx").size().index.to_series().map(lm["length"])
@@ -225,9 +234,15 @@ def maze_survey(
     total = lines.groupby(SURVEY)["length"].sum()
     ratio = total / total.index.get_level_values(0).map(ctx.cl_len).values
     bad = ratio.index[ratio > max_ratio]
+    if min_iqr > 0:
+        q = s.groupby(SURVEY)["dist"].quantile([0.25, 0.75]).unstack()
+        iqr = q[0.75] - q[0.25]
+        bad = bad.intersection(iqr.index[iqr > min_iqr])
     keep = ~pd.MultiIndex.from_frame(s[SURVEY]).isin(bad)
     out = s[keep]
-    ctx.stats.append(_stat("maze_survey", {"max_ratio": max_ratio}, s, out))
+    ctx.stats.append(
+        _stat("maze_survey", {"max_ratio": max_ratio, "min_iqr": min_iqr}, s, out)
+    )
     return out
 
 
