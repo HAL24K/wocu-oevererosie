@@ -252,6 +252,7 @@ def temporal_outlier_survey(
     max_dev: float = 30.0,
     min_surveys: int = 4,
     detrend: bool = False,
+    protect_min_years: int = 0,
 ) -> pd.DataFrame:
     """Drop surveys that disagree with the region's own history.
 
@@ -305,12 +306,42 @@ def temporal_outlier_survey(
         dev = (pos - med).abs()
 
     bad = pos.index[(dev > max_dev) & (n >= min_surveys)]
+
+    if protect_min_years and len(bad):
+        # Never drop a region below eligibility: within an affected region,
+        # un-drop the least-deviant offenders until enough distinct years
+        # survive. The coverage autopsy showed this is the one recoverable
+        # loss class — better one suspect survey than no region at all.
+        years = pd.Series(pos.index.get_level_values("date").year, index=pos.index)
+        bad_set = set(bad)
+        for loc in {k[0] for k in bad_set}:
+            region = years.loc[loc]
+            dropped = [k for k in bad_set if k[0] == loc]
+            left = set(region[~region.index.isin([d[1] for d in dropped])])
+            if len(left) >= protect_min_years:
+                continue
+            for key in sorted(dropped, key=lambda k: dev[k]):
+                bad_set.discard(key)
+                left.add(years[key])
+                if len(left) >= protect_min_years:
+                    break
+        bad = (
+            pd.MultiIndex.from_tuples(sorted(bad_set), names=bad.names)
+            if (bad_set)
+            else bad[:0]
+        )
+
     keep = ~pd.MultiIndex.from_frame(s[SURVEY]).isin(bad)
     out = s[keep]
     ctx.stats.append(
         _stat(
             "temporal_outlier_survey",
-            {"max_dev": max_dev, "min_surveys": min_surveys, "detrend": detrend},
+            {
+                "max_dev": max_dev,
+                "min_surveys": min_surveys,
+                "detrend": detrend,
+                "protect_min_years": protect_min_years,
+            },
             s,
             out,
         )
