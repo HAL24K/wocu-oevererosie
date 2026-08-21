@@ -111,6 +111,29 @@ def build_segment_frame(
     frame = pd.DataFrame(rows)
     frame["seg_center"] = (frame["seg"] + 0.5) / R
     frame["seg_edge"] = np.minimum(frame["seg_center"], 1 - frame["seg_center"])
+
+    from src.pipeline.region_split import get_cluster
+
+    frame["cluster"] = frame[LOCATION_ID].map(get_cluster)
+    frame["n_timestamps"] = 3
+    frame["is_nvo"] = frame[LOCATION_ID].map(caches.static["is_nvo"]).astype(bool)
+    frame["quality"] = frame[LOCATION_ID].map(caches.static["quality"])
+    ev_sum = (
+        caches.ev.groupby([LOCATION_ID, "_yb", "_ya"])["erosion_volume"]
+        .sum()
+        .reset_index()
+    )
+    for label, (a, b) in {"train": ("t1", "t2"), "test": ("t2", "t3")}.items():
+        m = frame[[LOCATION_ID, a, b]].merge(
+            ev_sum,
+            left_on=[LOCATION_ID, a, b],
+            right_on=[LOCATION_ID, "_yb", "_ya"],
+            how="left",
+        )
+        frame[f"erosion_vol_{label}_rate"] = (
+            m["erosion_volume"].fillna(0).values / frame[f"{label}_span_yr"].values
+        )
+    frame["erosion_vol_rate_t1"] = frame["erosion_vol_train_rate"]
     return frame, seg_obs
 
 
