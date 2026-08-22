@@ -62,15 +62,17 @@ MASK_ALL = shapely.union_all(
 )
 shapely.prepare(MASK_ALL)
 
+SKIP_E10 = True
 # ── e10: gully mask on top of e8 + water ─────────────────────────────────────
-run_variant(
-    "e10-gully-mask",
-    caches,
-    E8_RULES,
-    structures=MASK_ALL,
-    v_limit=50.0,
-    notes="kribben + secondary water + new_in_hybrid gully polygons",
-)
+if not SKIP_E10:
+    run_variant(
+        "e10-gully-mask",
+        caches,
+        E8_RULES,
+        structures=MASK_ALL,
+        v_limit=50.0,
+        notes="kribben + secondary water + new_in_hybrid gully polygons",
+    )
 
 obs = load_obs_e8(caches, None)  # cached parquet; structures arg unused on load
 
@@ -83,7 +85,8 @@ train_ids = ok_ids - frozen
 def horizon_rows(yearly: pd.DataFrame, key_cols: list, H: int, multi: bool):
     rows = []
     for key, g in yearly.groupby(key_cols, sort=False):
-        loc = key if isinstance(key, str) else key[0]
+        key = key if isinstance(key, tuple) else (key,)
+        loc = key[0]
         if loc not in ok_ids:
             continue
         ys = g["year"].values
@@ -122,7 +125,7 @@ def horizon_rows(yearly: pd.DataFrame, key_cols: list, H: int, multi: bool):
                 "v_test": (ds[j] - ds[i]) / (ys[j] - ys[i]),
                 "split": split,
             }
-            if not isinstance(key, str):
+            if len(key_cols) > 1:
                 row["seg"] = key[1]
             rows.append(row)
     return pd.DataFrame(rows)
