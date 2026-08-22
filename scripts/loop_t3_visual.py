@@ -24,7 +24,7 @@ from src.erosion.region_inspector import (
 from src.loop.harness import load_caches
 from src.loop.multi_t import load_obs_e8, prepare_standard
 from src.loop.resolution import build_segment_frame, load_dense
-from src.loop.rules import make_structure_geom
+from src.cleaning.rules import make_structure_geom
 from src.sources.geometry import LOCATION_ID
 
 warnings.filterwarnings("ignore")

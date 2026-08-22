@@ -56,6 +56,13 @@ class ExperimentConfig:
     signalering_layer: str = "Vlak_vrije_ruimte_natuurvriendelijke_oever_ln"
     structures_gpkg: Path | None = None
     structures_layer: str = "Kribben_BKN"
+    hybrid_gpkg: Path | None = None
+
+    # ── source ────────────────────────────────────────────────────────────────
+    # "points": the height-model point cloud (the pre-graduation pipeline).
+    # "hybrid": the hybrid line delivery with the graduated cleaning stack
+    # (experiments/loop/TRACK1_REPORT.md) and trajectory features.
+    source: str = "points"
 
     # ── parameters ────────────────────────────────────────────────────────────
     # Structure mask: at a groyne the water's edge is the structure flank, not
@@ -64,13 +71,35 @@ class ExperimentConfig:
     # at least min_samples_per_obs surviving samples to produce a scalar.
     # 10 m is the empirical elbow (scripts/kribben_padding_sweep.py).
     mask_buffer_m: float = 10.0
-    min_samples_per_obs: int = 12
+    min_samples_per_obs: int = 8  # e8: relaxable once artefacts die upstream
     n_points: int = 3  # furthest OK points averaged per (region, year)
+    n_samples: int = 20  # points sampled along each hybrid line
     test_size: float = 0.20
     seed: int = 42
     start_year: int = 2026
     end_year: int = 2050
     model_name: str = "lgb"  # which bundle model drives the prediction
+
+    # ── graduated cleaning stack (hybrid source; TRACK1_REPORT e8 recipe) ─────
+    water_mask: bool = True  # vegetatielegger Water parts without a centreline
+    tortuosity_max: float = 3.0
+    nearbank_frac: float = 0.25
+    nearbank_min_ref: float = 30.0
+    maze_max_ratio: float = 1.8
+    maze_min_iqr: float = 20.0
+    fragment_min_cov: float = 0.25
+    temporal_max_dev: float = 15.0
+    temporal_min_surveys: int = 3
+    temporal_protect_years: int = 3
+    farbank_v_limit: float = 50.0
+
+    # ── graduated modelling (TRACK2/TRACK3 winners) ───────────────────────────
+    trajectory_features: bool = True  # traj2 history descriptors (hybrid only)
+    val_frac: float = 0.15  # honest early stopping: grouped val split, never test
+    segment_R: int = 5  # segments per region for the horizon artifact
+    segment_n_samples: int = 60  # dense sampling for segment scalars
+    horizon_min_years: int = 2  # forecast horizon of the segment artifact
+    build_segments: bool = True  # produce the segment-horizon artifact (hybrid)
 
     # ── behaviour ─────────────────────────────────────────────────────────────
     export_gpkg: bool = True  # write the (large) output GeoPackage
@@ -88,6 +117,7 @@ class ExperimentConfig:
         "reference_features_v2": "02_processed/erosion/region_features_v2.parquet",
         "signalering_gpkg": "01_raw/scope/20260205_signaleringslijn.gpkg",
         "structures_gpkg": "01_raw/scope/Levering_erosie_data.gpkg",
+        "hybrid_gpkg": "02_processed/hybrid/hybrid_model_results_20260710.gpkg",
     }
 
     def __post_init__(self) -> None:

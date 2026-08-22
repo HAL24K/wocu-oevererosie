@@ -26,7 +26,7 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import mean_absolute_error, r2_score
 
-from src.loop.rules import RuleContext, apply_rules
+from src.cleaning.rules import RuleContext, apply_rules
 from src.pipeline.config import ExperimentConfig
 from src.pipeline.feature_engineering import (
     HW_WINDOW_COLS,

@@ -18,7 +18,7 @@ import shapely
 from src.erosion.region_inspector import RegionInspector
 from src.loop.harness import load_caches
 from src.loop.multi_t import E8_RULES
-from src.loop.rules import RuleContext, apply_rules, make_structure_geom
+from src.cleaning.rules import RuleContext, apply_rules, make_structure_geom
 from src.sources.geometry import LOCATION_ID
 
 warnings.filterwarnings("ignore")

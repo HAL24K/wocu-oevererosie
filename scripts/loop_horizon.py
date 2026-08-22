@@ -25,7 +25,7 @@ from src.loop.multi_t import (
     prepare_standard,
     trajectory_features,
 )
-from src.loop.rules import make_structure_geom
+from src.cleaning.rules import make_structure_geom
 from src.sources.geometry import LOCATION_ID
 
 warnings.filterwarnings("ignore")

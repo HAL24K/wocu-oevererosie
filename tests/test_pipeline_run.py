@@ -73,8 +73,70 @@ def test_combine_backfills_test_span_and_keeps_shared_columns_only():
 
 @pytest.mark.parametrize(
     "key",
-    ["experiment", "n_points", "seed", "raw_gpkg", "mask_buffer_m", "structures_gpkg"],
+    [
+        "experiment",
+        "n_points",
+        "seed",
+        "raw_gpkg",
+        "mask_buffer_m",
+        "structures_gpkg",
+        "source",
+        "hybrid_gpkg",
+        "water_mask",
+        "temporal_max_dev",
+        "segment_R",
+        "val_frac",
+    ],
 )
 def test_config_table_is_complete(tmp_path, key):
     cfg = ExperimentConfig(experiment="t4", data_dir=tmp_path)
     assert key in cfg.to_table()
+
+
+def test_cleaning_rules_reflect_config(tmp_path):
+    from src.pipeline.hybrid_prep import cleaning_rules
+
+    cfg = ExperimentConfig(
+        experiment="t5", data_dir=tmp_path, maze_min_iqr=33.0, temporal_max_dev=9.0
+    )
+    rules = dict(cleaning_rules(cfg))
+    assert rules["maze_survey"]["min_iqr"] == 33.0
+    assert rules["temporal_outlier_survey"]["max_dev"] == 9.0
+    assert rules["temporal_outlier_survey"]["detrend"] is True
+
+
+def test_trajectory_features_respect_the_origin():
+    from src.pipeline.trajectory import trajectory_features
+
+    obs = pd.DataFrame(
+        {
+            "location_id": ["a"] * 4,
+            "date": pd.to_datetime(
+                ["2022-06-01", "2023-06-01", "2024-06-01", "2026-06-01"]
+            ),
+            "dist_m": [10.0, 12.0, 14.0, 99.0],  # 2026 is a post-origin artefact
+            "source": ["segmentation"] * 4,
+        }
+    )
+    out = trajectory_features(obs, pd.Series({"a": 2024}))
+    assert out.loc["a", "n_hist"] == 3  # the 2026 survey must not leak in
+    assert abs(out.loc["a", "theil_v"] - 2.0) < 0.1
+
+
+def test_train_honest_validation_never_touches_test(tmp_path):
+    import numpy as np
+
+    from src.pipeline.train import FEATS_LGB, train_and_save_models
+
+    rng = np.random.default_rng(0)
+    n = 120
+    df = pd.DataFrame(
+        {c: rng.normal(size=n) for c in FEATS_LGB},
+        index=pd.Index([f"r{i}" for i in range(n)], name="location_id"),
+    )
+    df["is_nvo"] = rng.random(n) > 0.5
+    df["v_test"] = df["v_train"] * 0.5 + rng.normal(scale=0.1, size=n)
+    df["split"] = ["train"] * 90 + ["test"] * 30
+    results = train_and_save_models(df, tmp_path / "out", seed=1, val_frac=0.2)
+    assert "5 – LightGBM" in results
+    assert results["5 – LightGBM"]["test_mae"] < results["0 – Naive mean"]["test_mae"]

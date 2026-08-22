@@ -30,13 +30,11 @@ import pandas as pd
 
 from src.loop.harness import (
     Caches,
-    aggregate_observations,
     build_features_fast,
     build_split_frame,
     farbank_region_filter,
     to_dist_per_year,
 )
-from src.loop.rules import RuleContext, apply_rules
 from src.sources.geometry import LOCATION_ID
 
 E8_RULES = [
@@ -52,96 +50,12 @@ E8_RULES = [
     ),
 ]
 
-TRAJ_FEATS = [
-    "n_hist",
-    "nyears_hist",
-    "span_hist_yr",
-    "theil_v",
-    "theil_resid_std",
-    "accel_v",
-    "last_gap_yr",
-    "frac_sam",
-]
-
-#: traj2: TRAJ_FEATS plus mean-reversion/recency signals.
-TRAJ_FEATS2 = [*TRAJ_FEATS, "resid_last", "v_recent", "slope_recent"]
-
-
-def load_obs_e8(caches: Caches, structures) -> pd.DataFrame:
-    """e8-cleaned observations (one row per region-survey), cached on disk."""
-    path = caches.cache_dir / "obs_e8.parquet"
-    if path.exists():
-        return pd.read_parquet(path)
-    ctx = RuleContext(
-        line_metrics=caches.line_metrics,
-        cl_len=caches.static["cl_len"],
-        structures=structures,
-    )
-    s = apply_rules(caches.samples, ctx, E8_RULES)
-    obs = aggregate_observations(s)
-    obs.to_parquet(path, index=False)
-    return obs
-
-
-def _theil(t: np.ndarray, y: np.ndarray) -> tuple[float, np.ndarray]:
-    """Theil–Sen slope and residuals; (nan, zeros) when underdetermined."""
-    if len(t) < 2 or t.max() == t.min():
-        return np.nan, np.zeros_like(y)
-    i, j = np.triu_indices(len(t), k=1)
-    dt = t[j] - t[i]
-    ok = dt != 0
-    slope = float(np.median((y[j] - y[i])[ok] / dt[ok]))
-    resid = y - (slope * t + np.median(y - slope * t))
-    return slope, resid
-
-
-def _traj_row(t: np.ndarray, y: np.ndarray, sam: np.ndarray) -> dict:
-    slope, resid = _theil(t, y)
-    half = t.min() + (t.max() - t.min()) / 2
-    lo, hi = t <= half, t > half
-    accel = np.nan
-    if lo.sum() >= 2 and hi.sum() >= 2:
-        s1, _ = _theil(t[lo], y[lo])
-        s2, _ = _theil(t[hi], y[hi])
-        accel = s2 - s1
-    return {
-        "n_hist": len(t),
-        "nyears_hist": len(np.unique(np.floor(t))),
-        "span_hist_yr": float(t.max() - t.min()),
-        "theil_v": slope,
-        "theil_resid_std": float(resid.std()) if len(t) >= 3 else np.nan,
-        "accel_v": accel,
-        "last_gap_yr": float(t[-1] - t[-2]) if len(t) >= 2 else np.nan,
-        "frac_sam": float(sam.mean()),
-        # mean-reversion / recency signals (traj2 set)
-        "resid_last": float(resid[-1]) if len(t) >= 3 else np.nan,
-        "v_recent": (
-            float((y[-1] - y[-2]) / (t[-1] - t[-2]))
-            if len(t) >= 2 and t[-1] - t[-2] > 0.1
-            else np.nan
-        ),
-        "slope_recent": _theil(t[-3:], y[-3:])[0] if len(t) >= 3 else np.nan,
-    }
-
-
-def trajectory_features(obs: pd.DataFrame, origin_year: pd.Series) -> pd.DataFrame:
-    """Per-region trajectory descriptors from surveys with year <= origin.
-
-    ``origin_year``: forecast origin (t2) per location_id. Rows for regions
-    absent from it are dropped.
-    """
-    o = obs[[LOCATION_ID, "date", "dist_m", "source"]].copy()
-    o["origin"] = o[LOCATION_ID].map(origin_year)
-    o = o[o["date"].dt.year <= o["origin"]].sort_values([LOCATION_ID, "date"])
-    o["t"] = o["date"].map(pd.Timestamp.toordinal) / 365.25
-    o["sam"] = (o["source"] == "segmentation").astype(float)
-
-    rows = {}
-    for loc, g in o.groupby(LOCATION_ID, sort=False):
-        rows[loc] = _traj_row(g["t"].values, g["dist_m"].values, g["sam"].values)
-    out = pd.DataFrame.from_dict(rows, orient="index")
-    out.index.name = LOCATION_ID
-    return out
+from src.pipeline.trajectory import (  # noqa: E402 — graduated home
+    TRAJ_FEATS,
+    TRAJ_FEATS2,
+    trajectory_features,
+)
+from src.pipeline.trajectory import traj_row as _traj_row  # noqa: E402
 
 
 def date_true_target(obs: pd.DataFrame, split: pd.DataFrame) -> pd.DataFrame:

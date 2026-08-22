@@ -61,6 +61,7 @@ class RunResult:
     train_results: dict[str, Any] | None = None
     predictions: pd.DataFrame | None = None
     vvr_crossing: pd.DataFrame | None = None
+    segment_metrics: dict[str, Any] | None = None
     acceptance: list[tuple[str, bool, str]] = field(default_factory=list)
     timings: dict[str, float] = field(default_factory=dict)
     output_gpkg: Path | None = None
@@ -244,10 +245,19 @@ def run(cfg: ExperimentConfig, write_report: bool = True) -> RunResult:
     # 1 · bank distances ------------------------------------------------------
     t = step("1 · bank distances")
     dpy_path = cfg.features_dir / "dist_per_year.parquet"
+    obs_path = cfg.features_dir / "observations.parquet"
+    samples_path = cfg.features_dir / "samples.parquet"
     res.dist_per_year = cached(dpy_path)
     if res.dist_per_year is None:
-        source = HeightModelPointSource(cfg.raw_gpkg, n_points=cfg.n_points)
-        res.dist_per_year = source.load().to_dist_per_year()
+        if cfg.source == "hybrid":
+            from src.pipeline.hybrid_prep import build_observations
+
+            samples, observations, res.dist_per_year = build_observations(cfg)
+            samples.to_parquet(samples_path, index=False)
+            observations.to_parquet(obs_path, index=False)
+        else:
+            source = HeightModelPointSource(cfg.raw_gpkg, n_points=cfg.n_points)
+            res.dist_per_year = source.load().to_dist_per_year()
         res.dist_per_year.to_parquet(dpy_path, index=False)
     done("1 · bank distances", t)
 
@@ -290,10 +300,36 @@ def run(cfg: ExperimentConfig, write_report: bool = True) -> RunResult:
         res.region_inference_features.to_parquet(inf_feat_path)
     done("3 · feature engineering", t)
 
+    # 3b · trajectory features (hybrid source) ---------------------------------
+    extra_features: list[str] = []
+    if cfg.source == "hybrid" and cfg.trajectory_features:
+        t = step("3b · trajectory features")
+        from src.pipeline.trajectory import TRAJ_FEATS2, trajectory_features
+
+        observations = pd.read_parquet(cfg.features_dir / "observations.parquet")
+        for frame, meta in (
+            (res.region_features, res.region_split),
+            (res.region_inference_features, res.region_inference),
+        ):
+            missing = [c for c in TRAJ_FEATS2 if c not in frame.columns]
+            if not missing:
+                continue
+            origins = meta["t2"].reindex(frame.index).astype(int)
+            traj = trajectory_features(observations, origins)
+            frame[TRAJ_FEATS2] = traj.reindex(frame.index)[TRAJ_FEATS2].fillna(0.0)
+        res.region_features.to_parquet(feat_path)
+        res.region_inference_features.to_parquet(inf_feat_path)
+        extra_features = list(TRAJ_FEATS2)
+        done("3b · trajectory features", t)
+
     # 4 · train -----------------------------------------------------------------
     t = step("4 · train")
     res.train_results = train_and_save_models(
-        res.region_features, cfg.model_out_dir, seed=cfg.seed
+        res.region_features,
+        cfg.model_out_dir,
+        seed=cfg.seed,
+        extra_features=extra_features,
+        val_frac=cfg.val_frac,
     )
     done("4 · train", t)
 
@@ -371,6 +407,19 @@ def run(cfg: ExperimentConfig, write_report: bool = True) -> RunResult:
         )
         done("7 · export GeoPackage", t)
 
+    # 8 · segment-horizon artifact (hybrid source) -------------------------------
+    if cfg.source == "hybrid" and cfg.build_segments:
+        t = step("8 · segment-horizon artifact")
+        from src.pipeline.segments import build_segment_artifact
+
+        kept_line_idx = pd.read_parquet(
+            cfg.features_dir / "samples.parquet", columns=["line_idx"]
+        )["line_idx"].unique()
+        res.segment_metrics = build_segment_artifact(
+            cfg, res.region_split, res.region_features, kept_line_idx
+        )
+        done("8 · segment-horizon artifact", t)
+
     res.acceptance = acceptance_checks(res, bank_positions)
     for name, ok, detail in res.acceptance:
         logger.info("   [%s] %s — %s", "OK" if ok else "FAIL", name, detail)
@@ -389,6 +438,13 @@ def main(argv: list[str] | None = None) -> int:
 
     ap = argparse.ArgumentParser(description="Run the erosion prediction pipeline.")
     ap.add_argument("--experiment", required=True, help="run name, e.g. 20260817a")
+    ap.add_argument(
+        "--source",
+        choices=["points", "hybrid"],
+        default="points",
+        help="'hybrid' = graduated pipeline: line delivery, e8 cleaning, "
+        "trajectory features, honest validation, segment artifact",
+    )
     ap.add_argument("--start-year", type=int, default=2026)
     ap.add_argument("--end-year", type=int, default=2050)
     ap.add_argument("--seed", type=int, default=42)
@@ -403,6 +459,7 @@ def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     cfg = ExperimentConfig(
         experiment=args.experiment,
+        source=args.source,
         start_year=args.start_year,
         end_year=args.end_year,
         seed=args.seed,

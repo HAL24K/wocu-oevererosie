@@ -14,7 +14,7 @@ import geopandas as gpd
 from src.loop.harness import load_caches
 from src.loop.multi_t import load_obs_e8
 from src.loop.resolution import load_dense, run_t3_variant
-from src.loop.rules import make_structure_geom
+from src.cleaning.rules import make_structure_geom
 
 warnings.filterwarnings("ignore")
 logging.basicConfig(level=logging.WARNING)

@@ -92,6 +92,8 @@ def train_and_save_models(
     features: pd.DataFrame,
     model_out_dir: Path,
     seed: int = 42,
+    extra_features: list[str] | None = None,
+    val_frac: float = 0.0,
 ) -> dict[str, Any]:
     """Train all models on features and save a bundle to model_out_dir.
 
@@ -99,12 +101,19 @@ def train_and_save_models(
         features:      region_features DataFrame (must have 'split' column).
         model_out_dir: Directory where bundle and individual model files are written.
         seed:          Random seed for LightGBM and any stochastic operations.
+        extra_features: Additional LGB feature columns (e.g. the trajectory
+            descriptors of the graduated hybrid pipeline).
+        val_frac:      When > 0, LightGBM early-stops on a validation split
+            carved from the *train* regions instead of on the test set —
+            honest evaluation; the test rows are never seen during training.
 
     Returns:
         RESULTS dict keyed by model name, each containing train/test metrics.
     """
     model_out_dir = Path(model_out_dir)
     model_out_dir.mkdir(parents=True, exist_ok=True)
+
+    feats_lgb = FEATS_LGB + [c for c in (extra_features or []) if c not in FEATS_LGB]
 
     train = features[features["split"] == "train"].copy()
     test = features[features["split"] == "test"].copy()
@@ -174,8 +183,7 @@ def train_and_save_models(
     )
 
     # ── Model 5: LightGBM ─────────────────────────────────────────────────────
-    X_tr_lgb = _prep_lgb(train, FEATS_LGB)
-    X_te_lgb = _prep_lgb(test, FEATS_LGB)
+    X_te_lgb = _prep_lgb(test, feats_lgb)
     lgb_model = lgb.LGBMRegressor(
         n_estimators=500,
         learning_rate=0.05,
@@ -183,15 +191,32 @@ def train_and_save_models(
         random_state=seed,
         verbose=-1,
     )
-    lgb_model.fit(
-        X_tr_lgb,
-        train[TARGET],
-        eval_set=[(X_te_lgb, test[TARGET])],
-        callbacks=[
-            lgb.early_stopping(50, verbose=False),
-            lgb.log_evaluation(period=-1),
-        ],
-    )
+    if val_frac > 0:
+        # honest early stopping: hold out a slice of the train regions;
+        # the test set plays no role in fitting.
+        rng = np.random.default_rng(seed)
+        val_mask = rng.random(len(train)) < val_frac
+        fit_rows, val_rows = train[~val_mask], train[val_mask]
+        lgb_model.fit(
+            _prep_lgb(fit_rows, feats_lgb),
+            fit_rows[TARGET],
+            eval_set=[(_prep_lgb(val_rows, feats_lgb), val_rows[TARGET])],
+            callbacks=[
+                lgb.early_stopping(50, verbose=False),
+                lgb.log_evaluation(period=-1),
+            ],
+        )
+    else:
+        lgb_model.fit(
+            _prep_lgb(train, feats_lgb),
+            train[TARGET],
+            eval_set=[(X_te_lgb, test[TARGET])],
+            callbacks=[
+                lgb.early_stopping(50, verbose=False),
+                lgb.log_evaluation(period=-1),
+            ],
+        )
+    X_tr_lgb = _prep_lgb(train, feats_lgb)
     evaluate(
         "5 – LightGBM",
         train[TARGET],
@@ -206,10 +231,11 @@ def train_and_save_models(
         "FEATS_2": FEATS_2,
         "FEATS_3": FEATS_3,
         "FEATS_4": FEATS_4,
-        "FEATS_LGB": FEATS_LGB,
+        "FEATS_LGB": feats_lgb,
         "CAT_FEATS": CAT_FEATS,
         "TAIL_THRESHOLD": TAIL_THRESHOLD,
         "seed": seed,
+        "val_frac": val_frac,
     }
     save_model_bundle(
         path=model_out_dir,
