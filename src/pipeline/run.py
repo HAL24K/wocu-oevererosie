@@ -317,10 +317,18 @@ def run(cfg: ExperimentConfig, write_report: bool = True) -> RunResult:
             origins = meta["t2"].reindex(frame.index).astype(int)
             traj = trajectory_features(observations, origins)
             frame[TRAJ_FEATS2] = traj.reindex(frame.index)[TRAJ_FEATS2].fillna(0.0)
-        res.region_features.to_parquet(feat_path)
-        res.region_inference_features.to_parquet(inf_feat_path)
         extra_features = list(TRAJ_FEATS2)
         done("3b · trajectory features", t)
+
+    if cfg.source == "hybrid":
+        # hybrid regions extend beyond the reference feature coverage; the
+        # linear baselines cannot digest the resulting NaNs (the experiment
+        # harness and prep script filled them the same way).
+        for frame in (res.region_features, res.region_inference_features):
+            num = frame.select_dtypes("number").columns
+            frame[num] = frame[num].fillna(0.0)
+        res.region_features.to_parquet(feat_path)
+        res.region_inference_features.to_parquet(inf_feat_path)
 
     # 4 · train -----------------------------------------------------------------
     t = step("4 · train")
