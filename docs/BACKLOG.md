@@ -223,3 +223,42 @@ slope target definition alone collapses target noise (std 11.4 → ~2.9 at
 outlier filtering + resolution to deliver real signal, and honest evaluation
 (grouped split, no test-set early stopping) may *raise* measured error even
 as the model improves. Frame October numbers accordingly.
+
+## 2026-08-22 loop experiment closed → graduation shipped
+
+Three-track loop experiment (branch `experiment/loop-engineering`,
+reports in `experiments/loop/TRACK{1,2,3}_REPORT.md`, every variant in
+`experiments/loop/ledger.csv`) closed and graduated into the pipeline
+(`--source hybrid`). Winners: e8 cleaning stack (repair-over-removal,
+detrended Theil–Sen temporal rule with eligibility guard), traj2
+trajectory features, R=5 segment × ≥2-yr horizon model (span-weighted).
+Honest validation everywhere: LGB early-stops on a train-carved split,
+the test set never touches fitting.
+
+**Graduated run 20260822-grad (honest, fresh grouped split):**
+- Region model: LGB test MAE 2.63 m/jr · tail(>2) 5.90 (n=221) — vs the
+  20260820 baseline 4.01 / ~8.3 under *easier* (test-ES) conditions.
+- Segment-horizon artifact (R=5, H≥2): MAE 1.15 · tail 3.04 · R² 0.49 ·
+  median position error **1.08 m** at the ≥2-yr horizon;
+  `segment_predictions.parquet` = 48,336 segments / 10,261 regions —
+  the input for the any-segment-crosses-VVR alert.
+- Full product artifacts: predictions gpkg (182,525 points, 1,129/1,410
+  VVR crossing years filled), report.html, segment metrics json.
+
+**October framing (three rulers, tell them apart):**
+1-yr region ruler (comparable to March/Aug): 9.13 → 5.90 honest.
+≥2-yr horizon region ruler: tail_frozen 2.50 (experiment, k5).
+Segment-horizon (the operational quantity): tail 3.04, position error
+~1.1 m median — improves automatically as SAM years accumulate.
+
+**Remaining roadmap:**
+- Wire `segment_predictions.parquet` → any-segment-crosses-VVR alert in
+  the signalering step (Alexander's stated alert semantics).
+- Bridges gpkg + IJssel/Maas kribben (GIS engineers) → drop into the
+  structures mask slot (kribben cover only Waal + Nederrijn-Lek today).
+- Gully-mask refinement: mask only samples inside a new_in_hybrid
+  polygon AND far from the main channel (blunt polygon costs coverage;
+  contamination measured at 5.9% of normal-region samples).
+- H=3 horizon ruler matures with each new SAM year (starved today).
+- QGIS labelling queues: protected-but-suspect surveys (temporal rule),
+  segment prediction-spread ranking (t3 showcase).
