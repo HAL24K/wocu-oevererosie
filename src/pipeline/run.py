@@ -448,10 +448,11 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--experiment", required=True, help="run name, e.g. 20260817a")
     ap.add_argument(
         "--source",
-        choices=["points", "hybrid"],
-        default="points",
-        help="'hybrid' = graduated pipeline: line delivery, e8 cleaning, "
-        "trajectory features, honest validation, segment artifact",
+        choices=["hybrid", "points"],
+        default="hybrid",
+        help="'hybrid' (default) = line delivery, cleaning rules, trajectory "
+        "features, honest validation, segment artifact; 'points' = the "
+        "pre-2026-08 point-cloud pipeline",
     )
     ap.add_argument("--start-year", type=int, default=2026)
     ap.add_argument("--end-year", type=int, default=2050)

@@ -13,14 +13,19 @@ Rijkswaterstaat.
 One command runs the whole pipeline and writes a browsable report:
 
 ```bash
-uv run python -m src.pipeline --experiment 20260817a
+uv run python -m src.pipeline --experiment 20260825a
 ```
 
 Outputs land in `data/03_features/<experiment>/` and `data/04_model_outputs/<experiment>/`,
 including `report.html` — figures and tables for every step, viewable in a browser.
-Inputs and parameters live in `src/pipeline/config.py` (`ExperimentConfig`); defaults
-reproduce the 20260617a reference run. Useful flags: `--no-export` (skip the 185 MB
-GeoPackage), `--resume` (reuse per-step parquets), `--end-year`.
+Inputs and parameters live in `src/pipeline/config.py` (`ExperimentConfig`). The default
+source is the hybrid *line* delivery with the cleaning rules, trajectory features, honest
+validation and the segment-horizon artifact that graduated from the loop-engineering
+experiment (what changed and why: [`docs/PIPELINE_CHANGES.md`](docs/PIPELINE_CHANGES.md);
+the evidence: [`experiments/loop/LEARNINGS.md`](experiments/loop/LEARNINGS.md)).
+`--source points` reproduces the pre-August point-cloud pipeline (20260617a reference run).
+Useful flags: `--no-export` (skip the 185 MB GeoPackage), `--resume` (reuse per-step
+parquets), `--end-year`.
 
 The master notebook (`notebooks/04_model/20260617a/00_master.ipynb`) documents the same
 flow interactively, and `notebooks/01_scenarios.ipynb` replays individual steps with
@@ -65,16 +70,20 @@ currently fail on upstream schema drift; run them with `./run_tests.sh -m integr
 ```
 delivery (points or lines)
    │
+   ├── src/cleaning/           composable cleaning rules (sample / line / survey level)
    ├── src/sources/            read any delivery into bank observations
    │                           (location_id, date, dist_m, source)
    ▼
 src/pipeline/
    config.py                   ExperimentConfig — all paths and parameters
    run.py                      orchestrator + CLI; writes report.html per run
-   bank_distances.py           01 · reduce a point cloud to one distance per region-year
+   hybrid_prep.py              01 · lines → samples → structure mask → cleaning → dist/year
+   bank_distances.py           01 · (points source) reduce a point cloud to one distance per region-year
    region_split.py             02 · pivot to t1/t2/t3, quality filter, train/test split
    feature_engineering.py      03 · vegetation, land use, soil, hydrology, bend exposure
-   train.py                    05 · six models, LightGBM primary; saves a bundle
+   trajectory.py               03b · per-region history descriptors up to the forecast origin
+   train.py                    05 · six models, LightGBM primary (honest early stopping); saves a bundle
+   segments.py                 08 · R=5 segment-horizon model → segment_predictions.parquet
    curvature.py                     bend exposure — not yet wired into 03
    │
    ▼

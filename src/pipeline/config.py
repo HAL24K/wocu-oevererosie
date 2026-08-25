@@ -69,10 +69,12 @@ class ExperimentConfig:
     hybrid_gpkg: Path | None = None
 
     # ── source ────────────────────────────────────────────────────────────────
-    # "points": the height-model point cloud (the pre-graduation pipeline).
-    # "hybrid": the hybrid line delivery with the graduated cleaning stack
-    # (experiments/loop/TRACK1_REPORT.md) and trajectory features.
-    source: str = "points"
+    # "hybrid" (default since 2026-08-25): the hybrid line delivery with the
+    # graduated cleaning stack, trajectory features, honest validation and
+    # the segment-horizon artifact (docs/PIPELINE_CHANGES.md).
+    # "points": the height-model point cloud — the pre-graduation pipeline,
+    # kept unchanged for comparison with the 20260617a reference run.
+    source: str = "hybrid"
 
     # ── parameters ────────────────────────────────────────────────────────────
     # Structure mask: at a groyne the water's edge is the structure flank, not
