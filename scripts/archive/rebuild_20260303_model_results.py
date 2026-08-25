@@ -24,8 +24,8 @@ import pandas as pd
 BACKEND = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(BACKEND))
 
-import src.paths as PATHS
 import src.constants as CONST
+import src.paths as PATHS
 
 # Paths
 DATA_DIR = PATHS.DATA_DIR
@@ -34,8 +34,12 @@ PARQUET_PATH = DATA_DIR / "02_processed/erosion/processed_erosion_data.parquet"
 RAW_GPKG = DATA_DIR / "01_raw/erosion/wocu_output_fase2_20260210.gpkg"
 OUTPUT_GPKG = DATA_DIR / "04_model_outputs/20260303/20260303_model_results.gpkg"
 # Alexander used Luke's wocu_post_processed_fase2_20260223.gpkg as base (per his email)
-POSTPROC_20260223 = DATA_DIR / "02_processed/erosion/wocu_post_processed_fase2_20260223.gpkg"
-POSTPROC_20260310 = DATA_DIR / "02_processed/erosion/wocu_post_processed_fase2_20260310.gpkg"
+POSTPROC_20260223 = (
+    DATA_DIR / "02_processed/erosion/wocu_post_processed_fase2_20260223.gpkg"
+)
+POSTPROC_20260310 = (
+    DATA_DIR / "02_processed/erosion/wocu_post_processed_fase2_20260310.gpkg"
+)
 POSTPROC_GPKG = POSTPROC_20260223 if POSTPROC_20260223.exists() else POSTPROC_20260310
 
 REFERENCE_YEAR = 2025
@@ -62,11 +66,13 @@ def get_last_dist_and_year(processed: pd.DataFrame) -> pd.DataFrame:
         dists = group_sorted[DIST_COL].tolist()
         last_year = years[-1]
         last_dist = dists[-1]
-        records.append({
-            "location_id": location_id,
-            "last_year": last_year,
-            "last_dist": last_dist,
-        })
+        records.append(
+            {
+                "location_id": location_id,
+                "last_year": last_year,
+                "last_dist": last_dist,
+            }
+        )
     df = pd.DataFrame(records).set_index("location_id")
     return df
 
@@ -101,13 +107,15 @@ def build_predicted_bank_positions(
 
         for year in PREDICTION_YEARS:
             predicted_dist = dist_at_ref + velocity * (year - REFERENCE_YEAR)
-            rows.append({
-                "location_id": location_id,
-                "year": year,
-                "predicted_dist_m": predicted_dist,
-                "velocity_m_per_yr": velocity,
-                "is_nvo": is_nvo,
-            })
+            rows.append(
+                {
+                    "location_id": location_id,
+                    "year": year,
+                    "predicted_dist_m": predicted_dist,
+                    "velocity_m_per_yr": velocity,
+                    "is_nvo": is_nvo,
+                }
+            )
 
     df = pd.DataFrame(rows)
 
@@ -119,7 +127,10 @@ def build_predicted_bank_positions(
         bank_points["_dtm"] = 0
     last_obs = bank_points.loc[bank_points.groupby("location_id")["_dtm"].idxmax()]
     geom_per_loc = last_obs.groupby("location_id").agg(
-        geometry=("geometry", lambda g: g.unary_union.centroid if len(g) > 1 else g.iloc[0])
+        geometry=(
+            "geometry",
+            lambda g: g.unary_union.centroid if len(g) > 1 else g.iloc[0],
+        )
     )
     df = df.merge(geom_per_loc, left_on="location_id", right_index=True, how="left")
     gdf = gpd.GeoDataFrame(df, geometry="geometry", crs=bank_points.crs)
@@ -144,7 +155,9 @@ def get_nvo_location_ids(
         predicate="intersects",
     )
     # Deduplicate: take first match per vvr row (drop index_right)
-    joined = joined.drop(columns=["index_right"] if "index_right" in joined.columns else [])
+    joined = joined.drop(
+        columns=["index_right"] if "index_right" in joined.columns else []
+    )
     joined = joined[~joined["location_id"].isna()]
     # One vvr row per location - take unique
     return set(joined["location_id"].astype(str).unique())
@@ -212,7 +225,9 @@ def main() -> None:
 
     print("Loading punten_oever for geometry...")
     bank_points = gpd.read_file(RAW_GPKG, layer="punten_oever")
-    print(f"  {len(bank_points):,} points, {bank_points['location_id'].nunique():,} locations")
+    print(
+        f"  {len(bank_points):,} points, {bank_points['location_id'].nunique():,} locations"
+    )
 
     print("Loading vvr_rates_of_change and summary_scope...")
     # Use post-processed as source for vvr (canonical 1359 rows); scope from output

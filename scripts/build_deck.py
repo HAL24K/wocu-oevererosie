@@ -115,6 +115,32 @@ class Deck:
         return OUT
 
 
+CAND = FIG / "candidates"
+PICKS = {
+    "single_line": "maas3_l_18580_18590",
+    "resolution": "maas3_r_8930_8940",
+    "r_sweep": "maas3_r_8930_8940",
+    "cleanup": "nederrijn_r_4780_4790",
+}
+
+
+def _col_boxes(d, s, cols, top=Inches(1.8), accent=None):
+    for i, (head, items) in enumerate(cols):
+        left = Inches(0.6 + i * 4.2)
+        box = s.shapes.add_shape(1, left, top, Inches(3.9), Inches(0.6))
+        box.fill.solid()
+        box.fill.fore_color.rgb = ORANGE if accent == i else TEAL
+        box.line.fill.background()
+        p = box.text_frame.paragraphs[0]
+        p.text = head
+        p.font.size, p.font.bold, p.font.color.rgb = (
+            Pt(18),
+            True,
+            RGBColor(255, 255, 255),
+        )
+        d.bullets(s, items, left, top + Inches(0.8), Inches(3.9), Inches(3.8), size=15)
+
+
 def build(renders: Path):
     d = Deck()
 
@@ -139,169 +165,298 @@ def build(renders: Path):
         q.font.size, q.font.color.rgb = Pt(sz), RGBColor(255, 255, 255)
         q.space_before = Pt(12)
 
-    # 2 ── maart
+    # 2 ── maart: één lijn is geen oever
     s = d.slide(
         "Waar we in maart stonden",
-        "Eén rechte lijn per scopevlak, 3–4 jaar tussen metingen",
+        "Eén afstand per scopevlak — en een oever is geen rechte lijn",
     )
-    d.image(s, renders / "march-03.png", Inches(0.6), Inches(1.7), width=Inches(7.6))
+    d.image(
+        s,
+        CAND / "single_line_wavy" / f"{PICKS['single_line']}.png",
+        Inches(0.6),
+        Inches(1.65),
+        height=Inches(5.2),
+    )
     d.bullets(
         s,
         [
-            "Alleen hoogtemodel (AHN3 / AHN4 / AHN5)",
-            "Oever = één afstand tot de hartlijn per vlak",
-            "Fout 0,94 m/jr — maar het model verloor van 'neem het gemiddelde' (0,78)",
-            "Risicogevallen (> 2 m/jr): 4,6 m/jr",
-            "7.444 vlakken met voorspelling",
+            "Alleen hoogtemodel (AHN3 / AHN4 / AHN5), 3–4 jaar tussen opnames",
+            "Per vlak: één afstand tot de hartlijn per opname (gestippeld)",
+            "De gemeten oever (groen) buigt 90°; de 'oever' van het model ligt 56 m verderop",
+            "Fout 0,94 m/jr — maar 'neem het gemiddelde' deed het beter (0,78)",
+            "Risicogevallen (> 2 m/jr): 4,6 m/jr · 7.444 vlakken",
         ],
-        Inches(8.5),
+        Inches(6.4),
         Inches(1.9),
-        Inches(4.4),
+        Inches(6.6),
         Inches(4.5),
         size=16,
     )
     d.note(
         s,
-        "De fout leek laag omdat de input simpel was: rechte lijnen, lange tijdstappen.",
-        Inches(8.5),
-        Inches(5.6),
-        Inches(4.4),
+        "paars = VVR / signaleringslijn · zwart = hartlijn · groen = gemeten oeverlijnen per jaar (donker = recenter)",
+        Inches(6.4),
+        Inches(6.2),
+        Inches(6.6),
     )
     d.speaker(
         s,
-        "Zet de val: het maartcijfer zag er goed uit omdat de meetlat mild was — 3 à 4 jaar tussen metingen dempt de meetruis.",
+        "De val: het maartcijfer zag er goed uit omdat de meetlat mild was (3–4 jaar) én omdat één getal per vlak veel verbergt.",
     )
 
-    # 3 ── hybride levering
+    # 3 ── hybride levering + tabel van vorige week
     s = d.slide(
         "Wat er sindsdien binnenkwam",
-        "Hybride levering: SAM + hoogtemodel, tot 11 meetmomenten, 1 jaar tussen t-punten",
+        "Hybride levering: SAM + hoogtemodel · tot 11 meetmomenten · 1 jaar tussen t-punten",
     )
-    d.image(s, renders / "aug-2.png", Inches(0.6), Inches(1.7), width=Inches(7.9))
-    d.bullets(
+    d.image(s, renders / "aug-2.png", Inches(0.6), Inches(1.6), width=Inches(7.3))
+    rows = [
+        ["", "maart 2026\nalleen hoogtemodel", "augustus 2026\nhybride"],
+        ["Baseline (naïef gemiddelde) — fout test", "0,78", "4,79"],
+        ["LightGBM — fout test", "0,94", "4,12"],
+        ["LightGBM t.o.v. baseline", "20 % slechter", "14 % beter"],
+        ["Spreiding doelvariabele (m/jr)", "2,2", "11,4"],
+        ["Tijd tussen t-punten", "3–4 jaar", "1 jaar"],
+        ["Regio's met voorspellingen", "7.444", "8.006"],
+    ]
+    d.table(
         s,
-        [
-            "16.377 scopevlakken, 91.531 oeverlijnen",
-            "Fout sprong naar 4,1 m/jr — niet omdat het model slechter werd:",
-            (1, "dezelfde meetruis ÷ 4× kleiner tijdsverschil = 4× ruiziger doel"),
-            (1, "ook de baseline ging van 0,78 naar 4,8"),
-            "Voor het eerst verslaat het model de baseline (14 %)",
-            "Nieuw: 12 % van de meetmomenten heeft méér dan één lijn; fragmenten en 'doolhoven'",
-        ],
-        Inches(8.7),
-        Inches(1.9),
-        Inches(4.3),
-        Inches(4.8),
-        size=15,
+        rows,
+        Inches(8.1),
+        Inches(1.7),
+        Inches(4.9),
+        [Inches(2.5), Inches(1.2), Inches(1.2)],
+        size=11,
+    )
+    d.note(
+        s,
+        "Dezelfde meetruis, gedeeld door een 4× kleiner tijdsverschil: het doel wordt 4× ruiziger en élke fout groeit mee — ook die van de baseline. Relatief verslaat het model nu voor het eerst de baseline.",
+        Inches(8.1),
+        Inches(5.0),
+        Inches(4.9),
+        size=12,
+        color=DARK,
+        italic=False,
     )
 
-    # 4 ── drie assen
+    # 4 ── drie assen + uitgangspunt
     s = d.slide(
         "Drie assen om te verbeteren",
-        "Alle drie doorlopen, elk gemeten tegen dezelfde vaste testset van 1.174 vlakken",
+        "Uitgangspunt: het model van 19 augustus, resolutie 1, één vaste testset van 1.174 vlakken",
     )
-    cols = [
-        (
-            "1 · Opschonen",
-            [
-                "Verkeerde-oever-detecties verwijderen zónder de hele meting weg te gooien",
-                "Kribben, bruggen, nevengeulen, doolhoven, fragmenten, uitschieters in de tijd",
-                "Ruim 50 varianten, elk visueel gecontroleerd",
-            ],
-        ),
-        (
-            "2 · Meerdere t-punten",
-            [
-                "Snelheid als trend over álle metingen",
-                "Versnelling, terugkeer naar gemiddelde, recente helling als feature",
-                "Voorspellen op ≥ 2 jaar in plaats van jaar-op-jaar",
-            ],
-        ),
-        (
-            "3 · Resolutie",
-            [
-                "Vijf segmenten per vlak in plaats van één afstand",
-                "Gemeten én voorspelde oever als lijn",
-                "Alarm zodra énig deel de signaleringslijn nadert",
-            ],
-        ),
-    ]
-    for i, (head, items) in enumerate(cols):
-        left = Inches(0.6 + i * 4.2)
-        box = s.shapes.add_shape(1, left, Inches(1.8), Inches(3.9), Inches(0.6))
-        box.fill.solid()
-        box.fill.fore_color.rgb = TEAL
-        box.line.fill.background()
-        p = box.text_frame.paragraphs[0]
-        p.text = head
-        p.font.size, p.font.bold, p.font.color.rgb = (
-            Pt(18),
-            True,
-            RGBColor(255, 255, 255),
-        )
-        d.bullets(s, items, left, Inches(2.6), Inches(3.9), Inches(3.8), size=15)
+    _col_boxes(
+        d,
+        s,
+        [
+            (
+                "1 · Opschonen",
+                [
+                    "Verkeerde-oever-detecties weghalen zónder de meting weg te gooien",
+                    "Kribben, bruggen, nevengeulen, doolhoven, fragmenten, uitschieters in de tijd",
+                ],
+            ),
+            (
+                "2 · Meerdere t-punten",
+                [
+                    "Snelheid als trend over álle metingen",
+                    "Versnelling, terugkeer naar gemiddelde, recente helling als feature",
+                ],
+            ),
+            (
+                "3 · Resolutie",
+                [
+                    "Meerdere segmenten per vlak in plaats van één afstand",
+                    "Gemeten én voorspelde oever als lijn",
+                ],
+            ),
+        ],
+    )
+    d.note(
+        s,
+        "Leeswijzer: op deze vaste testset scoort het model van 19 augustus 3,99 m/jr (4,12 op de eigen split van toen). Alle cijfers hierna zijn op deze set, zodat stappen optelbaar zijn.",
+        Inches(0.6),
+        Inches(6.1),
+        Inches(12),
+        size=13,
+        color=DARK,
+        italic=False,
+    )
 
-    # 5 ── resolutie
+    # 5 ── as 1: opschoonregels
     s = d.slide(
-        "As 3 · Resolutie: van scalar naar oeverlijn",
-        "Eén afstand per vlak verbergt dat 20 m hard erodeert en 80 m stil ligt",
+        "As 1 · Opschonen: van 3,99 naar 2,27",
+        "Zeven regels — herstellen in plaats van weggooien",
     )
-    d.image(s, FIG / "r5_ijssel.png", Inches(0.6), Inches(1.75), height=Inches(4.6))
-    d.image(s, FIG / "r5_rijn.png", Inches(5.4), Inches(1.75), height=Inches(4.6))
+    d.image(s, FIG / "cleaning_ladder.png", Inches(0.6), Inches(1.6), width=Inches(7.6))
+    d.image(s, renders / "aug-3.png", Inches(8.3), Inches(1.6), width=Inches(4.7))
     d.bullets(
         s,
         [
-            "**Wat je ziet",
-            "groen = gemeten oever per segment (2026)",
-            "bruin = voorspelde oever 2027 per segment",
-            "gestippeld = de oude voorspelling: één getal",
-            "**Wat het oplevert",
-            "IJssel-vlak: één getal zegt −6,7 m/jr; de segmenten lopen van −10,8 tot +7,0",
-            "De fout wordt níet groter als segmenten kleiner worden",
-            "Mediane positiefout op de horizon: 1,1 m",
+            "Kronkelende lijnen, verkeerde oever, doolhoven, fragmenten, te weinig punten, uitschieters t.o.v. de trend",
+            "Een uitschieter kost één meting, niet het hele vlak: +511 vlakken t.o.v. de oude |v| > 50-filter",
+            "Elke variant visueel gecontroleerd (50+ varianten, dekking blijft 0,94)",
         ],
-        Inches(9.9),
-        Inches(1.8),
-        Inches(3.3),
-        Inches(5),
+        Inches(0.6),
+        Inches(5.0),
+        Inches(7.6),
+        Inches(1.9),
         size=13,
         gap=4,
     )
     d.note(
         s,
-        "R = 5 segmenten (≈ 20 m) · dichte bemonstering 60 punten per lijn · elk segment eigen meetreeks",
-        Inches(0.6),
-        Inches(6.45),
-        Inches(9),
+        "Kribben · meeroeverig · bruggen · doolhoven · randen",
+        Inches(8.3),
+        Inches(4.4),
+        Inches(4.7),
+        size=11,
     )
 
-    # 6 ── horizon
+    # 6 ── as 1: kribben & kunstwerken
     s = d.slide(
-        "As 2 · Voorspellen op twee jaar of langer",
-        "Zelfde doel (m/jr), zelfde fout, alleen andere paren van metingen",
+        "As 1 · Kribben en kunstwerken: nu een laag, geen gok meer",
+        "Deze week geleverd: kribben landelijk (1.922 → 4.698) + 6.386 kunstwerken",
+    )
+    cleanup = CAND / "structures_cleanup" / f"{PICKS['cleanup']}.png"
+    if not cleanup.exists():
+        cleanup = FIG / "krib_before_after.png"
+    d.image(s, cleanup, Inches(0.6), Inches(1.6), width=Inches(7.4))
+    d.image(
+        s, FIG / "structures_ablation.png", Inches(8.1), Inches(1.6), width=Inches(5.0)
     )
     d.bullets(
         s,
         [
-            "**Het probleem met één jaar",
-            "Hoogtemodel: opnames 3–5 jaar uit elkaar → snelheid is stabiel",
-            "SAM: jaarlijks → dezelfde meetruis gedeeld door 1 jaar → snelheid is grotendeels ruis",
-            "De huidige testset mengt beide; het 1-jaars-cijfer is daardoor 'ruis-gedomineerd'",
-            "**De regel",
-            "Train en test alleen op paren van metingen ≥ 2 jaar uit elkaar — en gebruik álle zulke paren",
-            "Eén vlak met 6 metingen levert 10 leervoorbeelden in plaats van 1",
-            "Wordt vanzelf beter met elk SAM-jaar (3-jaars-paren zijn er nu nog te weinig)",
-            "**Wat dit is en niet is",
-            "Dit is hoe het alarm gescoord wordt, niet een ander model: de 1-jaars-cijfers blijven bestaan",
+            "Op de vaste testset is de laag metrisch neutraal: de opschoonregels vangen deze artefacten al",
+            "Wél: 218 vlakken vallen af waarvan de 'oever' een constructie was — juistheid en dekking, geen foutwinst",
+            "Les: wat een regel kan afleiden, hoeft niet gelabeld · wat een regel níet kan zien, wel",
         ],
+        Inches(8.1),
+        Inches(4.4),
+        Inches(5.0),
+        Inches(2.5),
+        size=12,
+        gap=4,
+    )
+    d.note(
+        s,
+        "links: zonder masker · rechts: met kribben + bruggen/kades/steigers (10 m) · grijs = constructie · paars = VVR",
         Inches(0.6),
-        Inches(1.8),
-        Inches(12),
-        Inches(5),
-        size=16,
+        Inches(6.3),
+        Inches(7.4),
+        size=11,
     )
 
-    # 7 ── scorebord
+    # 7 ── as 2
+    s = d.slide(
+        "As 2 · Meerdere t-punten: van 2,27 naar 2,13",
+        "Historie-features op resolutie 1 — en de horizon als meetlat voor het alarm",
+    )
+    d.image(s, FIG / "history.png", Inches(0.6), Inches(1.6), width=Inches(7.4))
+    d.bullets(
+        s,
+        [
+            "**Features uit de hele meetreeks",
+            "Trend (Theil–Sen), spreiding om de trend, versnelling, terugkeer naar gemiddelde, recente helling",
+            "**Wat níet werkte",
+            "Trainen op losse jaar-op-jaar stappen (sub-jaar ruis), huber-loss (beter gemiddeld, slechter op de staart), debiet",
+            "**Horizon ≥ 2 jaar — voor het alarm",
+            "Hoogtemodel-paren zijn altijd 3–5 jaar uit elkaar; SAM-paren 1 jaar → ruis",
+            "Zelfde doel (m/jr), zelfde fout, alleen paren ≥ 2 jaar: 1 vlak met 6 metingen = 10 leervoorbeelden",
+        ],
+        Inches(8.2),
+        Inches(1.7),
+        Inches(4.9),
+        Inches(5.2),
+        size=13,
+        gap=4,
+    )
+
+    # 8 ── as 3 (1): what it looks like
+    s = d.slide(
+        "As 3 · Resolutie: van scalar naar oeverlijn",
+        "Eén afstand per vlak verbergt dat 20 m hard erodeert en 80 m stil ligt",
+    )
+    d.image(
+        s,
+        CAND / "resolution" / f"{PICKS['resolution']}.png",
+        Inches(0.6),
+        Inches(1.6),
+        height=Inches(5.3),
+    )
+    d.bullets(
+        s,
+        [
+            "**Wat je ziet",
+            "groen = gemeten oever per segment (2026) · bruin = voorspeld 2027 per segment",
+            "gestippeld = de oude voorspelling: één getal voor het hele vlak",
+            "paars = VVR / signaleringslijn",
+            "**Dit vlak",
+            "Eén getal zegt −9,7 m/jr; de vijf segmenten lopen van −17,1 tot +1,4",
+            "Het bovenste segment nadert de VVR; de rest niet — het alarm hoort per segment te kijken",
+            "**Vandaag",
+            "VVR-jaar = één drempel per vlak (het verst gelegen punt van de signaleringslijn) tegen één scalar → per definitie laat",
+        ],
+        Inches(6.6),
+        Inches(1.7),
+        Inches(6.5),
+        Inches(5.2),
+        size=13,
+        gap=4,
+    )
+
+    # 9 ── as 3 (2): R sweep
+    s = d.slide(
+        "As 3 · Hoe fijn kan het?",
+        "Zelfde vlak, R = 1 … 100 · en de fout op de vaste testset per R",
+    )
+    d.image(
+        s,
+        CAND / "r_sweep" / f"{PICKS['r_sweep']}.png",
+        Inches(0.6),
+        Inches(1.5),
+        width=Inches(6.3),
+    )
+    d.image(
+        s, FIG / "resolution_sweep.png", Inches(7.0), Inches(1.5), width=Inches(6.1)
+    )
+    d.bullets(
+        s,
+        [
+            "De segment-representatie (bruin) volgt de gemeten oever vanaf R ≈ 5–10; bij R = 50–100 raken segmenten leeg (rood)",
+            "Fout per segment daalt van 2,25 (R = 1) naar 1,88 (R = 5) en 1,61 (R = 20) — kleiner wordt nauwkeuriger, niet ruiziger",
+            "Terug-samengevoegd per vlak blijft de fout ≈ 2,1–2,2: het vlak-getal zelf heeft een vloer (0,5–1,1 m/jr representatiefout)",
+            "Grens ligt bij de lijnbemonstering (60 punten per lijn), niet bij het model · praktisch: R = 5–10 (≈ 10–20 m)",
+        ],
+        Inches(0.6),
+        Inches(5.2),
+        Inches(12.5),
+        Inches(1.8),
+        size=12,
+        gap=3,
+    )
+
+    # 10 ── matrix
+    s = d.slide(
+        "Alles bij elkaar", "Stap voor stap, op één vaste testset — waar zit de winst?"
+    )
+    d.image(s, FIG / "matrix.png", Inches(0.6), Inches(1.5), width=Inches(12.1))
+    d.bullets(
+        s,
+        [
+            "Opschonen: −1,72 m/jr (−43 %) · historie-features: −0,14 · structurenlaag: ±0 (dekking/juistheid) · resolutie: andere eenheid, −0,25 per segment",
+            "**Het model was nooit de bottleneck — de labels waren het. En de regels raken op: wat overblijft, kan alleen een mens zien.",
+        ],
+        Inches(0.6),
+        Inches(5.8),
+        Inches(12.1),
+        Inches(1.2),
+        size=14,
+        gap=4,
+    )
+    d.speaker(s, "Dit is de hele presentatie in één plaatje.")
+
+    # 11 ── scorebord eerlijk
     s = d.slide(
         "Scorebord — eerlijk gemeten",
         "Alleen binnen een rij vergelijken: elke rij is een andere meetlat",
@@ -327,7 +482,7 @@ def build(renders: Path):
         s,
         rows,
         Inches(0.6),
-        Inches(1.9),
+        Inches(1.8),
         Inches(12.1),
         [Inches(5.3), Inches(1.6), Inches(2.4), Inches(2.8)],
         size=14,
@@ -336,8 +491,8 @@ def build(renders: Path):
         s,
         [
             "Eerlijk: de testset speelt geen rol meer bij het trainen (in maart en augustus wél) — strenger, en tóch lager",
-            "Binnen de hybride 1-jaars-meetlat: 4,12 → 2,47 en ≈ 8,3 → 5,0; vlakken met voorspelling 8.006 → 10.721",
-            "Het 1,23 is m/jr op een gladdere meetlat — lees het als '31 % beter dan niets doen', niet als '2× beter dan 2,47'",
+            "Vlakken met voorspelling 8.006 → 10.721",
+            "1,23 is m/jr op een gladdere meetlat — lees het als '31 % beter dan niets doen', niet als '2× beter dan 2,47'",
             "Toezegging 10× (op 4,12): nu 1,7× op die exacte meetlat, met strengere validatie",
         ],
         Inches(0.6),
@@ -347,146 +502,39 @@ def build(renders: Path):
         size=14,
     )
 
-    # 8 ── pivot
-    s = d.slide(
-        "Waar kwam de winst vandaan?",
-        "Het model was nooit de bottleneck — de labels waren het",
-    )
-    d.image(s, FIG / "three_axes.png", Inches(0.8), Inches(1.7), width=Inches(11.7))
-    d.note(
-        s,
-        "As 1 (opschonen): −1,72 m/jr · As 2 (modelleren): −0,14 m/jr · As 3 (resolutie) verandert de meetlat en staat hier niet in",
-        Inches(0.8),
-        Inches(6.5),
-        Inches(11.7),
-        size=13,
-    )
-    d.speaker(
-        s,
-        "Dit is de hele presentatie in één plaatje. Alles ervoor is bewijs, alles erna is gevolg.",
-    )
-
-    # 9 ── wat opschonen betekende
-    s = d.slide(
-        "Wat 'opschonen' betekende",
-        "Zeven regels — elk een gok naar iets dat iemand in deze zaal zéker weet",
-    )
-    d.image(s, renders / "aug-3.png", Inches(0.6), Inches(1.7), width=Inches(8.2))
-    d.bullets(
-        s,
-        [
-            "Is dit een krib, brug, steiger of kade?",
-            "Is dit de rivieroever of een nevengeul, plas of haven?",
-            "Is dit één oever of de overkant?",
-            "Is deze meting 15 m van de trend een fout of een echte gebeurtenis?",
-            "**Elke gok kost dekking of maakt fouten",
-            "5,9 % van de metingen in 'normale' vlakken kwam uit een nevengeul",
-            "Kribben-masker alleen: 60 % van de lijnpunten bij een krib was géén oever",
-        ],
-        Inches(9.0),
-        Inches(1.8),
-        Inches(4.2),
-        Inches(5),
-        size=14,
-        gap=5,
-    )
-
-    # 10 ── structuren: kaart
-    s = d.slide(
-        "De eerste gok is al ingewisseld",
-        "Deze week geleverd: kribben landelijk + kunstwerken (bruggen, kades, steigers, sluizen)",
-    )
-    d.image(s, FIG / "structures_map.png", Inches(0.6), Inches(1.6), width=Inches(8.3))
-    d.bullets(
-        s,
-        [
-            "Kribben: 1.922 → 4.698 bij de scope (IJssel en Maas waren er niet)",
-            "Kunstwerken: 6.386 bij de scope, 3.884 gemaskeerd",
-            "Geen heuristiek meer, maar een laag",
-            "**Dit is het patroon: elke aanname vervangen door een feit",
-        ],
-        Inches(9.1),
-        Inches(1.9),
-        Inches(4.1),
-        Inches(4),
-        size=15,
-    )
-
-    # 11 ── structuren: effect
-    s = d.slide(
-        "…en het is meteen meetbaar",
-        "Twee identieke runs, alleen de structurenlaag verschilt",
-    )
-    d.image(
-        s, FIG / "structures_effect.png", Inches(0.6), Inches(1.6), width=Inches(7.4)
-    )
-    d.image(
-        s, FIG / "krib_before_after.png", Inches(8.2), Inches(1.7), width=Inches(4.9)
-    )
-    d.bullets(
-        s,
-        [
-            "Risicogevallen: 5,9 → 5,0 m/jr (−15 %)",
-            "224 vlakken vallen af: hun 'oever' wás een constructie",
-            "Segmentmodel bewoog niet (1,15 → 1,24): binnen de spreiding tussen splits",
-        ],
-        Inches(0.6),
-        Inches(5.0),
-        Inches(7.4),
-        Inches(1.8),
-        size=14,
-    )
-    d.note(
-        s,
-        "Nederrijn: kribvak vóór (links) en ná (rechts) het 10 m-masker — groen = gemeten lijnen, paars = signaleringslijn",
-        Inches(8.2),
-        Inches(5.0),
-        Inches(4.9),
-        size=11,
-    )
-
     # 12 ── wat we vragen
     s = d.slide("Wat we vragen", "Labelen is trial-and-error — geen eenmalige levering")
-    cols = [
-        (
-            "Hoogtemodel-engineers",
-            [
-                "De vijfdeling (scope_coverage) meeleveren",
-                "Per lijn een vlag: 'dit is een constructie / verkeerde oever'",
-                "Bekende randgevallen: meeroeverig, hoogwater",
-            ],
-        ),
-        (
-            "SAM-engineers",
-            [
-                "Kwaliteitsvlag per meting",
-                "Vooral: méér jaren — elk jaar maakt het model vanzelf beter",
-                "Waar mogelijk: één lijn per meetmoment",
-            ],
-        ),
-        (
-            "Samen",
-            [
-                "Labelronde in QGIS: wij leveren de gesorteerde lijst twijfelgevallen, jullie het oordeel",
-                "Eerste ronde: ~200 vlakken, twee uur",
-                "Daarna meten we opnieuw — en zien we hoe ver opschonen alleen komt",
-            ],
-        ),
-    ]
-    for i, (head, items) in enumerate(cols):
-        left = Inches(0.6 + i * 4.2)
-        box = s.shapes.add_shape(1, left, Inches(1.8), Inches(3.9), Inches(0.6))
-        box.fill.solid()
-        box.fill.fore_color.rgb = ORANGE if i == 2 else TEAL
-        box.line.fill.background()
-        p = box.text_frame.paragraphs[0]
-        p.text = head
-        p.font.size, p.font.bold, p.font.color.rgb = (
-            Pt(18),
-            True,
-            RGBColor(255, 255, 255),
-        )
-        d.bullets(s, items, left, Inches(2.6), Inches(3.9), Inches(3.8), size=15)
+    _col_boxes(
+        d,
+        s,
+        [
+            (
+                "Hoogtemodel-engineers",
+                [
+                    "De vijfdeling (scope_coverage) meeleveren",
+                    "Per lijn een vlag: 'dit is een constructie / verkeerde oever'",
+                    "Bekende randgevallen: meeroeverig, hoogwater",
+                ],
+            ),
+            (
+                "SAM-engineers",
+                [
+                    "Kwaliteitsvlag per meting",
+                    "Vooral: méér jaren — elk jaar maakt het model vanzelf beter",
+                    "Waar mogelijk: één lijn per meetmoment",
+                ],
+            ),
+            (
+                "Samen",
+                [
+                    "Labelronde in QGIS: wij leveren de gesorteerde lijst twijfelgevallen, jullie het oordeel",
+                    "Eerste ronde: ~200 vlakken, twee uur",
+                    "Daarna meten we opnieuw",
+                ],
+            ),
+        ],
+        accent=2,
+    )
 
     # 13 ── asset management
     s = d.slide(
@@ -520,7 +568,7 @@ def build(renders: Path):
             "**Van lijn naar oever",
             "Vijf segmenten per vlak; gemeten én voorspelde oever als lijn; positiefout ≈ 1 m",
             "**Bottleneck: gelabelde input, niet het algoritme",
-            "Opschonen leverde 3× zoveel als modelleren; elke regel is een gok die jullie zeker weten",
+            "Opschonen leverde 12× zoveel als modelleren; de regels raken op — wat overblijft vraagt een oordeel",
             "**Volgende stap",
             "Labelronde met SAM- en hoogtemodel-engineers · VVR-alarm op segmentniveau · daarna opnieuw meten",
         ],

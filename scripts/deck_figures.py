@@ -225,9 +225,195 @@ def crops():
     )
 
 
+def _ledger():
+    led = pd.read_csv(ROOT / "experiments/loop/ledger.csv")
+    return led.drop_duplicates("variant", keep="last").set_index("variant")
+
+
+def _two_panel(labels, mae, tail, colors, title, out, deltas=True, unit="m/jr"):
+    fig, axes = plt.subplots(1, 2, figsize=(11, 4.6))
+    for ax, vals, t in (
+        (axes[0], mae, f"gemiddelde fout, alle vlakken ({unit})"),
+        (axes[1], tail, f"fout risicogevallen > 2 m/jr ({unit})"),
+    ):
+        bars = ax.bar(labels, vals, color=colors, width=0.6)
+        _label(ax, bars)
+        ax.set_title(t, color=DARK, fontsize=13, pad=12)
+        ax.set_ylim(0, max(vals) * 1.25)
+        ax.set_yticks([])
+        ax.spines["left"].set_visible(False)
+        ax.tick_params(axis="x", labelsize=11)
+        if deltas:
+            for i in range(len(vals) - 1):
+                ax.annotate(
+                    f"{vals[i + 1] - vals[i]:+.2f}",
+                    xy=(i + 0.5, max(vals[i], vals[i + 1]) * 1.08),
+                    ha="center",
+                    color=ORANGE,
+                    fontsize=12,
+                    fontweight="bold",
+                )
+    fig.suptitle(title, color=DARK, fontsize=13)
+    fig.tight_layout()
+    fig.savefig(OUT / out, dpi=200, facecolor="white")
+    plt.close(fig)
+
+
+def fig_cleaning_ladder():
+    d = _ledger().loc[["v0-baseline", "e8-final-protected"]]
+    _two_panel(
+        [
+            "19 aug\n(uitgangspunt)",
+            "+ opschoonregels\n(7 regels, herstel i.p.v. weggooien)",
+        ],
+        list(d.lgb_mae),
+        list(d.lgb_tail_mae),
+        [GREY, TEAL],
+        "As 1 · zelfde vaste testset (1.174 vlakken) · resolutie 1 · dekking 0,94",
+        "cleaning_ladder.png",
+    )
+
+
+def fig_structures_ablation():
+    d = _ledger().loc[["s1-e8-nomask", "s2-e8-oldkribben", "s3-e8-newstructures"]]
+    _two_panel(
+        [
+            "geen structuren-\nmasker",
+            "kribben Waal +\nNederrijn (1.922)",
+            "kribben landelijk +\nbruggen/kades/steigers",
+        ],
+        list(d.lgb_mae),
+        list(d.lgb_tail_mae),
+        [GREY, TEAL, TEAL],
+        "Opschoonregels aan · alleen het structurenmasker verschilt · vaste testset",
+        "structures_ablation.png",
+    )
+
+
+def fig_history():
+    d = _ledger().loc[["e8-final-protected", "i1-traj2"]]
+    _two_panel(
+        ["opschoonregels", "+ historie-features\n(trend, versnelling, terugkeer)"],
+        list(d.lgb_mae),
+        list(d.lgb_tail_mae),
+        [GREY, TEAL],
+        "As 2 · zelfde vaste testset · resolutie 1",
+        "history.png",
+    )
+
+
+def fig_resolution_sweep():
+    d = _ledger().loc[[f"deck-R{r}-traj2" for r in (1, 2, 5, 10, 20)]]
+    R = [1, 2, 5, 10, 20]
+    fig, ax = plt.subplots(figsize=(11, 4.6))
+    ax.plot(
+        R, d.lgb_mae, "-o", color=TEAL, lw=2.5, ms=8, label="fout per segment (m/jr)"
+    )
+    ax.plot(
+        R,
+        d.core_mae,
+        "--s",
+        color=DARK,
+        lw=2,
+        ms=7,
+        label="fout per vlak na samenvoegen (max) (m/jr)",
+    )
+    ax.plot(
+        R,
+        d.lgb_tail_mae,
+        "-o",
+        color=ORANGE,
+        lw=2,
+        ms=7,
+        label="fout risicogevallen per segment (m/jr)",
+    )
+    for x, y in zip(R, d.lgb_mae):
+        ax.annotate(
+            f"{y:.2f}",
+            (x, y),
+            textcoords="offset points",
+            xytext=(0, 10),
+            ha="center",
+            color=TEAL,
+            fontweight="bold",
+        )
+    ax.set_xscale("log")
+    ax.set_xticks(R)
+    ax.set_xticklabels([f"R = {r}\n≈ {round(100 / r)} m" for r in R])
+    ax.set_ylim(0, 5)
+    ax.set_xlabel("segmenten per vlak (vlak ≈ 100 m)")
+    ax.legend(frameon=False, fontsize=11)
+    ax.axvspan(15, 30, color=GREY, alpha=0.12)
+    ax.text(
+        20,
+        4.6,
+        "60 punten per lijn:\nsegmenten raken leeg",
+        ha="center",
+        fontsize=10,
+        color=GREY,
+    )
+    fig.suptitle(
+        "As 3 · resolutie: fijner = nauwkeuriger, tot de lijn-bemonstering op is",
+        color=DARK,
+        fontsize=13,
+    )
+    fig.tight_layout()
+    fig.savefig(OUT / "resolution_sweep.png", dpi=200, facecolor="white")
+    plt.close(fig)
+
+
+def fig_matrix():
+    led = _ledger()
+    steps = [
+        ("19 aug (uitgangspunt)", led.loc["v0-baseline"], GREY),
+        ("+ opschoonregels", led.loc["e8-final-protected"], TEAL),
+        ("+ kribben & kunstwerken landelijk", led.loc["s3-e8-newstructures"], TEAL),
+        ("+ historie-features", led.loc["i1-traj2"], TEAL),
+        ("+ resolutie R = 5 (per segment)", led.loc["deck-R5-traj2"], ORANGE),
+    ]
+    labels = [s[0] for s in steps][::-1]
+    mae = [s[1].lgb_mae for s in steps][::-1]
+    tail = [s[1].lgb_tail_mae for s in steps][::-1]
+    cols = [s[2] for s in steps][::-1]
+    fig, axes = plt.subplots(1, 2, figsize=(12, 4.8), sharey=True)
+    for ax, vals, t in (
+        (axes[0], mae, "gemiddelde fout (m/jr)"),
+        (axes[1], tail, "fout risicogevallen > 2 m/jr (m/jr)"),
+    ):
+        bars = ax.barh(labels, vals, color=cols, height=0.6)
+        for b in bars:
+            ax.text(
+                b.get_width() + 0.05,
+                b.get_y() + b.get_height() / 2,
+                f"{b.get_width():.2f}",
+                va="center",
+                fontsize=12,
+                color=DARK,
+                fontweight="bold",
+            )
+        ax.set_title(t, color=DARK, fontsize=13)
+        ax.set_xlim(0, max(vals) * 1.2)
+        ax.set_xticks([])
+        ax.spines["bottom"].set_visible(False)
+        ax.tick_params(axis="y", labelsize=12)
+    fig.suptitle(
+        "Alles op dezelfde vaste testset · stap voor stap · oranje = andere eenheid (segment)",
+        color=DARK,
+        fontsize=13,
+    )
+    fig.tight_layout()
+    fig.savefig(OUT / "matrix.png", dpi=200, facecolor="white")
+    plt.close(fig)
+
+
 if __name__ == "__main__":
     fig_three_axes()
     fig_structures_effect()
     fig_structures_map()
     crops()
+    fig_cleaning_ladder()
+    fig_structures_ablation()
+    fig_history()
+    fig_resolution_sweep()
+    fig_matrix()
     print("→", OUT, sorted(p.name for p in OUT.glob("*.png")))
