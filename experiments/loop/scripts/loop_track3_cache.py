@@ -15,10 +15,10 @@ import numpy as np
 import pandas as pd
 import shapely
 
-from src.erosion.region_inspector import RegionInspector
-from src.loop.harness import load_caches
-from src.loop.multi_t import E8_RULES
+from experiments.loop.harness.harness import load_caches
+from experiments.loop.harness.multi_t import E8_RULES
 from src.cleaning.rules import RuleContext, apply_rules, make_structure_geom
+from src.erosion.region_inspector import RegionInspector
 from src.sources.geometry import LOCATION_ID
 
 warnings.filterwarnings("ignore")

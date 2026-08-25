@@ -17,8 +17,8 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 
-from src.loop.harness import load_caches
-from src.loop.multi_t import (
+from experiments.loop.harness.harness import load_caches
+from experiments.loop.harness.multi_t import (
     TRAJ_FEATS2,
     build_features_pairwise,
     load_obs_e8,

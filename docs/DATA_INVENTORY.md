@@ -187,13 +187,25 @@
 **Layers**: 
 - `Centreline_River` (13 lines) - River centerlines
 - `Uiterwaardegrenzen` (134 polygons) - Floodplain boundaries
-- `Kribben_BKN` (1,922 polygons) - Groynes (river structures)
+- `Kribben_BKN` (1,922 polygons) - Groynes, Waal/Nederrijn-Lek only — **superseded** by `02_processed/structures/structures.gpkg` (2026-08-25)
 - `Kilometrering` (251 points) - Distance markers
 - `Vlak_voor_vrijeruimte_nevengeulen` - Free space for side channels
 - `Vlak_voor_vrijeruimte_natuurvriendelijke_oever` - Free space for nature-friendly shores
 - And many more...
 
 **Used By**: `demo_baseline_model.ipynb` (for centerline), `explore_raw_data.ipynb`  
+
+#### **`01_raw/structures/`** ✅ KEEP - RAW DELIVERY (2026-08-25, RWS GIS)
+- `BKN_kribben/BKN_kribben.shp` — 5,307 groyne polygons, nationwide (IJssel 2,420, Nederrijn-Lek 978, Waal 745, Maas ~330), 40+ BKN attributes
+- `kunstwerk_vlakken/kunstwerk_vlakkenPolygon.shp` — 20,630 structure polygons (culverts, jetties, locks, weirs, bridges, quay walls), 40+ attributes
+- Kept as delivered; never read by the pipeline directly.
+
+#### **`02_processed/structures/structures.gpkg`** ✅ KEEP - PIPELINE INPUT (8.7 MB)
+Derived by `scripts/prep_structures.py`: clipped to scope + 500 m, reduced to the columns we use.
+- `kribben` (4,698) — id, objectnaam, watersysteem, zijde, geobron
+- `kunstwerken` (6,386) — id, objecttype, `categorie` ∈ {brug 1,298 · kade_damwand 398 · steiger_afmeer 1,444 · sluis_stuw 744 · duiker 1,735 · overig 767}, watersysteem, zijde, geobron
+- The pipeline masks kribben + `ExperimentConfig.kunstwerk_categories` (default brug, kade_damwand, steiger_afmeer, sluis_stuw) with a 10 m buffer before the furthest-N selection.
+
 **Status**: ✅ **KEEP** - Reference context data
 
 **Your Notes**:

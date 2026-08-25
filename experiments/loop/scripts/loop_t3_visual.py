@@ -14,6 +14,10 @@ import matplotlib
 import numpy as np
 import pandas as pd
 
+from experiments.loop.harness.harness import load_caches
+from experiments.loop.harness.multi_t import load_obs_e8, prepare_standard
+from experiments.loop.harness.resolution import build_segment_frame, load_dense
+from src.cleaning.rules import make_structure_geom
 from src.erosion.region_inspector import (
     MODEL_FILL,
     RegionInspector,
@@ -21,10 +25,6 @@ from src.erosion.region_inspector import (
     measured_color,
     predicted_color,
 )
-from src.loop.harness import load_caches
-from src.loop.multi_t import load_obs_e8, prepare_standard
-from src.loop.resolution import build_segment_frame, load_dense
-from src.cleaning.rules import make_structure_geom
 from src.sources.geometry import LOCATION_ID
 
 warnings.filterwarnings("ignore")

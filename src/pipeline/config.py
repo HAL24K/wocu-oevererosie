@@ -55,7 +55,17 @@ class ExperimentConfig:
     signalering_gpkg: Path | None = None
     signalering_layer: str = "Vlak_vrije_ruimte_natuurvriendelijke_oever_ln"
     structures_gpkg: Path | None = None
-    structures_layer: str = "Kribben_BKN"
+    structures_layer: str = "kribben"
+    kunstwerken_layer: str = "kunstwerken"
+    # Categories of the kunstwerken layer that produce a false waterline in the
+    # height model (scripts/prep_structures.py). Culverts and "overig" are kept
+    # in the file for QGIS but not masked. Empty tuple → kribben only.
+    kunstwerk_categories: tuple[str, ...] = (
+        "brug",
+        "kade_damwand",
+        "steiger_afmeer",
+        "sluis_stuw",
+    )
     hybrid_gpkg: Path | None = None
 
     # ── source ────────────────────────────────────────────────────────────────
@@ -116,7 +126,7 @@ class ExperimentConfig:
         "discharge_dir": "water_stations_timeseries/cleaned/discharge",
         "reference_features_v2": "02_processed/erosion/region_features_v2.parquet",
         "signalering_gpkg": "01_raw/scope/20260205_signaleringslijn.gpkg",
-        "structures_gpkg": "01_raw/scope/Levering_erosie_data.gpkg",
+        "structures_gpkg": "02_processed/structures/structures.gpkg",
         "hybrid_gpkg": "02_processed/hybrid/hybrid_model_results_20260710.gpkg",
     }
 

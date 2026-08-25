@@ -40,13 +40,13 @@ Decided with Alexander on 2026-08-20:
 
 ## Machinery
 
-- `src/loop/rules.py` — composable cleaning rules (sample/line/survey level).
-- `src/loop/harness.py` — cached fast pipeline: samples → observations →
+- `src/cleaning/rules.py` (graduated) — composable cleaning rules (sample/line/survey level).
+- `experiments/loop/harness/harness.py` — cached fast pipeline: samples → observations →
   dist_per_year → split (frozen) → features (from caches) → LGB → ledger.
   One variant ≈ 1–2 min. Parity vs the real pipeline verified on v0
   (MAE 3.988 vs 4.014, R² 0.335 vs 0.334, identical exclusions & naive).
 - Caches under `data/03_features/loop/` (gitignored), built by
-  `scripts/loop_build_caches.py`.
+  `experiments/loop/scripts/loop_build_caches.py`.
 - Per-variant artefacts (test preds, dist_per_year, rule stats) under
   `data/03_features/loop/variants/<name>/`.
 - `ledger.csv` (committed) — one row per variant, append-only.

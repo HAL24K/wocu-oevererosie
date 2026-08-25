@@ -262,3 +262,33 @@ Segment-horizon (the operational quantity): tail 3.04, position error
 - H=3 horizon ruler matures with each new SAM year (starved today).
 - QGIS labelling queues: protected-but-suspect surveys (temporal rule),
   segment prediction-spread ranking (t3 showcase).
+
+## 2026-08-25 — structures delivery in, loop code archived, learnings consolidated
+
+- **Data**: RWS GIS delivered nationwide kribben (5,307) and kunstwerken
+  (20,630) as shapefiles → kept raw in `data/01_raw/structures/`, reduced by
+  `scripts/prep_structures.py` to `data/02_processed/structures/structures.gpkg`
+  (8.7 MB; kribben 4,698 near scope, kunstwerken 6,386 with a 6-way
+  `categorie`). The IJssel/Maas kribben gap is closed; bridges, quays,
+  jetties and locks are masked deterministically (`kunstwerk_categories`).
+- **Run 20260825-structures** (honest, same recipe as 20260822-grad):
+  region LGB MAE 2.634 → **2.473**, tail 5.899 → **5.001** (n=223), R² 0.254;
+  naive 2.857. Segment-horizon artifact: MAE 1.149 → 1.235, tail 3.036 →
+  3.508 (n=410), R² 0.440, median position error 1.13 m; 45,249 segments /
+  9,928 regions. Region count 10,945 → 10,721 (−2 %): the mask removes
+  regions whose "bank" was a structure. Region-level better, segment-level
+  slightly worse — both within split-to-split noise seen in the loop (masks
+  were metric-neutral there too). Kept: a deterministic layer beats a
+  heuristic even when the score is flat.
+- **Repo**: loop harness + batch scripts moved out of `src/`/`scripts/` into
+  `experiments/loop/{harness,scripts}/`; product code in `src/` is now only
+  what the pipeline runs. `experiments/loop/LEARNINGS.md` is the one-page
+  consolidation for anyone who will not read the ledger.
+- **Merge plan**: `main` is still at 2025-11-28; the 2026 mainline is
+  `feature/data-exploration-notebooks` and this branch is 35 additive
+  commits on top. Fast-forward `feature/…` → `main`, then merge this branch.
+- **Next**: any-segment-crosses-VVR alert from `segment_predictions.parquet`;
+  ask height-model engineers for a per-line structure/false-bank flag and
+  the `scope_coverage` classification at delivery; SAM per-survey quality
+  flags; QGIS eyeball of `structures.gpkg` `categorie` choices (duiker and
+  overig currently unmasked).

@@ -24,8 +24,8 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from src.loop.harness import Caches
-from src.loop.multi_t import (
+from experiments.loop.harness.harness import Caches
+from experiments.loop.harness.multi_t import (
     TRAJ_FEATS2,
     _traj_row,
     build_features_pairwise,

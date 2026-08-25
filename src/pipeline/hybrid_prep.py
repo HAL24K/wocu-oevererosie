@@ -119,7 +119,11 @@ def line_metrics(lines: gpd.GeoDataFrame) -> pd.DataFrame:
 
 
 def build_structures_geom(cfg: ExperimentConfig, centrelines: gpd.GeoSeries):
-    """Kribben plus (optionally) secondary water, buffered and prepared.
+    """Kribben, masked kunstwerken and (optionally) secondary water, buffered.
+
+    Kribben and kunstwerken come from ``structures.gpkg`` (BKN deliveries,
+    scripts/prep_structures.py); only the kunstwerken categories listed in
+    ``cfg.kunstwerk_categories`` are masked.
 
     Secondary water: vegetatielegger 'Water' parts that touch no centreline —
     marinas, floodplain pools, side gullies without their own scope region.
@@ -129,6 +133,18 @@ def build_structures_geom(cfg: ExperimentConfig, centrelines: gpd.GeoSeries):
     kribs = gpd.read_file(cfg.structures_gpkg, layer=cfg.structures_layer).to_crs(28992)
     parts.append(shapely.union_all(kribs.geometry.buffer(cfg.mask_buffer_m).values))
     logger.info("structures: %d kribben", len(kribs))
+
+    if cfg.kunstwerk_categories:
+        kw = gpd.read_file(cfg.structures_gpkg, layer=cfg.kunstwerken_layer).to_crs(
+            28992
+        )
+        kw = kw[kw["categorie"].isin(cfg.kunstwerk_categories)]
+        parts.append(shapely.union_all(kw.geometry.buffer(cfg.mask_buffer_m).values))
+        logger.info(
+            "structures: %d kunstwerken (%s)",
+            len(kw),
+            ", ".join(cfg.kunstwerk_categories),
+        )
 
     if cfg.water_mask:
         veg = gpd.read_file(

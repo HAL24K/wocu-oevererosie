@@ -13,8 +13,8 @@ import warnings
 
 import geopandas as gpd
 
-from src.loop.harness import load_caches
-from src.loop.multi_t import load_obs_e8, run_t2_variant
+from experiments.loop.harness.harness import load_caches
+from experiments.loop.harness.multi_t import load_obs_e8, run_t2_variant
 from src.cleaning.rules import make_structure_geom
 
 warnings.filterwarnings("ignore")

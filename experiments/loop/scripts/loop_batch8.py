@@ -24,8 +24,8 @@ import pandas as pd
 import shapely
 from sklearn.metrics import mean_absolute_error, r2_score
 
-from src.loop.harness import load_caches, run_variant
-from src.loop.multi_t import (
+from experiments.loop.harness.harness import load_caches, run_variant
+from experiments.loop.harness.multi_t import (
     E8_RULES,
     TRAJ_FEATS2,
     build_features_pairwise,
@@ -33,7 +33,7 @@ from src.loop.multi_t import (
     prepare_standard,
     trajectory_features_pairwise,
 )
-from src.loop.resolution import load_dense, segment_observations
+from experiments.loop.harness.resolution import load_dense, segment_observations
 from src.pipeline.region_split import get_cluster
 from src.pipeline.train import FEATS_LGB
 from src.sources.geometry import LOCATION_ID

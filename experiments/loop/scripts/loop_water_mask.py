@@ -17,8 +17,8 @@ import geopandas as gpd
 import pandas as pd
 import shapely
 
-from src.loop.harness import load_caches, run_variant
-from src.loop.multi_t import E8_RULES
+from experiments.loop.harness.harness import load_caches, run_variant
+from experiments.loop.harness.multi_t import E8_RULES
 
 warnings.filterwarnings("ignore")
 logging.basicConfig(level=logging.WARNING)

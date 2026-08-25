@@ -17,19 +17,19 @@ import matplotlib
 import numpy as np
 import pandas as pd
 
-from src.erosion.region_inspector import (
-    MODEL_FILL,
-    RegionInspector,
-    _line_parts,
-    measured_color,
-)
-from src.loop.harness import (
+from experiments.loop.harness.harness import (
     aggregate_observations,
     farbank_region_filter,
     load_caches,
     to_dist_per_year,
 )
 from src.cleaning.rules import RuleContext, apply_rules, make_structure_geom
+from src.erosion.region_inspector import (
+    MODEL_FILL,
+    RegionInspector,
+    _line_parts,
+    measured_color,
+)
 from src.sources.geometry import LOCATION_ID
 
 warnings.filterwarnings("ignore")

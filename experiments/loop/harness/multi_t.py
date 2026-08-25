@@ -28,7 +28,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from src.loop.harness import (
+from experiments.loop.harness.harness import (
     Caches,
     build_features_fast,
     build_split_frame,
@@ -186,7 +186,7 @@ def build_features_pairwise(pw: pd.DataFrame, caches: Caches) -> pd.DataFrame:
     hw.loc[no_ev, HW_WINDOW_COLS] = 0
     tmp2[HW_WINDOW_COLS] = hw[HW_WINDOW_COLS]
 
-    from src.loop.harness import CAT_KEYS
+    from experiments.loop.harness.harness import CAT_KEYS
 
     for col, key in CAT_KEYS.items():
         tmp2[f"{col}_enc"] = encode_col(tmp2[col], key)
@@ -395,7 +395,7 @@ def run_t2_variant(
     import lightgbm as lgb
     from sklearn.metrics import mean_absolute_error, r2_score
 
-    from src.loop.harness import score_frozen_views
+    from experiments.loop.harness.harness import score_frozen_views
     from src.pipeline.train import TAIL_THRESHOLD
 
     frame, feat_names, n_far = assemble(

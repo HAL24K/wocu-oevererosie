@@ -15,7 +15,7 @@ import warnings
 
 import geopandas as gpd
 
-from src.loop.harness import load_caches, run_variant
+from experiments.loop.harness.harness import load_caches, run_variant
 from src.cleaning.rules import make_structure_geom
 
 warnings.filterwarnings("ignore")

@@ -18,14 +18,14 @@ import matplotlib
 import numpy as np
 import pandas as pd
 
+from experiments.loop.harness.harness import load_caches
+from src.cleaning.rules import RuleContext, apply_rules, make_structure_geom
 from src.erosion.region_inspector import (
     MODEL_FILL,
     RegionInspector,
     _line_parts,
     measured_color,
 )
-from src.loop.harness import load_caches
-from src.cleaning.rules import RuleContext, apply_rules, make_structure_geom
 from src.sources.geometry import LOCATION_ID
 
 warnings.filterwarnings("ignore")
