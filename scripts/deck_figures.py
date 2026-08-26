@@ -411,32 +411,31 @@ def fig_horizon_sweep():
 def fig_rule_ablation():
     led = _ledger()
     rules = {
-        "r5-minsamples8": "+ te weinig\npunten",
-        "r2-nearbank": "+ verkeerde\noever",
-        "r1-tortuosity": "+ kronkelende\nlijn",
+        "r5-minsamples8": "+ te weinig punten",
+        "r2-nearbank": "+ verkeerde oever",
+        "r1-tortuosity": "+ kronkelende lijn",
         "r3-maze": "+ doolhof",
         "r4-fragment": "+ fragment",
-        "r6-temporal": "+ uitschieter\nin de tijd",
-        "r0-newstructures": "+ kribben &\nkunstwerken\nlandelijk",
+        "r6-temporal": "+ uitschieter in de tijd",
+        "r0-newstructures": "+ kribben & kunstwerken landelijk",
     }
     order = sorted(rules, key=lambda v: -led.loc[v].lgb_mae)
     keys = ["v0-baseline"] + order + ["e8-final-protected"]
-    labels = ["19 aug\n3.99\n(= 4.12 eigen split)"] + [rules[k] for k in order] + ["alle regels\nsamen"]
+    labels = ["19 aug (= 4.12 eigen split)"] + [rules[k] for k in order] + ["alle regels samen"]
     colors = [GREY] + [TEAL if k != "r0-newstructures" else DARK for k in order] + [ORANGE]
-    fig, axes = plt.subplots(1, 2, figsize=(12.5, 5.0))
+    fig, axes = plt.subplots(2, 1, figsize=(11, 6.2), sharex=True)
     for ax, col, t in ((axes[0], "lgb_mae", "gemiddelde fout, alle vlakken (m/jr)"), (axes[1], "lgb_tail_mae", "fout risicogevallen > 2 m/jr (m/jr)")):
         vals = [led.loc[k][col] for k in keys]
-        bars = ax.bar(labels, vals, color=colors, width=0.65)
+        bars = ax.bar(range(len(keys)), vals, color=colors, width=0.65)
         _label(ax, bars)
-        cov = [led.loc[k].coverage_core for k in keys]
-        for b, c in zip(bars, cov):
-            ax.text(b.get_x() + b.get_width() / 2, 0.08 * max(vals), f"dekking\n{c:.2f}", ha="center", fontsize=8, color="white")
-        ax.set_title(t, color=DARK, fontsize=13, pad=12)
-        ax.set_ylim(0, max(vals) * 1.2)
+        ax.set_title(t, color=DARK, fontsize=12, pad=8, loc="left")
+        ax.set_ylim(0, max(vals) * 1.25)
         ax.set_yticks([])
         ax.spines["left"].set_visible(False)
-        ax.tick_params(axis="x", labelsize=9)
-    fig.suptitle("Elke regel apart op het 19 aug-model · vaste testset (1 174 vlakken) · resolutie 1 · donker = alleen dekking, geen fout", color=DARK, fontsize=12)
+    cov = [led.loc[k].coverage_core for k in keys]
+    axes[1].set_xticks(range(len(keys)))
+    axes[1].set_xticklabels([f"{l}\ndekking {c:.2f}" for l, c in zip(labels, cov)], rotation=28, ha="right", fontsize=9.5)
+    fig.suptitle("Elke regel apart op het 19 aug-model · vaste testset (1 174 vlakken) · resolutie 1 · donker = kost dekking, geen foutwinst", color=DARK, fontsize=12)
     fig.tight_layout()
     fig.savefig(OUT / "rule_ablation.png", dpi=200, facecolor="white")
     plt.close(fig)
