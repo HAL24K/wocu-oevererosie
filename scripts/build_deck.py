@@ -17,7 +17,7 @@ from pptx.util import Inches, Pt
 
 ROOT = Path(__file__).resolve().parents[1]
 FIG = ROOT / "docs/presentations/fig"
-OUT = ROOT / "docs/presentations/20260826_update.pptx"
+OUT = ROOT / "docs/presentations/20260826_update_v2.pptx"
 
 TEAL = RGBColor(0x2B, 0xB5, 0xA6)
 DARK = RGBColor(0x1F, 0x3A, 0x3D)
@@ -117,7 +117,8 @@ class Deck:
 
 CAND = FIG / "candidates"
 PICKS = {
-    "single_line": "maas3_l_18580_18590",
+    "single_line_height": "maas3_l_17410_17420",
+    "single_line_sam": "nederrijn_r_4470_4480",
     "resolution": "maas3_r_8930_8940",
     "r_sweep": "maas3_r_8930_8940",
     "cleanup": "nederrijn_r_4780_4790",
@@ -165,44 +166,24 @@ def build(renders: Path):
         q.font.size, q.font.color.rgb = Pt(sz), RGBColor(255, 255, 255)
         q.space_before = Pt(12)
 
-    # 2 ── maart: één lijn is geen oever
-    s = d.slide(
-        "Waar we in maart stonden",
-        "Eén afstand per scopevlak — en een oever is geen rechte lijn",
-    )
-    d.image(
-        s,
-        CAND / "single_line_wavy" / f"{PICKS['single_line']}.png",
-        Inches(0.6),
-        Inches(1.65),
-        height=Inches(5.2),
-    )
+    # 2 ── maart: één lijn is geen oever (hoogtemodel links, SAM rechts)
+    s = d.slide("Waar we in maart stonden", "Eén afstand per scopevlak — en een oever is geen rechte lijn")
+    d.image(s, CAND / "single_line_height" / f"{PICKS['single_line_height']}.png", Inches(0.5), Inches(1.6), height=Inches(4.6))
+    d.image(s, CAND / "single_line_wavy" / f"{PICKS['single_line_sam']}.png", Inches(5.0), Inches(1.6), height=Inches(4.6))
+    d.note(s, "hoogtemodel (maart): de ene afstand (gestippeld) ligt 38 m naast de gemeten oever", Inches(0.5), Inches(6.2), Inches(4.4), size=11)
+    d.note(s, "SAM (nu): de oever kronkelt om een kribvak — één getal zegt hier nog minder", Inches(5.0), Inches(6.2), Inches(4.4), size=11)
     d.bullets(
         s,
         [
-            "Alleen hoogtemodel (AHN3 / AHN4 / AHN5), 3–4 jaar tussen opnames",
-            "Per vlak: één afstand tot de hartlijn per opname (gestippeld)",
-            "De gemeten oever (groen) buigt 90°; de 'oever' van het model ligt 56 m verderop",
+            "Maart: alleen hoogtemodel, 3–4 jaar tussen opnames",
+            "Per vlak één afstand tot de hartlijn per opname (gestippeld)",
             "Fout 0,94 m/jr — maar 'neem het gemiddelde' deed het beter (0,78)",
-            "Risicogevallen (> 2 m/jr): 4,6 m/jr · 7.444 vlakken",
+            "Risicogevallen: 4,6 m/jr · 7.444 vlakken",
+            "Met de SAM-lijnen wordt de oever écht een lijn — en het ene getal past nog slechter",
         ],
-        Inches(6.4),
-        Inches(1.9),
-        Inches(6.6),
-        Inches(4.5),
-        size=16,
+        Inches(9.6), Inches(1.7), Inches(3.5), Inches(5), size=13, gap=5,
     )
-    d.note(
-        s,
-        "paars = VVR / signaleringslijn · zwart = hartlijn · groen = gemeten oeverlijnen per jaar (donker = recenter)",
-        Inches(6.4),
-        Inches(6.2),
-        Inches(6.6),
-    )
-    d.speaker(
-        s,
-        "De val: het maartcijfer zag er goed uit omdat de meetlat mild was (3–4 jaar) én omdat één getal per vlak veel verbergt.",
-    )
+    d.speaker(s, "De val: het maartcijfer zag er goed uit omdat de meetlat mild was (3–4 jaar) én omdat één getal per vlak veel verbergt. paars = VVR, zwart = hartlijn, groen = gemeten oever per jaar.")
 
     # 3 ── hybride levering + tabel van vorige week
     s = d.slide(

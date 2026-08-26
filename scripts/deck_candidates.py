@@ -18,6 +18,7 @@ import geopandas as gpd
 import matplotlib
 import numpy as np
 import pandas as pd
+import shapely
 
 from experiments.loop.harness.harness import load_caches
 from experiments.loop.harness.multi_t import prepare_standard
@@ -520,6 +521,75 @@ def gallery_single_line_wavy():
     return picks
 
 
+def gallery_single_line_height():
+    """Height-model-preference regions (the March population), no tortuosity
+    floor, ranked by deviation of the measured line from the R=1 scalar;
+    regions whose deviation comes from a secondary water body are excluded."""
+    out = OUT / "single_line_height"
+    out.mkdir(parents=True, exist_ok=True)
+    lm = caches.line_metrics
+    per_reg = lm.groupby(LOCATION_ID).agg(
+        tort=("tortuosity", "median"), n_years=("year", "nunique")
+    )
+    s = caches.samples
+    g = s.groupby([LOCATION_ID, "date"], sort=False)["dist"]
+    far3 = g.nlargest(3).groupby(level=[0, 1]).mean().rename("far3")
+    dev = (
+        (s.set_index([LOCATION_ID, "date"])["dist"] - far3)
+        .abs()
+        .groupby(level=0)
+        .mean()
+        .rename("dev_m")
+    )
+    # share of samples inside the secondary-water mask (10 m buffered parts)
+    water = gpd.read_file(DATA / "02_processed/triage/secondary_water_mask.gpkg")
+    wgeom = shapely.union_all(water.geometry.buffer(10).values)
+    shapely.prepare(wgeom)
+    pts = gpd.GeoSeries(gpd.points_from_xy(s.x, s.y), index=s.index)
+    in_water = pd.Series(shapely.contains(wgeom, pts.values), index=s.index)
+    water_frac = in_water.groupby(s[LOCATION_ID]).mean().rename("water_frac")
+    per_reg = per_reg.join(dev).join(water_frac)
+    per_reg["pref"] = pref.reindex(per_reg.index)
+    hm = per_reg[(per_reg["pref"] == "height") & (per_reg["n_years"] >= 3)].copy()
+    hm = hm[[has_vvr(l) for l in hm.index]]
+    print(
+        f"single_line_height: {len(hm)} height-model regions with VVR and ≥3 years; "
+        f"dev_m p50 {hm.dev_m.median():.1f} m, p90 {hm.dev_m.quantile(0.9):.1f} m; "
+        f"{int((hm.water_frac > 0.2).sum())} excluded for secondary water"
+    )
+    ok = hm[hm["water_frac"].fillna(0) <= 0.2].copy()
+    ok["river"] = [l.split("_")[0] for l in ok.index]
+    ok = ok.sort_values("dev_m", ascending=False)
+    ok["rank_in_river"] = ok.groupby("river").cumcount()
+    picks = ok.sort_values(["rank_in_river", "dev_m"], ascending=[True, False]).head(N)
+    paths, titles = [], []
+    for loc, row in picks.iterrows():
+        fig, ax = plt.subplots(figsize=(5.2, 5.2))
+        title = f"{loc} · afwijking {row.dev_m:.0f} m · tort {row.tort:.2f} · {int(row.n_years)} jr"
+        sgeom, cline, stats_r = base_axes(ax, loc, title=title)
+        draw_measured(ax, stats_r, lw=1.4)
+        if cline is not None:
+            sp = side_point(loc)
+            reg = far3.loc[loc]
+            yearly = reg.groupby(pd.to_datetime(reg.index).year).median()
+            for yr, dd in yearly.items():
+                pp = [anchor(cline, st_, dd, sp) for st_ in np.linspace(0.03, 0.97, 14)]
+                xs, ys = zip(*pp, strict=True)
+                ax.plot(xs, ys, color=measured_color(int(yr)), lw=1.8, ls=(0, (4, 3)), zorder=6)
+        pth = out / f"{loc}.png"
+        fig.savefig(pth, dpi=140, bbox_inches="tight")
+        plt.close(fig)
+        paths.append(pth)
+        titles.append(title)
+    contact_sheet(
+        paths,
+        titles,
+        out / "_contact_sheet.png",
+        suptitle="Hoogtemodel-voorkeur · één afstand per vlak (gestippeld) vs gemeten oeverlijn (groen) · paars = VVR",
+    )
+    return picks
+
+
 # ── 5 · structures cleanup (zonder / met masker) ─────────────────────────────
 def gallery_structures_cleanup():
     import shapely
@@ -650,6 +720,9 @@ if __name__ == "__main__":
         raise SystemExit
     if len(sys.argv) > 1 and sys.argv[1] == "cleanup":
         gallery_structures_cleanup()
+        raise SystemExit
+    if len(sys.argv) > 1 and sys.argv[1] == "single_line_height":
+        print(gallery_single_line_height().round(2).to_string())
         raise SystemExit
     if len(sys.argv) > 1 and sys.argv[1] == "wavy":
         print(gallery_single_line_wavy().round(2).to_string())
