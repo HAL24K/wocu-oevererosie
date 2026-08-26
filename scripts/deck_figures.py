@@ -263,7 +263,7 @@ def fig_cleaning_ladder():
     d = _ledger().loc[["v0-baseline", "e8-final-protected"]]
     _two_panel(
         [
-            "19 aug\n(uitgangspunt)",
+            "19 aug-model op de\nvaste testset: 3.99\n(= 4.12 op eigen split)",
             "+ opschoonregels\n(7 regels, herstel i.p.v. weggooien)",
         ],
         list(d.lgb_mae),
