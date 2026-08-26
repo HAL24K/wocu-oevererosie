@@ -381,6 +381,33 @@ def fig_resolution_sweep():
     plt.close(fig)
 
 
+def fig_horizon_sweep():
+    d = _ledger().loc[[f"hz-R{r}" for r in (1, 2, 5, 10, 20)]]
+    R = [1, 2, 5, 10, 20]
+    starved = [0, 1.7, 5.9, 9.1, 30.9]
+    fig, ax = plt.subplots(figsize=(11, 4.8))
+    ax.axvspan(14, 28, color=GREY, alpha=0.12)
+    ax.text(20, 3.75, "bemonstering op:\n31 % segmenten zonder meting", ha="center", fontsize=10, color=GREY)
+    ax.plot(R, d.lgb_tail_mae, "-o", color=ORANGE, lw=2, ms=7, label="fout risicogevallen > 2 m/jr")
+    ax.plot(R, d.naive_mae, "--s", color=GREY, lw=2, ms=7, label="naïef (gemiddelde)")
+    ax.plot(R, d.lgb_mae, "-o", color=TEAL, lw=2.5, ms=8, label="fout per segment")
+    for x, y, n in zip(R, d.lgb_mae, d.naive_mae):
+        ax.annotate(f"{y:.2f}", (x, y), textcoords="offset points", xytext=(0, -18), ha="center", color=TEAL, fontweight="bold")
+        ax.annotate(f"skill {100 * (1 - y / n):+.0f} %", (x, n), textcoords="offset points", xytext=(0, 9), ha="center", color=DARK, fontsize=9.5)
+    ax.axvline(10, color=DARK, lw=1, ls=":")
+    ax.text(10.4, 2.35, "keuze: R = 10", color=DARK, fontsize=11, fontweight="bold")
+    ax.set_xscale("log")
+    ax.set_xticks(R)
+    ax.set_xticklabels([f"R = {r}\n≈ {round(100 / r)} m\n{s:.0f} % leeg" for r, s in zip(R, starved)])
+    ax.set_ylim(0, 4)
+    ax.set_xlabel("segmenten per vlak (vlak ≈ 100 m) · segment-datums zonder meting")
+    ax.legend(frameon=False, fontsize=10, loc="upper left")
+    fig.suptitle("As 3 · segment × paren ≥ 2 jaar · vaste testset · m/jr", color=DARK, fontsize=13)
+    fig.tight_layout()
+    fig.savefig(OUT / "horizon_sweep.png", dpi=200, facecolor="white")
+    plt.close(fig)
+
+
 def fig_matrix():
     led = _ledger()
     steps = [
@@ -388,7 +415,8 @@ def fig_matrix():
         ("+ opschoonregels", led.loc["e8-final-protected"], TEAL),
         ("+ kribben & kunstwerken landelijk", led.loc["s3-e8-newstructures"], TEAL),
         ("+ historie-features", led.loc["i1-traj2"], TEAL),
-        ("+ resolutie R = 5 (per segment)", led.loc["deck-R5-traj2"], ORANGE),
+        ("+ paren ≥ 2 jaar (andere meetlat)", led.loc["k5-H2-multi-w"], ORANGE),
+        ("+ resolutie R = 10 (per segment)", led.loc["hz-R10"], ORANGE),
     ]
     labels = [s[0] for s in steps][::-1]
     mae = [s[1].lgb_mae for s in steps][::-1]
@@ -416,7 +444,7 @@ def fig_matrix():
         ax.spines["bottom"].set_visible(False)
         ax.tick_params(axis="y", labelsize=12)
     fig.suptitle(
-        "Alles op dezelfde vaste testset · stap voor stap · oranje = andere eenheid (segment)",
+        "Alles op dezelfde vaste testset · oranje = andere meetlat (paren ≥ 2 jaar; de naïeve fout zakt mee)",
         color=DARK,
         fontsize=13,
     )
@@ -434,5 +462,6 @@ if __name__ == "__main__":
     fig_structures_ablation()
     fig_history()
     fig_resolution_sweep()
+    fig_horizon_sweep()
     fig_matrix()
     print("→", OUT, sorted(p.name for p in OUT.glob("*.png")))
