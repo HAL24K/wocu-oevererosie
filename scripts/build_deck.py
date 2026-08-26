@@ -23,7 +23,7 @@ TEAL = RGBColor(0x2B, 0xB5, 0xA6)
 DARK = RGBColor(0x1F, 0x3A, 0x3D)
 GREY = RGBColor(0x6B, 0x77, 0x78)
 ORANGE = RGBColor(0xE0, 0x7A, 0x3F)
-W, H = Inches(13.333), Inches(7.5)
+W, H = Inches(13 333), Inches(7.5)
 
 
 class Deck:
@@ -177,8 +177,8 @@ def build(renders: Path):
         [
             "Maart: alleen hoogtemodel, 3–4 jaar tussen opnames",
             "Per vlak één afstand tot de hartlijn per opname (gestippeld)",
-            "Fout 0,94 m/jr — maar 'neem het gemiddelde' deed het beter (0,78)",
-            "Risicogevallen: 4,6 m/jr · 7.444 vlakken",
+            "Fout 0.94 m/jr — maar 'neem het gemiddelde' deed het beter (0.78)",
+            "Risicogevallen: 4.6 m/jr · 7 444 vlakken",
             "Met de SAM-lijnen wordt de oever écht een lijn — en het ene getal past nog slechter",
         ],
         Inches(9.6), Inches(1.7), Inches(3.5), Inches(5), size=13, gap=5,
@@ -193,12 +193,12 @@ def build(renders: Path):
     d.image(s, renders / "aug-2.png", Inches(0.6), Inches(1.6), width=Inches(7.3))
     rows = [
         ["", "maart 2026\nalleen hoogtemodel", "augustus 2026\nhybride"],
-        ["Baseline (naïef gemiddelde) — fout test", "0,78", "4,79"],
-        ["LightGBM — fout test", "0,94", "4,12"],
+        ["Baseline (naïef gemiddelde) — fout test", "0.78", "4.79"],
+        ["LightGBM — fout test", "0.94", "4.12"],
         ["LightGBM t.o.v. baseline", "20 % slechter", "14 % beter"],
-        ["Spreiding doelvariabele (m/jr)", "2,2", "11,4"],
+        ["Spreiding doelvariabele (m/jr)", "2.2", "11.4"],
         ["Tijd tussen t-punten", "3–4 jaar", "1 jaar"],
-        ["Regio's met voorspellingen", "7.444", "8.006"],
+        ["Regio's met voorspellingen", "7 444", "8 006"],
     ]
     d.table(
         s,
@@ -223,7 +223,7 @@ def build(renders: Path):
     # 4 ── drie assen + uitgangspunt
     s = d.slide(
         "Drie assen om te verbeteren",
-        "Uitgangspunt: het model van 19 augustus, resolutie 1, één vaste testset van 1.174 vlakken",
+        "Uitgangspunt: het model van 19 augustus, resolutie 1, één vaste testset van 1 174 vlakken",
     )
     _col_boxes(
         d,
@@ -254,7 +254,7 @@ def build(renders: Path):
     )
     d.note(
         s,
-        "Leeswijzer: op deze vaste testset scoort het model van 19 augustus 3,99 m/jr (4,12 op de eigen split van toen). Alle cijfers hierna zijn op deze set, zodat stappen optelbaar zijn.",
+        "Leeswijzer: op deze vaste testset scoort het model van 19 augustus 3.99 m/jr (4.12 op de eigen split van toen). Alle cijfers hierna zijn op deze set, zodat stappen optelbaar zijn.",
         Inches(0.6),
         Inches(6.1),
         Inches(12),
@@ -265,7 +265,7 @@ def build(renders: Path):
 
     # 5 ── as 1: opschoonregels
     s = d.slide(
-        "As 1 · Opschonen: van 3,99 naar 2,27",
+        "As 1 · Opschonen: van 3.99 naar 2.27",
         "Zeven regels — herstellen in plaats van weggooien",
     )
     d.image(s, FIG / "cleaning_ladder.png", Inches(0.6), Inches(1.6), width=Inches(7.6))
@@ -275,7 +275,7 @@ def build(renders: Path):
         [
             "Kronkelende lijnen, verkeerde oever, doolhoven, fragmenten, te weinig punten, uitschieters t.o.v. de trend",
             "Een uitschieter kost één meting, niet het hele vlak: +511 vlakken t.o.v. de oude |v| > 50-filter",
-            "Elke variant visueel gecontroleerd (50+ varianten, dekking blijft 0,94)",
+            "Elke variant visueel gecontroleerd (50+ varianten, dekking blijft 0.94)",
         ],
         Inches(0.6),
         Inches(5.0),
@@ -296,7 +296,7 @@ def build(renders: Path):
     # 6 ── as 1: kribben & kunstwerken
     s = d.slide(
         "As 1 · Kribben en kunstwerken: nu een laag, geen gok meer",
-        "Deze week geleverd: kribben landelijk (1.922 → 4.698) + 6.386 kunstwerken",
+        "Deze week geleverd: kribben landelijk (1 922 → 4 698) + 6 386 kunstwerken",
     )
     cleanup = CAND / "structures_cleanup" / f"{PICKS['cleanup']}.png"
     if not cleanup.exists():
@@ -330,7 +330,7 @@ def build(renders: Path):
 
     # 7 ── as 2
     s = d.slide(
-        "As 2 · Meerdere t-punten: van 2,27 naar 2,13",
+        "As 2 · Meerdere t-punten: van 2.27 naar 2.13",
         "Historie-features op resolutie 1 — en de horizon als meetlat voor het alarm",
     )
     d.image(s, FIG / "history.png", Inches(0.6), Inches(1.6), width=Inches(7.4))
@@ -373,7 +373,7 @@ def build(renders: Path):
             "gestippeld = de oude voorspelling: één getal voor het hele vlak",
             "paars = VVR / signaleringslijn",
             "**Dit vlak",
-            "Eén getal zegt −9,7 m/jr; de vijf segmenten lopen van −17,1 tot +1,4",
+            "Eén getal zegt −9.7 m/jr; de vijf segmenten lopen van −17.1 tot +1.4",
             "Het bovenste segment nadert de VVR; de rest niet — het alarm hoort per segment te kijken",
             "**Vandaag",
             "VVR-jaar = één drempel per vlak (het verst gelegen punt van de signaleringslijn) tegen één scalar → per definitie laat",
@@ -405,8 +405,8 @@ def build(renders: Path):
         s,
         [
             "De segment-representatie (bruin) volgt de gemeten oever vanaf R ≈ 5–10; bij R = 50–100 raken segmenten leeg (rood)",
-            "Fout per segment daalt van 2,25 (R = 1) naar 1,88 (R = 5) en 1,61 (R = 20) — kleiner wordt nauwkeuriger, niet ruiziger",
-            "Terug-samengevoegd per vlak blijft de fout ≈ 2,1–2,2: het vlak-getal zelf heeft een vloer (0,5–1,1 m/jr representatiefout)",
+            "Fout per segment daalt van 2.25 (R = 1) naar 1.88 (R = 5) en 1.61 (R = 20) — kleiner wordt nauwkeuriger, niet ruiziger",
+            "Terug-samengevoegd per vlak blijft de fout ≈ 2.1–2.2: het vlak-getal zelf heeft een vloer (0.5–1.1 m/jr representatiefout)",
             "Grens ligt bij de lijnbemonstering (60 punten per lijn), niet bij het model · praktisch: R = 5–10 (≈ 10–20 m)",
         ],
         Inches(0.6),
@@ -425,7 +425,7 @@ def build(renders: Path):
     d.bullets(
         s,
         [
-            "Opschonen: −1,72 m/jr (−43 %) · historie-features: −0,14 · structurenlaag: ±0 (dekking/juistheid) · resolutie: andere eenheid, −0,25 per segment",
+            "Opschonen: −1.72 m/jr (−43 %) · historie-features: −0.14 · structurenlaag: ±0 (dekking/juistheid) · resolutie: andere eenheid, −0.25 per segment",
             "**Het model was nooit de bottleneck — de labels waren het. En de regels raken op: wat overblijft, kan alleen een mens zien.",
         ],
         Inches(0.6),
@@ -446,18 +446,18 @@ def build(renders: Path):
         ["meetlat", "naïef", "LightGBM", "risicogevallen > 2 m/jr\nLGB / naïef"],
         [
             "maart · hoogtemodel · 3–4 jr · per vlak",
-            "0,78",
-            "0,94  (−20 %)",
-            "4,6 / 5,5",
+            "0.78",
+            "0.94  (−20 %)",
+            "4.6 / 5.5",
         ],
-        ["19 aug · hybride · 1 jr · per vlak", "4,79", "4,12  (+14 %)", "≈ 8,3"],
+        ["19 aug · hybride · 1 jr · per vlak", "4.79", "4.12  (+14 %)", "≈ 8.3"],
         [
             "nu · zelfde 1-jr meetlat · eerlijke validatie",
-            "2,86",
-            "2,47  (+13 %)",
-            "5,0 / 6,3",
+            "2.86",
+            "2.47  (+13 %)",
+            "5.0 / 6.3",
         ],
-        ["nu · segment · ≥ 2 jr · eerlijke validatie", "1,79", "1,23  (+31 %)", "3,5"],
+        ["nu · segment · ≥ 2 jr · eerlijke validatie", "1.79", "1.23  (+31 %)", "3.5"],
     ]
     d.table(
         s,
@@ -472,9 +472,9 @@ def build(renders: Path):
         s,
         [
             "Eerlijk: de testset speelt geen rol meer bij het trainen (in maart en augustus wél) — strenger, en tóch lager",
-            "Vlakken met voorspelling 8.006 → 10.721",
-            "1,23 is m/jr op een gladdere meetlat — lees het als '31 % beter dan niets doen', niet als '2× beter dan 2,47'",
-            "Toezegging 10× (op 4,12): nu 1,7× op die exacte meetlat, met strengere validatie",
+            "Vlakken met voorspelling 8 006 → 10 721",
+            "1.23 is m/jr op een gladdere meetlat — lees het als '31 % beter dan niets doen', niet als '2× beter dan 2.47'",
+            "Toezegging 10× (op 4.12): nu 1.7× op die exacte meetlat, met strengere validatie",
         ],
         Inches(0.6),
         Inches(4.4),
@@ -526,7 +526,7 @@ def build(renders: Path):
     d.bullets(
         s,
         [
-            "Per segment een verwachte positie ≥ 2 jaar vooruit (48.000 segmenten, 10.000 vlakken)",
+            "Per segment een verwachte positie ≥ 2 jaar vooruit (48 000 segmenten, 10 000 vlakken)",
             "Een vlak kleurt rood zodra énig segment de signaleringslijn nadert — met het segment erbij",
             "Kribvakken en meerdelige vlakken worden daarmee vanzelf goed behandeld",
             "Bestaande stoplicht-kaart en tijdslider blijven; dit komt er als laag bij",
