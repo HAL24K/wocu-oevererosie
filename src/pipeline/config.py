@@ -108,7 +108,7 @@ class ExperimentConfig:
     # ── graduated modelling (TRACK2/TRACK3 winners) ───────────────────────────
     trajectory_features: bool = True  # traj2 history descriptors (hybrid only)
     val_frac: float = 0.15  # honest early stopping: grouped val split, never test
-    segment_R: int = 5  # segments per region for the horizon artifact
+    segment_R: int = 20  # segments per region for the horizon artifact (≈ 5 m; chosen 2026-08-26)
     segment_n_samples: int = 60  # dense sampling for segment scalars
     horizon_min_years: int = 2  # forecast horizon of the segment artifact
     build_segments: bool = True  # produce the segment-horizon artifact (hybrid)

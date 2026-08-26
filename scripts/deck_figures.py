@@ -387,15 +387,15 @@ def fig_horizon_sweep():
     starved = [0, 1.7, 5.9, 9.1, 30.9]
     fig, ax = plt.subplots(figsize=(11, 4.8))
     ax.axvspan(14, 28, color=GREY, alpha=0.12)
-    ax.text(20, 3.75, "bemonstering op:\n31 % segmenten zonder meting", ha="center", fontsize=10, color=GREY)
+    ax.text(20, 3.75, "31 % segment-datums zonder meting:\nop te lossen in de lijnbemonstering", ha="center", fontsize=10, color=GREY)
     ax.plot(R, d.lgb_tail_mae, "-o", color=ORANGE, lw=2, ms=7, label="fout risicogevallen > 2 m/jr")
     ax.plot(R, d.naive_mae, "--s", color=GREY, lw=2, ms=7, label="naïef (gemiddelde)")
     ax.plot(R, d.lgb_mae, "-o", color=TEAL, lw=2.5, ms=8, label="fout per segment")
     for x, y, n in zip(R, d.lgb_mae, d.naive_mae):
         ax.annotate(f"{y:.2f}", (x, y), textcoords="offset points", xytext=(0, -18), ha="center", color=TEAL, fontweight="bold")
         ax.annotate(f"skill {100 * (1 - y / n):+.0f} %", (x, n), textcoords="offset points", xytext=(0, 9), ha="center", color=DARK, fontsize=9.5)
-    ax.axvline(10, color=DARK, lw=1, ls=":")
-    ax.text(10.4, 2.35, "keuze: R = 10", color=DARK, fontsize=11, fontweight="bold")
+    ax.axvline(20, color=DARK, lw=1, ls=":")
+    ax.text(13.2, 2.35, "keuze: R = 20", color=DARK, fontsize=11, fontweight="bold")
     ax.set_xscale("log")
     ax.set_xticks(R)
     ax.set_xticklabels([f"R = {r}\n≈ {round(100 / r)} m\n{s:.0f} % leeg" for r, s in zip(R, starved)])
@@ -449,7 +449,7 @@ def fig_matrix():
         ("+ kribben & kunstwerken landelijk", led.loc["s3-e8-newstructures"], TEAL),
         ("+ historie-features", led.loc["i1-traj2"], TEAL),
         ("+ paren ≥ 2 jaar (andere meetlat)", led.loc["k5-H2-multi-w"], ORANGE),
-        ("+ resolutie R = 10 (per segment)", led.loc["hz-R10"], ORANGE),
+        ("+ resolutie R = 20 (per segment)", led.loc["hz-R20"], ORANGE),
     ]
     labels = [s[0] for s in steps][::-1]
     mae = [s[1].lgb_mae for s in steps][::-1]
