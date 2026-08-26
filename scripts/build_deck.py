@@ -23,7 +23,7 @@ TEAL = RGBColor(0x2B, 0xB5, 0xA6)
 DARK = RGBColor(0x1F, 0x3A, 0x3D)
 GREY = RGBColor(0x6B, 0x77, 0x78)
 ORANGE = RGBColor(0xE0, 0x7A, 0x3F)
-W, H = Inches(13 333), Inches(7.5)
+W, H = Inches(13.333), Inches(7.5)
 
 
 class Deck:
@@ -193,12 +193,12 @@ def build(renders: Path):
     d.image(s, renders / "aug-2.png", Inches(0.6), Inches(1.6), width=Inches(7.3))
     rows = [
         ["", "maart 2026\nalleen hoogtemodel", "augustus 2026\nhybride"],
-        ["Baseline (naïef gemiddelde) — fout test", "0.78", "4.79"],
-        ["LightGBM — fout test", "0.94", "4.12"],
+        ["Baseline (naïef gemiddelde) — fout test", "0,78", "4,79"],
+        ["LightGBM — fout test", "0,94", "4,12"],
         ["LightGBM t.o.v. baseline", "20 % slechter", "14 % beter"],
-        ["Spreiding doelvariabele (m/jr)", "2.2", "11.4"],
+        ["Spreiding doelvariabele (m/jr)", "2,2", "11,4"],
         ["Tijd tussen t-punten", "3–4 jaar", "1 jaar"],
-        ["Regio's met voorspellingen", "7 444", "8 006"],
+        ["Regio's met voorspellingen", "7.444", "8.006"],
     ]
     d.table(
         s,
@@ -446,18 +446,18 @@ def build(renders: Path):
         ["meetlat", "naïef", "LightGBM", "risicogevallen > 2 m/jr\nLGB / naïef"],
         [
             "maart · hoogtemodel · 3–4 jr · per vlak",
-            "0.78",
-            "0.94  (−20 %)",
-            "4.6 / 5.5",
+            "0,78",
+            "0,94  (−20 %)",
+            "4,6 / 5,5",
         ],
-        ["19 aug · hybride · 1 jr · per vlak", "4.79", "4.12  (+14 %)", "≈ 8.3"],
+        ["19 aug · hybride · 1 jr · per vlak", "4,79", "4,12  (+14 %)", "≈ 8,3"],
         [
             "nu · zelfde 1-jr meetlat · eerlijke validatie",
-            "2.86",
-            "2.47  (+13 %)",
-            "5.0 / 6.3",
+            "2,86",
+            "2,47  (+13 %)",
+            "5,0 / 6,3",
         ],
-        ["nu · segment · ≥ 2 jr · eerlijke validatie", "1.79", "1.23  (+31 %)", "3.5"],
+        ["nu · segment · ≥ 2 jr · eerlijke validatie", "1,79", "1,23  (+31 %)", "3,5"],
     ]
     d.table(
         s,

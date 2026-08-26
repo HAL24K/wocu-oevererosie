@@ -161,18 +161,18 @@ def fig_structures_map():
         ax.set_aspect("equal")
     old.centroid.plot(ax=axes[0], color=ORANGE, markersize=2)
     new.centroid.plot(
-        ax=axes[1], color=ORANGE, markersize=2, label=f"kribben ({f"{len(new):,}".replace(","," ")})"
+        ax=axes[1], color=ORANGE, markersize=2, label=f"kribben ({f"{len(new):,}".replace(",", chr(8239))})"
     )
     kw.centroid.plot(
         ax=axes[1],
         color=DARK,
         markersize=2,
-        label=f"bruggen/kades/steigers/sluizen ({f"{len(kw):,}".replace(","," ")})",
+        label=f"bruggen/kades/steigers/sluizen ({f"{len(kw):,}".replace(",", chr(8239))})",
     )
     axes[0].text(
         0.02,
         0.02,
-        f"kribben: {f"{len(old):,}".replace(","," ")}\nalleen Waal en Nederrijn-Lek",
+        f"kribben: {f"{len(old):,}".replace(",", chr(8239))}\nalleen Waal en Nederrijn-Lek",
         transform=axes[0].transAxes,
         color=DARK,
         fontsize=12,
@@ -181,7 +181,7 @@ def fig_structures_map():
     axes[1].text(
         0.02,
         0.02,
-        f"kribben: {f"{len(new):,}".replace(","," ")} (IJssel, Rijntakken, Maas)\nkunstwerken gemaskeerd: {f"{len(kw):,}".replace(","," ")}",
+        f"kribben: {f"{len(new):,}".replace(",", chr(8239))} (IJssel, Rijntakken, Maas)\nkunstwerken gemaskeerd: {f"{len(kw):,}".replace(",", chr(8239))}",
         transform=axes[1].transAxes,
         color=DARK,
         fontsize=12,
@@ -204,11 +204,11 @@ def crops():
     )
     w, h = show.size
     # bottom row, panel 1 (ijssel1_l_0580_0590) and panel 4 (rijn_l_6420_6430)
-    row_top, row_bot = int(h * 0 585), int(h * 0 985)
-    show.crop((int(w * 0.02), row_top, int(w * 0 255), row_bot)).save(
+    row_top, row_bot = int(h * 0.585), int(h * 0.985)
+    show.crop((int(w * 0.02), row_top, int(w * 0.255), row_bot)).save(
         OUT / "r5_ijssel.png"
     )
-    show.crop((int(w * 0.75), row_top, int(w * 0 995), row_bot)).save(
+    show.crop((int(w * 0.75), row_top, int(w * 0.995), row_bot)).save(
         OUT / "r5_rijn.png"
     )
     show.crop((int(w * 0.27), int(h * 0.04), int(w * 0.49), int(h * 0.55))).save(
@@ -220,7 +220,7 @@ def crops():
     )
     w, h = kb.size
     # row 2, left pair (nederrijn_r_5210_5220): voor | na
-    kb.crop((int(w * 0.03), int(h * 0 265), int(w * 0 505), int(h * 0.51))).save(
+    kb.crop((int(w * 0.03), int(h * 0.265), int(w * 0.505), int(h * 0.51))).save(
         OUT / "krib_before_after.png"
     )
 
