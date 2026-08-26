@@ -395,7 +395,7 @@ def fig_horizon_sweep():
         ax.annotate(f"{y:.2f}", (x, y), textcoords="offset points", xytext=(0, -18), ha="center", color=TEAL, fontweight="bold")
         ax.annotate(f"skill {100 * (1 - y / n):+.0f} %", (x, n), textcoords="offset points", xytext=(0, 9), ha="center", color=DARK, fontsize=9.5)
     ax.axvline(20, color=DARK, lw=1, ls=":")
-    ax.text(13.2, 2.35, "keuze: R = 20", color=DARK, fontsize=11, fontweight="bold")
+    ax.text(19.2, 2.35, "keuze: R = 20 ", color=DARK, fontsize=11, fontweight="bold", ha="right")
     ax.set_xscale("log")
     ax.set_xticks(R)
     ax.set_xticklabels([f"R = {r}\n≈ {round(100 / r)} m\n{s:.0f} % leeg" for r, s in zip(R, starved)])
