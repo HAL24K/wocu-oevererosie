@@ -291,15 +291,34 @@ def fig_structures_ablation():
 
 
 def fig_history():
-    d = _ledger().loc[["e8-final-protected", "i1-traj2"]]
-    _two_panel(
-        ["opschoonregels", "+ historie-features\n(trend, versnelling, terugkeer)"],
-        list(d.lgb_mae),
-        list(d.lgb_tail_mae),
-        [GREY, TEAL],
-        "As 2 · zelfde vaste testset · resolutie 1",
-        "history.png",
-    )
+    d = _ledger().loc[["e8-final-protected", "i1-traj2", "k5-H2-multi-w"]]
+    labels = [
+        "na opschonen\n(1 174 vlakken)",
+        "+ historie-features\n(1 174 vlakken)",
+        "+ paren ≥ 2 jaar\nandere meetlat · 715 vlakken",
+    ]
+    fig, axes = plt.subplots(1, 2, figsize=(11, 4.8))
+    for ax, col, ncol, t in (
+        (axes[0], "lgb_mae", "naive_mae", "gemiddelde fout, alle vlakken (m/jr)"),
+        (axes[1], "lgb_tail_mae", None, "fout risicogevallen > 2 m/jr (m/jr)"),
+    ):
+        vals = list(d[col])
+        bars = ax.bar(labels, vals, color=[GREY, TEAL, ORANGE], width=0.6)
+        _label(ax, bars)
+        if ncol:
+            nv = list(d[ncol])
+            ax.plot(range(3), nv, "_", color=DARK, ms=40, mew=2.5)
+            for k, (v, n) in enumerate(zip(vals, nv)):
+                ax.text(k, n + 0.08, f"naïef {n:.2f} · skill {100 * (1 - v / n):+.0f} %", ha="center", fontsize=10, color=DARK)
+        ax.set_title(t, color=DARK, fontsize=13, pad=12)
+        ax.set_ylim(0, max(vals + (list(d[ncol]) if ncol else [])) * 1.3)
+        ax.set_yticks([])
+        ax.spines["left"].set_visible(False)
+        ax.tick_params(axis="x", labelsize=10)
+    fig.suptitle("As 2 · vaste testset · resolutie 1 · oranje = andere meetlat (de naïeve fout zakt mee)", color=DARK, fontsize=12)
+    fig.tight_layout()
+    fig.savefig(OUT / "history.png", dpi=200, facecolor="white")
+    plt.close(fig)
 
 
 def fig_resolution_sweep():
