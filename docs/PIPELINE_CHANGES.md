@@ -73,6 +73,7 @@ Each has a ledger row and a paragraph in the track reports.
 | 20260820 baseline (points-era conditions, test-ES) | 4.01 / ~8.3 | — |
 | 20260822-grad | 2.63 / 5.90 | 1.15 / 3.04 / 0.49 |
 | 20260825-structures (full structures mask) | 2.47 / 5.00 | 1.24 / 3.51 / 0.44 |
+| 20260904-r20 (segment_R=20, honest, random split) | 2.47 / 5.00 | **0.97 / 3.13 / 0.50** (naive 1.45, skill +33 %, pos-err med 0.93 m) |
 
 Tail = regions with observed \|v\| > 2 m/yr (n≈220 region, ≈400 segment).
 Region-level and segment-level moved in opposite directions between the last
