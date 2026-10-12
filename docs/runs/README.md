@@ -5,6 +5,10 @@ counts and metrics. `src/pipeline/provenance.py` writes it at the end of every
 run, into the run folder (`data/04_runs/<experiment>/run.json`) and here. The copy
 here is tracked in git, so it outlives the run's data.
 
+Hybrids built by `python -m src.hybrid` get the same in [hybrids/](hybrids/):
+inputs, cleaning options, per-rule counts, regions per preferred model. A model
+run on such a hybrid carries its record under `inputs.hybrid_gpkg.hybrid_record`.
+
 Delete a record only together with every number that quotes it.
 
 ## Ledger
@@ -24,6 +28,7 @@ the frozen test regions of 20260907 (`data/02_context/frozen_split_20260907.parq
 | [20261012-hm0210](20261012-hm0210.json) | 1.065 | +35% | 3.27 | 2.45 | 5,750 | — |
 | [20261012-hm0310](20261012-hm0310.json) | 1.052 | +34% | 3.41 | 2.45 | 5,738 | yes |
 | [20261012-verify](20261012-verify.json) | 1.052 | +34% | 3.41 | 2.45 | 5,738 | — |
+| [20261012-stage-luke](20261012-stage-luke.json) | 1.031 | +35% | 3.17 | 2.44 | 5,738 | yes |
 
 - **20260907-near-fz** — behind the September deliverables in `data/05_deliverables/`.
 - **20261006-\* / 20261007-\*** — cleaning SAM before the hybrid step, on our own
@@ -35,6 +40,9 @@ the frozen test regions of 20260907 (`data/02_context/frozen_split_20260907.parq
 - **20261012-hm0310** — the same on Luke's 0310 height model, now the default.
 - **20261012-verify** — a plain `python -m src.pipeline` after the October clean-up:
   identical to 20261012-hm0310, so the restructure changed no result.
+- **20261012-stage-luke** — on hybrid `20261012-luke-nearest`: Luke's `_nearest` hybrid
+  rebuilt by `python -m src.hybrid` (99.9 % same preference as his file; the rest is
+  geometry-library noise). Same regions as 20261012-hm0310.
 
 Records before 2026-10-12 were written afterwards; their settings are
 reconstructed and say so in `notes`.

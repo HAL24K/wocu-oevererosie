@@ -3,7 +3,7 @@
 Command line::
 
     uv run python -m src.pipeline --experiment 20261012-hm0310
-    uv run python -m src.pipeline --experiment test --hybrid-gpkg data/03_hybrid/<name>/hybrid.gpkg
+    uv run python -m src.pipeline --experiment test --hybrid <name>   # data/03_hybrid/<name>/
     uv run python -m src.pipeline --experiment quick --end-year 2035 --no-export
 
 With no options a run reproduces the reference run (``docs/runs/README.md``).
@@ -463,8 +463,10 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument(
         "--resume", action="store_true", help="reuse existing per-step parquets"
     )
-    ap.add_argument(
-        "--hybrid-gpkg", help="hybrid line set (default: Luke's 10 Jul _nearest)"
+    hy = ap.add_mutually_exclusive_group()
+    hy.add_argument("--hybrid", help="a hybrid from python -m src.hybrid: its name")
+    hy.add_argument(
+        "--hybrid-gpkg", help="any hybrid line set (default: Luke's 10 Jul _nearest)"
     )
     ap.add_argument("--raw-gpkg", help="height-model delivery (default: 0310)")
     ap.add_argument(
@@ -497,6 +499,7 @@ def main(argv: list[str] | None = None) -> int:
         export_gpkg=not args.no_export,
         resume=args.resume,
         hybrid_gpkg=args.hybrid_gpkg,
+        hybrid=args.hybrid,
         raw_gpkg=args.raw_gpkg,
         sample_spacing_m=args.sample_spacing_m,
         segment_sample_spacing_m=args.segment_sample_spacing_m,

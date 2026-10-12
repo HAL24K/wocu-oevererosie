@@ -1,4 +1,4 @@
-"""Our cleaning stack applied to the SAM ``_nearest`` lines before the hybrid points count.
+"""Cleaning of the SAM ``_nearest`` pieces before the hybrid points count.
 
 The rules work on sampled points (``src.cleaning.rules``); a line survives with at
 least one kept sample, and is then clipped by the structure / secondary-water mask
@@ -86,12 +86,15 @@ def side_channel_mask(
         )
     )
     hit = gpd.sjoin(seg[[LOCATION_ID, "geometry"]], poly, predicate="intersects")
-    hit = hit[
+    foreign = pd.Series(
         [
             (loc, pid) not in own
             for loc, pid in zip(hit[LOCATION_ID], hit["pid"], strict=True)
-        ]
-    ]
+        ],
+        index=hit.index,
+        dtype=bool,
+    )
+    hit = hit[foreign]
     cut = hit.groupby(level=0)["pid"].agg(list)
     out = seg.copy()
     for i, pids in cut.items():

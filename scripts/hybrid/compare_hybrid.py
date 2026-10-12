@@ -1,6 +1,8 @@
-"""Compare a reproduced hybrid gpkg with Luke's delivery, region by region.
+"""Compare two hybrid line sets region by region: preference, rationale fields, winner lines.
 
-Run: ``uv run python scripts/hybrid/compare_hybrid.py --ours …/hybrid_repro.gpkg --theirs …/hybrid_model_results_nearest_20260710.gpkg``
+Run: ``PYTHONPATH=. uv run python scripts/hybrid/compare_hybrid.py
+        --ours data/03_hybrid/<name>/hybrid.gpkg
+        --theirs data/03_hybrid/luke_20260710/hybrid_model_results_nearest_20260710.gpkg``
 """
 
 from __future__ import annotations

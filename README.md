@@ -18,20 +18,35 @@ height model (Luke)┘   per region: SAM    data/03_hybrid/     clean, features,
 The model stage can start from any hybrid line set: Luke's delivery, our
 reproduction of it, or one we build ourselves with other cleaning rules.
 
-**Model stage** — one command, writes a browsable `report.html` and a run record:
+**Hybrid stage** — raw SAM + height model → `data/03_hybrid/<name>/`:
 
 ```bash
-uv run python -m src.pipeline --experiment 20261012-test --notes "what this run tests"
-uv run python -m src.pipeline --experiment 20261012-test --hybrid-gpkg data/03_hybrid/<name>/hybrid.gpkg
+# Luke's _nearest hybrid, rebuilt from the raw files (step 1 is the slow part)
+uv run python -m src.hybrid --name 20261012-luke-nearest
+# our SAM cleaning before the points count, reusing step 1 of the hybrid above
+uv run python -m src.hybrid --name 20261013-rules --nearest-from 20261012-luke-nearest \
+    --sam-rules --side-channel-m 10 --jetty-m 100 --notes "what this hybrid tests"
 ```
 
-With no overrides a run reproduces the reference run. Options: `--no-export`
+Steps: (1) Luke's nearest-crossing cut of the SAM lines → `nearest.gpkg`;
+(2) optional SAM cleaning: `--sam-rules` (the model stage's rule stack),
+`--side-channel-m`, `--jetty-m`; (3) Luke's points count, SAM or height per
+region. Regions that lose all SAM pieces in (2) take their height lines
+(`--no-height-fallback` drops them). Writes `hybrid.gpkg` and `hybrid.json`.
+
+**Model stage** — a hybrid line set → predictions, a browsable `report.html` and a run record:
+
+```bash
+uv run python -m src.pipeline --experiment 20261013-rules --hybrid 20261013-rules
+uv run python -m src.pipeline --experiment 20261013-ref --notes "what this run tests"
+```
+
+With no `--hybrid` it reads Luke's 10 Jul `_nearest` delivery and reproduces
+the reference run. Options: `--hybrid-gpkg` (any hybrid file), `--no-export`
 (skip the large GeoPackage), `--resume` (reuse per-step parquets), `--end-year`,
 `--raw-gpkg`, `--fresh-split`. All defaults: `src/pipeline/config.py`.
 
-**Hybrid stage** — for now a script (`scripts/hybrid/reproduce_hybrid.py`, Luke's
-algorithm on his raw inputs; `prehybrid_clean.py` applies our cleaning rules
-first). Moving it into `src/hybrid` as a proper stage is the next step.
+**Both in one go**: add `--run-model <experiment>` to `python -m src.hybrid`.
 
 ## Setup
 
@@ -47,13 +62,13 @@ For notebooks: `uv run python -m ipykernel install --user --name wocu --display-
 
 ```
 src/
-  hybrid/      hybrid stage: luke_v2 (port of Luke's hybrid model), prehybrid_clean
+  hybrid/      hybrid stage: config, run, luke_v2 (port of Luke's model), sam_cleaning
   pipeline/    model stage, one module per step (see its __init__.py), config, provenance
   cleaning/    cleaning rules, shared by both stages
   sources/     scope geometry and the bank-observation table
   analysis/    region_inspector, for notebooks and evaluation scripts
 scripts/
-  hybrid/      build, export and compare hybrid line sets
+  hybrid/      compare a hybrid with Luke's file; export one in his delivery format
   evaluate/    worst-predicted regions, galleries, comparisons between runs
   export/      deliverables from a run: predicted bank lines, VVR crossing years
   data_prep/   how 02_context files were made (structures, water stations)
@@ -70,9 +85,12 @@ what goes out.
 
 ## Provenance
 
-Every run writes `run.json` (inputs with size and date, every setting, git
-commit, metrics) into its run folder and a copy into `docs/runs/`, which is
-tracked. Add `--notes` to say what a run is for. The ledger is
+Every model run writes `run.json` (inputs with size and date, every setting,
+git commit, metrics) into its run folder, every hybrid writes `hybrid.json`
+into its folder, and both are copied to `docs/runs/` (`hybrids/` for the
+latter), which is tracked. A run on a hybrid from `src.hybrid` carries that
+hybrid's record, so every number traces back to the raw files. Add `--notes`
+to say what a run or hybrid is for. The ledger is
 [docs/runs/README.md](docs/runs/README.md). The state before the October 2026
 clean-up is tagged `pre-cleanup-20261012`.
 

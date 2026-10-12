@@ -178,7 +178,7 @@ def test_run_record_names_inputs_settings_and_metrics(tmp_path):
 
 
 def test_run_record_on_a_scratch_data_dir_stays_out_of_the_repo(tmp_path, monkeypatch):
-    import src.pipeline.provenance as prov
+    import src.provenance as prov
     from src.pipeline.provenance import write_run_record
 
     ledger = tmp_path / "ledger"

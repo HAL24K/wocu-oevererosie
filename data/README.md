@@ -37,9 +37,13 @@ The numbers say how far along the process a file is. Nothing ever writes into
 03_hybrid/<name>/ + 01_raw + 02_context ──(model stage)──▶ 04_runs/<experiment>/
 ```
 
-The model stage defaults are in `src/pipeline/config.py`; with no overrides a run
-reproduces the reference run (`docs/runs/README.md`). The hybrid stage is
-`scripts/hybrid/reproduce_hybrid.py` for now.
+`python -m src.hybrid --name <name>` is the hybrid stage, `python -m src.pipeline`
+the model stage (`--hybrid <name>` to start from one); see the root README.
+With no overrides a model run reproduces the reference run (`docs/runs/README.md`).
+
+A hybrid folder from `src.hybrid` holds `hybrid.gpkg` (`lines`, `lines_all`,
+`model_preference`), `nearest.gpkg` (step 1, reusable with `--nearest-from`),
+`hybrid.json` and, if SAM was cleaned, `sam_cleaning_stats.csv`.
 
 ## Things to know
 

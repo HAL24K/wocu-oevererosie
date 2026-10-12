@@ -5,8 +5,9 @@ column order, geometry type and row order as the reference delivery.
 Output 2: ``<stem>_differences.csv``: every region whose preference or winning lines differ
 from the reference, with both sides' points and per-year line pieces and length.
 
-Run: ``uv run python scripts/hybrid/export_hybrid_delivery.py --repro …/hybrid_repro_nearest.gpkg
-        --reference …/hybrid_model_results_nearest_20260710.gpkg --out-stem …/hybrid_model_results_nearest_repro``
+Run: ``uv run python scripts/hybrid/export_hybrid_delivery.py --repro data/03_hybrid/<name>/hybrid.gpkg
+        --reference data/03_hybrid/luke_20260710/hybrid_model_results_nearest_20260710.gpkg
+        --out-stem data/03_hybrid/<name>/hybrid_model_results_nearest_<name>``
 """
 
 from __future__ import annotations

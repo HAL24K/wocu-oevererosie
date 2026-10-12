@@ -16,8 +16,8 @@ Usage::
 
 Every default reproduces the reference run (``docs/runs/README.md``): Luke's
 ``_nearest`` hybrid of 10 Jul, length-based sampling and the frozen test split.
-Override a path for a different input, e.g. ``hybrid_gpkg`` for a hybrid line
-set built by ``python -m src.hybrid``.
+Override any input; ``hybrid="<name>"`` takes the hybrid line set that
+``python -m src.hybrid --name <name>`` wrote to ``03_hybrid/<name>/``.
 """
 
 from __future__ import annotations
@@ -69,6 +69,7 @@ class ExperimentConfig:
         "sluis_stuw",
     )
     hybrid_gpkg: Path | None = None
+    hybrid: str | None = None  # name under 03_hybrid/ → sets hybrid_gpkg
 
     # ── parameters ────────────────────────────────────────────────────────────
     # Structure mask: at a groyne the water's edge is the structure flank, not
@@ -142,6 +143,10 @@ class ExperimentConfig:
 
     def __post_init__(self) -> None:
         self.data_dir = Path(self.data_dir)
+        if self.hybrid is not None:
+            if self.hybrid_gpkg is not None:
+                raise ValueError("give hybrid or hybrid_gpkg, not both")
+            self.hybrid_gpkg = self.data_dir / "03_hybrid" / self.hybrid / "hybrid.gpkg"
         for name, rel in self._DEFAULTS.items():
             if getattr(self, name) is None:
                 setattr(self, name, self.data_dir / rel)
