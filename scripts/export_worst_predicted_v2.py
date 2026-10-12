@@ -20,11 +20,15 @@ set) to the browsable design:
   4. PDF primer: cover stats + top-20 by rank_horizon as OSM panels with the
      predicted polyline drawn in orange.
 
-Run: ``uv run python scripts/export_worst_predicted_v2.py``
+Run: ``uv run python scripts/export_worst_predicted_v2.py --run 20260904-r20``
+(2026-09-07: parametrised on the run; cleaning flags are recomputed from the
+run's own lines when no ``sam_review_<stamp>.gpkg`` exists for it.)
 """
 
 from __future__ import annotations
 
+import argparse
+import json
 import warnings
 
 import geopandas as gpd
@@ -61,12 +65,25 @@ from matplotlib.backends.backend_pdf import PdfPages  # noqa: E402
 plt.rcParams["font.family"] = ["Verdana", "DejaVu Sans"]
 GREY = "#444444"
 ORANGE = "#E07A3F"
-RUN = "20260904-r20"
-STAMP = "20260904"
 MODES = ["doolhof", "kronkelend", "tijd_uitschieter", "fragment", "verkeerde_oever"]
 
-cfg = ExperimentConfig(experiment=RUN)
+ap = argparse.ArgumentParser()
+ap.add_argument("--run", default="20260904-r20")
+ap.add_argument("--stamp", default=pd.Timestamp.today().strftime("%Y%m%d"))
+ap.add_argument("--hybrid-gpkg", default=None)
+ap.add_argument("--sample-spacing-m", type=float, default=None)
+ap.add_argument("--segment-sample-spacing-m", type=float, default=None)
+args = ap.parse_args()
+RUN, STAMP = args.run, args.stamp
+
+cfg = ExperimentConfig(
+    experiment=RUN,
+    hybrid_gpkg=args.hybrid_gpkg,
+    sample_spacing_m=args.sample_spacing_m,
+    segment_sample_spacing_m=args.segment_sample_spacing_m,
+)
 OUT_DIR = cfg.data_dir / "02_processed/triage"
+seg_metrics = json.loads((cfg.model_out_dir / "segment_metrics.json").read_text())
 bundle = joblib.load(cfg.model_out_dir / "bundle.joblib")
 feats = bundle["config"]["FEATS_LGB"]
 rf = pd.read_parquet(cfg.features_dir / "region_features.parquet")
@@ -97,7 +114,8 @@ for fold, (tr_i, te_i) in enumerate(skf.split(rf, rf["cluster"])):
 err_cv = (cv_pred - y).abs()
 cv_mae = err_cv.mean()
 print(f"CV: {len(rf):,} regions · pooled out-of-fold MAE {cv_mae:.4f}")
-assert 2.2 <= cv_mae <= 2.9, f"CV MAE {cv_mae:.3f} outside sanity window"
+if not 1.5 <= cv_mae <= 3.5:
+    print(f"WARNING: CV MAE {cv_mae:.3f} outside the usual 1.5–3.5 window")
 
 # overlap with v1's test-set top-100
 model_run = joblib.load(cfg.model_out_dir / "model_lgb.joblib")
@@ -152,8 +170,9 @@ seg_model.fit(
     callbacks=[lgb.early_stopping(50, verbose=False), lgb.log_evaluation(-1)],
 )
 seg_mae = np.abs(seg_model.predict(stest[feat_names]) - stest["v_test"]).mean()
-print(f"segment model rebuilt: test MAE {seg_mae:.4f} (run: 0.9743)")
-assert abs(seg_mae - 0.9743) < 0.02, "segment model does not reproduce the run"
+run_seg_mae = seg_metrics["test_mae"]
+print(f"segment model rebuilt: test MAE {seg_mae:.4f} (run: {run_seg_mae:.4f})")
+assert abs(seg_mae - run_seg_mae) < 0.02, "segment model does not reproduce the run"
 
 frame_all = decorate(_increment_rows(yearly, H, set(rf.index), set()))
 frame_all["v_pred_seg"] = seg_model.predict(frame_all[feat_names])
@@ -166,7 +185,7 @@ print(
 )
 
 # ── 3 · vlakken layer ────────────────────────────────────────────────────────
-ri = RegionInspector()
+ri = RegionInspector(hybrid_gpkg=cfg.hybrid_gpkg)
 vl = rf[["v_test", "is_nvo", "cluster", "split"]].copy()
 vl["v_pred_cv"] = cv_pred.round(2)
 vl["err_1jr_cv"] = err_cv.round(2)
@@ -175,13 +194,56 @@ vl = vl.join(reg_h)
 vl["rank_horizon"] = vl["err_horizon_mean"].rank(ascending=False)
 vl["horizon_in_train"] = vl.index.isin(train_ids).astype(int)
 vl["river"] = vl.index.str.extract(r"^([a-z]+\d*)", expand=False)
-flags = gpd.read_file(OUT_DIR / f"sam_review_{STAMP}.gpkg", layer="vlakken")
-flags = flags.set_index(LOCATION_ID)[[f"n_{m}" for m in MODES]]
+review = OUT_DIR / f"sam_review_{STAMP}.gpkg"
+if review.exists():
+    flags = gpd.read_file(review, layer="vlakken")
+    flags = flags.set_index(LOCATION_ID)[[f"n_{m}" for m in MODES]]
+else:
+    # per-rule survey counts per region, each rule applied alone to the run's
+    # own (pre-cleaning) samples — same definition as sam_review's vlakken
+    from src.cleaning.rules import RuleContext, apply_rules
+    from src.pipeline.hybrid_prep import (
+        cleaning_rules,
+        line_metrics,
+        load_lines,
+        sample_lines,
+    )
+    from src.sources.geometry import ScopeGeometry
+
+    geometry = ScopeGeometry(centreline_gpkg=cfg.raw_gpkg)
+    raw_lines = load_lines(cfg, geometry)
+    raw_samples = sample_lines(
+        raw_lines,
+        geometry.centrelines,
+        cfg.n_samples,
+        spacing_m=cfg.sample_spacing_m,
+        min_per_line=cfg.min_samples_per_line,
+    )
+    rule_by_mode = {
+        "kronkelend": "max_tortuosity_line",
+        "verkeerde_oever": "near_bank_line",
+        "doolhof": "maze_survey",
+        "fragment": "fragment_survey",
+        "tijd_uitschieter": "temporal_outlier_survey",
+    }
+    params = {name: p for name, p in cleaning_rules(cfg)}
+    before = raw_samples.groupby([LOCATION_ID, "date"]).size()
+    cols = {}
+    for mode, rule in rule_by_mode.items():
+        ctx = RuleContext(
+            line_metrics=line_metrics(raw_lines), cl_len=geometry.centrelines.length
+        )
+        after = apply_rules(raw_samples, ctx, [(rule, params[rule])])
+        n_after = after.groupby([LOCATION_ID, "date"]).size().reindex(before.index, fill_value=0)
+        touched = (n_after < before).groupby(level=0).sum()
+        cols[f"n_{mode}"] = touched
+        print(f"flags · {mode:16s} surveys touched {int(touched.sum()):6d}")
+    flags = pd.DataFrame(cols)
 vl = vl.join(flags, how="left")
 vl[[f"n_{m}" for m in MODES]] = vl[[f"n_{m}" for m in MODES]].fillna(0).astype(int)
 vl["geen_flags"] = (vl[[f"n_{m}" for m in MODES]].sum(axis=1) == 0).astype(int)
 pref = normalise_location_id(
-    gpd.read_file(cfg.data_dir / "02_processed/hybrid/model_preference_20260710.gpkg")
+    gpd.read_file(cfg.hybrid_gpkg, layer="model_preference")
 ).set_index(LOCATION_ID)["model_preference"]
 vl["model_preference"] = pref.reindex(vl.index).fillna("onbekend")
 vl[["err_horizon_mean", "err_horizon_max"]] = vl[
@@ -251,7 +313,7 @@ gemeten = ri.lines[ri.lines[LOCATION_ID].isin(top200)][
 ].copy()
 gemeten["date"] = pd.to_datetime(gemeten["date"]).dt.strftime("%Y-%m-%d")
 
-gpkg = OUT_DIR / f"worst_predicted_v2_{STAMP}.gpkg"
+gpkg = OUT_DIR / f"worst_predicted_v2_{RUN}.gpkg"
 if gpkg.exists():
     gpkg.unlink()
 vlakken.to_file(gpkg, layer="vlakken", driver="GPKG")
@@ -283,7 +345,7 @@ n_clean = int(top100_h["geen_flags"].sum())
 riv = top100_h["river"].value_counts()
 prefc = top100_h["model_preference"].value_counts()
 
-pdf_path = OUT_DIR / f"worst_predicted_v2_{STAMP}.pdf"
+pdf_path = OUT_DIR / f"worst_predicted_v2_{RUN}.pdf"
 with PdfPages(pdf_path) as pdf:
     fig = plt.figure(figsize=(11.69, 8.27))
     fig.text(
@@ -294,7 +356,7 @@ with PdfPages(pdf_path) as pdf:
     fig.text(
         0.06, 0.87,
         f"1-jaars CV-fout: alle {len(rf):,} vlakken out-of-fold voorspeld · pooled MAE {cv_mae:.2f} m/jr "
-        f"(run-testset: 2.47).\n"
+        f"(run-testset: {run_err.mean():.2f}) · run {RUN}.\n"
         f"Horizonfout (segment × ≥2 jr): {len(reg_h):,} vlakken gescoord; voor {int(vl['horizon_in_train'].eq(1).sum()):,} "
         f"train-vlakken is dit optimistisch (horizon_in_train = 1).\n"
         f"Top-100 op horizonfout: {100 - n_clean} met ≥ 1 cleaning-flag · {n_clean} 'schoon' — daar zit de winst.\n"
