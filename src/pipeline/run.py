@@ -268,11 +268,15 @@ def run(cfg: ExperimentConfig, write_report: bool = True) -> RunResult:
     res.region_split = cached(split_path)
     res.region_inference = cached(inf_path)
     if res.region_split is None or res.region_inference is None:
+        frozen = (
+            pd.read_parquet(cfg.split_from)["split"] if cfg.split_from else None
+        )
         res.region_split, res.region_inference = build_region_split(
             res.dist_per_year,
             proc_gpkg=cfg.proc_gpkg,
             test_size=cfg.test_size,
             random_seed=cfg.seed,
+            frozen_split=frozen,
         )
         res.region_split.to_parquet(split_path)
         res.region_inference.to_parquet(inf_path)
@@ -463,6 +467,20 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument(
         "--resume", action="store_true", help="reuse existing per-step parquets"
     )
+    ap.add_argument("--hybrid-gpkg", help="override the hybrid line delivery")
+    ap.add_argument(
+        "--sample-spacing-m",
+        type=float,
+        help="one sample per this many metres of line (default: 20 per line)",
+    )
+    ap.add_argument(
+        "--segment-sample-spacing-m",
+        type=float,
+        help="same for the segment artifact (default: 60 per line)",
+    )
+    ap.add_argument(
+        "--split-from", help="inherit train/test regions from this region_split.parquet"
+    )
     args = ap.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO, format="%(message)s")
@@ -474,6 +492,10 @@ def main(argv: list[str] | None = None) -> int:
         seed=args.seed,
         export_gpkg=not args.no_export,
         resume=args.resume,
+        hybrid_gpkg=args.hybrid_gpkg,
+        sample_spacing_m=args.sample_spacing_m,
+        segment_sample_spacing_m=args.segment_sample_spacing_m,
+        split_from=args.split_from,
     )
     result = run(cfg)
     return 0 if result.all_checks_passed else 1

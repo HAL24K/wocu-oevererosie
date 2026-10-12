@@ -64,7 +64,13 @@ def _segment_yearly(cfg: ExperimentConfig, kept_line_idx) -> pd.DataFrame:
     geometry = ScopeGeometry(centreline_gpkg=cfg.raw_gpkg)
     lines = load_lines(cfg, geometry)
     lines = lines.loc[lines.index.intersection(pd.Index(kept_line_idx))]
-    dense = sample_lines(lines, geometry.centrelines, cfg.segment_n_samples)
+    dense = sample_lines(
+        lines,
+        geometry.centrelines,
+        cfg.segment_n_samples,
+        spacing_m=cfg.segment_sample_spacing_m,
+        min_per_line=cfg.min_samples_per_line,
+    )
 
     geom = build_structures_geom(cfg, geometry.centrelines)
     pts = shapely.points(dense["x"].values, dense["y"].values)
@@ -235,6 +241,9 @@ def build_segment_artifact(
         "pos_err_median_m": float(np.median(pos_err)),
         "pos_err_p90_m": float(np.percentile(pos_err, 90)),
     }
+    test[[LOCATION_ID, "seg", "v_test", "test_span_yr"]].assign(
+        pred=pred, naive=fit_rows["v_test"].mean()
+    ).to_parquet(cfg.model_out_dir / "segment_test.parquet", index=False)
     logger.info(
         "segment-horizon test: MAE %.3f · tail %.3f (n=%d) · R² %.3f"
         " · pos-err med %.2f m",

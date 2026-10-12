@@ -74,23 +74,39 @@ def load_lines(cfg: ExperimentConfig, geometry: ScopeGeometry) -> gpd.GeoDataFra
 
 
 def sample_lines(
-    lines: gpd.GeoDataFrame, centrelines: gpd.GeoSeries, n_samples: int
+    lines: gpd.GeoDataFrame,
+    centrelines: gpd.GeoSeries,
+    n_samples: int,
+    spacing_m: float | None = None,
+    min_per_line: int = 3,
 ) -> pd.DataFrame:
-    """Evenly sample each line; measure station and distance to centreline."""
-    fractions = np.linspace(0.0, 1.0, n_samples)
-    line_geoms = np.repeat(lines.geometry.values, n_samples)
-    cline_geoms = np.repeat(centrelines.reindex(lines[LOCATION_ID]).values, n_samples)
-    pts = shapely.line_interpolate_point(
-        line_geoms, np.tile(fractions, len(lines)), normalized=True
-    )
+    """Evenly sample each line; measure station and distance to centreline.
+
+    ``spacing_m`` switches to one sample per ``spacing_m`` of line length
+    (at least ``min_per_line``), so sample weight follows covered length.
+    """
+    if spacing_m is None:
+        counts = np.full(len(lines), n_samples, dtype=int)
+    else:
+        counts = np.maximum(
+            np.ceil(lines.geometry.length.values / spacing_m).astype(int) + 1,
+            min_per_line,
+        )
+    total = int(counts.sum())
+    offsets = np.repeat(np.cumsum(counts) - counts, counts)
+    within = np.arange(total) - offsets
+    fractions = within / np.maximum(np.repeat(counts, counts) - 1, 1)
+    line_geoms = np.repeat(lines.geometry.values, counts)
+    cline_geoms = np.repeat(centrelines.reindex(lines[LOCATION_ID]).values, counts)
+    pts = shapely.line_interpolate_point(line_geoms, fractions, normalized=True)
     coords = shapely.get_coordinates(pts)
 
     def rep(col):
-        return np.repeat(lines[col].values, n_samples)
+        return np.repeat(lines[col].values, counts)
 
     return pd.DataFrame(
         {
-            "line_idx": np.repeat(lines.index.values, n_samples),
+            "line_idx": np.repeat(lines.index.values, counts),
             LOCATION_ID: rep(LOCATION_ID),
             "date": rep("date"),
             "year": rep("year"),
@@ -180,7 +196,13 @@ def build_observations(
     """Full hybrid prep. Returns (samples, observations, dist_per_year)."""
     geometry = ScopeGeometry(centreline_gpkg=cfg.raw_gpkg)
     lines = load_lines(cfg, geometry)
-    samples = sample_lines(lines, geometry.centrelines, cfg.n_samples)
+    samples = sample_lines(
+        lines,
+        geometry.centrelines,
+        cfg.n_samples,
+        spacing_m=cfg.sample_spacing_m,
+        min_per_line=cfg.min_samples_per_line,
+    )
 
     ctx = RuleContext(
         line_metrics=line_metrics(lines),

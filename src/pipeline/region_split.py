@@ -66,6 +66,7 @@ def build_region_split(
     proc_gpkg: Path,
     test_size: float = 0.20,
     random_seed: int = 42,
+    frozen_split: pd.Series | None = None,
     quality_col: str = QUALITY_COL,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Build region_split and region_inference_only from dist_per_year.
@@ -130,14 +131,21 @@ def build_region_split(
     features_ok = _join_erosion_volume(features_ok, proc_gpkg)
 
     # ── Stratified train/test split ───────────────────────────────────────────
-    train_idx, test_idx = train_test_split(
-        features_ok.index,
-        test_size=test_size,
-        random_state=random_seed,
-        stratify=features_ok["cluster"],
-    )
     features_ok["split"] = "train"
-    features_ok.loc[test_idx, "split"] = "test"
+    if frozen_split is not None:
+        known = frozen_split.reindex(features_ok.index)
+        features_ok.loc[known.notna(), "split"] = known.dropna()
+        rest = features_ok.index[known.isna()]
+    else:
+        rest = features_ok.index
+    if len(rest) > 1:
+        _, test_idx = train_test_split(
+            rest,
+            test_size=test_size,
+            random_state=random_seed,
+            stratify=features_ok.loc[rest, "cluster"] if frozen_split is None else None,
+        )
+        features_ok.loc[test_idx, "split"] = "test"
 
     # ── Select output columns ─────────────────────────────────────────────────
     region_split = features_ok[[c for c in SPLIT_COLS if c in features_ok.columns]]

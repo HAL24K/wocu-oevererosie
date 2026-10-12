@@ -74,7 +74,19 @@ Each has a ledger row and a paragraph in the track reports.
 | 20260822-grad | 2.63 / 5.90 | 1.15 / 3.04 / 0.49 |
 | 20260825-structures (full structures mask) | 2.47 / 5.00 | 1.24 / 3.51 / 0.44 |
 | 20260904-r20 (segment_R=20, honest, random split) | 2.47 / 5.00 | **0.97 / 3.13 / 0.50** (naive 1.45, skill +33 %, pos-err med 0.93 m) |
+| 20260907-raw-len (same delivery, length-based sampling 5 m / 1.5 m) | 2.51 / 5.34 | 1.10 / 3.01 / 0.51 (naive 1.69, skill +35 %) |
+| 20260907-near-fz (`hybrid_model_results_nearest_20260710.gpkg`, same sampling, split frozen to raw-len) | 2.45 / 5.64 | 1.07 / 3.27 / 0.51 (naive 1.64, skill +35 %) |
 
 Tail = regions with observed \|v\| > 2 m/yr (n≈220 region, ≈400 segment).
-Region-level and segment-level moved in opposite directions between the last
-two runs; that is split-to-split noise, not a signal about the mask.
+Region-level and segment-level moved in opposite directions between the
+20260822 and 20260825 runs; that is split-to-split noise, not a signal about
+the mask.
+
+Length-based sampling (2026-09-07, `sample_spacing_m` / `segment_sample_spacing_m`)
+scores more strips (n_test 7,934 → 10,626), so absolute segment MAE is not
+comparable with the fixed-count runs; skill is (+33 % → +35 %). On the 1,086
+test regions common to raw-len and near-fz the region MAE is identical
+(2.27 vs 2.26); the `_nearest` delivery mainly softens the extremes (max
+region error 68 → 40 m/yr) while making the kronkelend/doolhof rules
+redundant (1,735 → 13 and 2,294 → 427 surveys dropped). Details:
+`docs/hybrid_input_comparison_20260907.md`.

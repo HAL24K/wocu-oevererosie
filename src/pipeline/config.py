@@ -86,6 +86,15 @@ class ExperimentConfig:
     min_samples_per_obs: int = 8  # e8: relaxable once artefacts die upstream
     n_points: int = 3  # furthest OK points averaged per (region, year)
     n_samples: int = 20  # points sampled along each hybrid line
+    # Length-based sampling (2026-09-07): one sample per sample_spacing_m of
+    # line instead of a fixed count per line, so a 3 m fragment no longer
+    # carries the weight of a 100 m bank line. None → fixed n_samples.
+    sample_spacing_m: float | None = None
+    segment_sample_spacing_m: float | None = None
+    min_samples_per_line: int = 3
+    # Inherit another run's region_split.parquet (train/test per region) so two
+    # runs on different deliveries are graded on the same test regions.
+    split_from: Path | None = None
     test_size: float = 0.20
     seed: int = 42
     start_year: int = 2026
