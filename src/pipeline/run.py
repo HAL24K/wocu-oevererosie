@@ -275,6 +275,19 @@ def run(cfg: ExperimentConfig, write_report: bool = True, notes: str = "") -> Ru
         samples.to_parquet(samples_path, index=False)
         observations.to_parquet(obs_path, index=False)
         res.dist_per_year.to_parquet(dpy_path, index=False)
+    if cfg.exclude_regions is not None:
+        excluded = set(pd.read_csv(cfg.exclude_regions)["location_id"])
+        before = res.dist_per_year["location_id"].nunique()
+        res.dist_per_year = res.dist_per_year[
+            ~res.dist_per_year["location_id"].isin(excluded)
+        ]
+        logger.info(
+            "   excluded %d regions (%s): %d → %d",
+            len(excluded),
+            cfg.exclude_regions.name,
+            before,
+            res.dist_per_year["location_id"].nunique(),
+        )
     done("1 · bank distances", t)
 
     # 2 · region split --------------------------------------------------------
@@ -517,6 +530,9 @@ def main(argv: list[str] | None = None) -> int:
         help="height-model quality gate only where the hybrid prefers height (default), or on all regions",
     )
     ap.add_argument(
+        "--exclude-regions", help="CSV with location_id: regions left out entirely"
+    )
+    ap.add_argument(
         "--side-channels",
         action="store_true",
         help="admit side-channel regions (with --quality-gate height_preferred)",
@@ -540,6 +556,7 @@ def main(argv: list[str] | None = None) -> int:
         fresh_split=args.fresh_split,
         quality_gate=args.quality_gate,
         side_channels=args.side_channels,
+        exclude_regions=args.exclude_regions,
     )
     result = run(cfg, notes=args.notes)
     return 0 if result.all_checks_passed else 1

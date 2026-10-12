@@ -98,6 +98,9 @@ class ExperimentConfig:
     # whatever the height model says. "all" = the gate on every region.
     quality_gate: str = "height_preferred"
     side_channels: bool = False  # admit ngeul_* regions (only with height_preferred)
+    # CSV with a location_id column: regions left out of training and testing
+    # (experiments such as "without the 100 worst SAM regions").
+    exclude_regions: Path | None = None
     test_size: float = 0.20
     seed: int = 42
     start_year: int = 2026
@@ -158,6 +161,8 @@ class ExperimentConfig:
                 setattr(self, name, self.data_dir / rel)
             else:
                 setattr(self, name, Path(getattr(self, name)))
+        if self.exclude_regions is not None:
+            self.exclude_regions = Path(self.exclude_regions)
 
     @classmethod
     def from_run(cls, experiment: str, data_dir: Path | None = None, **overrides):
