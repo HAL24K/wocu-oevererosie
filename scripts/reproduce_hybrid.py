@@ -34,6 +34,8 @@ ap.add_argument("--sam", required=True)
 ap.add_argument("--wocu-output", required=True)
 ap.add_argument("--out", required=True)
 ap.add_argument("--workers", type=int, default=8)
+ap.add_argument("--nearest", help="skip step 1: use these region-joined _nearest pieces (scripts/prehybrid_clean.py)")
+ap.add_argument("--height-fallback", help="a previous run's gpkg: regions left without SAM lines take its height lines")
 ap.add_argument("--limit", type=int, default=None, help="first N locations only (smoke test)")
 args = ap.parse_args()
 logging.basicConfig(level=logging.WARNING)
@@ -85,19 +87,24 @@ if __name__ == "__main__":
     polygons = dict(zip(polys[LOCATION_ID], polys.geometry, strict=True))
     print(f"scope: {len(polys)} polygons, {len(cls)} centrelines", flush=True)
 
-    raw = validate_segmentation_lines(gpd.read_file(args.sam))
-    raw = add_location_ids(raw, polys)
-    print(f"step 1: {len(raw)} raw line-region rows, {raw[LOCATION_ID].isna().sum()} lines in no region", flush=True)
-    raw = raw[raw[LOCATION_ID].notna()]
-    locs = sorted(raw[LOCATION_ID].unique())[: args.limit]
-    by_loc = dict(list(raw.groupby(LOCATION_ID)))
-    parts = _run(_clean_chunk, locs, {"lines": by_loc, "centrelines": centrelines})
-    nearest = gpd.GeoDataFrame([r for p in parts for r in p], geometry="geometry", crs=raw.crs)
-    print(f"step 1: {len(nearest)} _nearest pieces from {len(locs)} regions ({time.time() - t0:.0f} s)", flush=True)
+    if args.nearest:
+        seg = pyogrio.read_dataframe(args.nearest, layer="lines")
+        seg["date"] = pd.to_datetime(seg["date"]).dt.date
+        print(f"step 1 skipped: {len(seg)} pieces from {args.nearest}", flush=True)
+    else:
+        raw = validate_segmentation_lines(gpd.read_file(args.sam))
+        raw = add_location_ids(raw, polys)
+        print(f"step 1: {len(raw)} raw line-region rows, {raw[LOCATION_ID].isna().sum()} lines in no region", flush=True)
+        raw = raw[raw[LOCATION_ID].notna()]
+        locs = sorted(raw[LOCATION_ID].unique())[: args.limit]
+        by_loc = dict(list(raw.groupby(LOCATION_ID)))
+        parts = _run(_clean_chunk, locs, {"lines": by_loc, "centrelines": centrelines})
+        nearest = gpd.GeoDataFrame([r for p in parts for r in p], geometry="geometry", crs=raw.crs)
+        print(f"step 1: {len(nearest)} _nearest pieces from {len(locs)} regions ({time.time() - t0:.0f} s)", flush=True)
 
-    # As his second run: the _nearest file is read back and joined to the regions again.
-    seg = add_location_ids(validate_segmentation_lines(nearest), polys)
-    seg = seg[seg[LOCATION_ID].notna()]
+        # As his second run: the _nearest file is read back and joined to the regions again.
+        seg = add_location_ids(validate_segmentation_lines(nearest), polys)
+        seg = seg[seg[LOCATION_ID].notna()]
     seg_by_loc = dict(list(seg.groupby(LOCATION_ID)))
     pts = pyogrio.read_dataframe(args.wocu_output, layer="punten_oever")
     pts_by_loc = dict(list(pts.groupby(LOCATION_ID, sort=False)))
@@ -117,6 +124,17 @@ if __name__ == "__main__":
     all_lines = gpd.GeoDataFrame(pd.concat([height, seg_out], ignore_index=True), geometry="geometry", crs=polys.crs)
     all_lines["date"] = pd.to_datetime(all_lines["date"])
     pref = rationale.set_index(LOCATION_ID)["model_preference"]
+    if args.height_fallback:
+        prev = pyogrio.read_dataframe(args.height_fallback, layer="lines_all")
+        prev_pref = pyogrio.read_dataframe(args.height_fallback, layer="model_preference")
+        gone = sorted(set(prev_pref[LOCATION_ID]) - set(rationale[LOCATION_ID]))
+        h = prev[prev[LOCATION_ID].isin(gone) & (prev["model"] == HEIGHT_MODEL)]
+        fb = prev_pref[prev_pref[LOCATION_ID].isin(set(h[LOCATION_ID]))][[LOCATION_ID, "geometry"]].assign(model_preference="height")
+        rationale = gpd.GeoDataFrame(pd.concat([rationale, fb], ignore_index=True), geometry="geometry", crs=polys.crs)
+        all_lines = gpd.GeoDataFrame(pd.concat([all_lines, h], ignore_index=True), geometry="geometry", crs=polys.crs)
+        all_lines["date"] = pd.to_datetime(all_lines["date"])
+        pref = rationale.set_index(LOCATION_ID)["model_preference"]
+        print(f"height fallback: {len(gone)} regions lost all SAM lines, {len(fb)} have height lines", flush=True)
     winner = all_lines[
         ((all_lines["model"] == HEIGHT_MODEL) & all_lines[LOCATION_ID].map(pref).eq("height"))
         | ((all_lines["model"] == "segmentation") & all_lines[LOCATION_ID].map(pref).eq("segmentation"))
