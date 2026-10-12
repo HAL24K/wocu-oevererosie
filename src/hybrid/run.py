@@ -249,6 +249,24 @@ def apply_height_fallback(rationale: pd.DataFrame, lost: set[str]) -> pd.DataFra
     return rationale[~unusable].reset_index(drop=True)
 
 
+def force_preference(
+    rationale: pd.DataFrame,
+    height: pd.DataFrame,
+    seg: pd.DataFrame,
+    model: str,
+) -> pd.DataFrame:
+    """Prefer ``model`` everywhere; drop regions where it has no lines at all."""
+    if model not in ("height", "segmentation"):
+        raise ValueError(
+            f"force_model must be 'height' or 'segmentation', not {model!r}"
+        )
+    has_lines = set((height if model == "height" else seg)[LOCATION_ID])
+    out = rationale.copy()
+    out["luke_preference"] = out["model_preference"]
+    out["model_preference"] = model
+    return out[out[LOCATION_ID].isin(has_lines)].reset_index(drop=True)
+
+
 def winner_lines(
     lines_all: gpd.GeoDataFrame, preference: pd.Series
 ) -> gpd.GeoDataFrame:
@@ -313,6 +331,8 @@ def build_hybrid(cfg: HybridConfig, notes: str = "") -> HybridResult:
     rationale, height = points_count(cfg, seg, regions, scope)
     lap("3 · points count (Luke step 2)")
     rationale = apply_height_fallback(rationale, set(lost))
+    if cfg.force_model is not None:
+        rationale = force_preference(rationale, height, seg, cfg.force_model)
     height = height[height[LOCATION_ID].isin(set(rationale[LOCATION_ID]))]
     crs = scope.polygons_gdf.crs
     lines_all = gpd.GeoDataFrame(
@@ -407,6 +427,11 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="drop regions that lose all SAM pieces instead of using their height lines",
     )
+    ap.add_argument(
+        "--force-model",
+        choices=["height", "segmentation"],
+        help="take this model's lines in every region instead of Luke's choice",
+    )
     ap.add_argument("--workers", type=int, default=8)
     ap.add_argument("--limit", type=int, help="first N regions only (smoke test)")
     ap.add_argument(
@@ -426,6 +451,7 @@ def main(argv: list[str] | None = None) -> int:
         side_channel_m=args.side_channel_m,
         jetty_m=args.jetty_m,
         height_fallback=not args.no_height_fallback,
+        force_model=args.force_model,
         workers=args.workers,
         limit=args.limit,
     )

@@ -49,6 +49,9 @@ class HybridConfig:
     # Regions that lose all their SAM pieces to cleaning take their height lines
     # instead of dropping out of the hybrid.
     height_fallback: bool = True
+    # Overrule Luke's points count: take this model's lines in every region
+    # ("height" or "segmentation"); his choice stays in luke_preference.
+    force_model: str | None = None
 
     # ── execution ─────────────────────────────────────────────────────────────
     workers: int = 8

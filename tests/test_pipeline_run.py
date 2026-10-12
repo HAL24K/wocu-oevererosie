@@ -199,3 +199,73 @@ def test_ledger_keeps_one_line_per_run(tmp_path):
     append_to_ledger({"kind": "run", "id": "a", "v": 3}, ledger)  # re-run of a
     rows = read_ledger(ledger)
     assert [(r["kind"], r["v"]) for r in rows] == [("hybrid", 2), ("run", 3)]
+
+
+def test_region_split_flags_vvr_for_inference_only_regions_too(tmp_path):
+    """Regression: inference-only regions always got is_nvo = False."""
+    import geopandas as gpd
+    from shapely.geometry import box
+
+    from src.pipeline.region_split import build_region_split
+
+    gpkg = tmp_path / "proc.gpkg"
+    ids = ["rijn_l_0000_0010", "rijn_l_0010_0020"]  # 3 years / 2 years
+    gpd.GeoDataFrame(
+        {"location_id": ids, "estimate_reliability_height_model": ["OK", "OK"]},
+        geometry=[box(0, 0, 10, 10), box(10, 0, 20, 10)],
+        crs=28992,
+    ).to_file(gpkg, layer="summary_scope")
+    gpd.GeoDataFrame(geometry=[box(5, 5, 15, 6)], crs=28992).to_file(
+        gpkg, layer="vvr_rates_of_change"
+    )
+    gpd.GeoDataFrame(
+        {
+            "location_id": ids[:1],
+            "date_before": ["2020-01-01"],
+            "date_after": ["2022-01-01"],
+            "area": [1.0],
+            "erosion_volume": [1.0],
+        },
+        geometry=[box(0, 0, 1, 1)],
+        crs=28992,
+    ).to_file(gpkg, layer="erosion_vlakken_filtered")
+    dpy = pd.DataFrame(
+        {
+            "location_id": [ids[0]] * 3 + [ids[1]] * 2,
+            "year": [2020, 2022, 2024, 2021, 2023],
+            "dist_m": [10.0, 11.0, 12.0, 5.0, 6.0],
+        }
+    )
+    split, inference = build_region_split(dpy, proc_gpkg=gpkg, test_size=0.5)
+    assert split.loc[ids[0], "is_nvo"]
+    assert inference.loc[ids[1], "is_nvo"]
+
+
+def test_from_run_restores_a_runs_own_settings(tmp_path):
+    import json
+
+    (tmp_path / "03_hybrid/h1").mkdir(parents=True)
+    (tmp_path / "03_hybrid/h1/hybrid.gpkg").write_bytes(b"")
+    run_dir = tmp_path / "04_runs/old"
+    run_dir.mkdir(parents=True)
+    (run_dir / "run.json").write_text(
+        json.dumps(
+            {
+                "settings": {"sample_spacing_m": None, "quality_gate": "all"},
+                "inputs": {
+                    "hybrid_gpkg": {"path": "03_hybrid/h1/hybrid.gpkg"},
+                    "raw_gpkg": {"path": "01_raw/gone.gpkg"},
+                },
+            }
+        )
+    )
+    cfg = ExperimentConfig.from_run("old", data_dir=tmp_path)
+    assert cfg.sample_spacing_m is None and cfg.quality_gate == "all"
+    assert cfg.hybrid_gpkg == tmp_path / "03_hybrid/h1/hybrid.gpkg"
+    assert cfg.raw_gpkg.name == "wocu_output_fase2_20260310.gpkg"  # gone → default
+    assert (
+        ExperimentConfig.from_run(
+            "old", data_dir=tmp_path, quality_gate=None
+        ).quality_gate
+        == "all"
+    )

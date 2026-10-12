@@ -159,6 +159,42 @@ class ExperimentConfig:
             else:
                 setattr(self, name, Path(getattr(self, name)))
 
+    @classmethod
+    def from_run(cls, experiment: str, data_dir: Path | None = None, **overrides):
+        """The configuration a finished run used, read from its ``run.json``.
+
+        Scripts that work on a run (exports, galleries, slides) should start
+        from this rather than from today's defaults. ``overrides`` that are not
+        None win. Input paths that no longer exist fall back to the default.
+        """
+        import json
+        import logging
+
+        data_dir = Path(data_dir or PATHS.DATA_DIR)
+        record = json.loads(
+            (data_dir / "04_runs" / experiment / "run.json").read_text()
+        )
+        names = {f.name for f in fields(cls)}
+        kwargs: dict = {}
+        for name, value in record.get("settings", {}).items():
+            if name in names and name not in cls._DEFAULTS and name != "hybrid":
+                kwargs[name] = tuple(value) if isinstance(value, list) else value
+        for name, entry in record.get("inputs", {}).items():
+            if name not in cls._DEFAULTS:
+                continue
+            path = data_dir / entry["path"]
+            if path.exists():
+                kwargs[name] = path
+            else:
+                logging.getLogger(__name__).warning(
+                    "%s: recorded %s %s no longer exists; using the default",
+                    experiment,
+                    name,
+                    entry["path"],
+                )
+        kwargs.update({k: v for k, v in overrides.items() if v is not None})
+        return cls(experiment=experiment, data_dir=data_dir, **kwargs)
+
     # ── derived locations ─────────────────────────────────────────────────────
 
     @property

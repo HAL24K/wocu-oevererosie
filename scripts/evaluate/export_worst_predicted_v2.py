@@ -76,8 +76,8 @@ ap.add_argument("--segment-sample-spacing-m", type=float, default=None)
 args = ap.parse_args()
 RUN, STAMP = args.run, args.stamp
 
-cfg = ExperimentConfig(
-    experiment=RUN,
+cfg = ExperimentConfig.from_run(
+    RUN,
     hybrid_gpkg=args.hybrid_gpkg,
     sample_spacing_m=args.sample_spacing_m,
     segment_sample_spacing_m=args.segment_sample_spacing_m,

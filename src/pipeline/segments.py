@@ -239,8 +239,10 @@ def build_segment_artifact(
         "pos_err_median_m": float(np.median(pos_err)),
         "pos_err_p90_m": float(np.percentile(pos_err, 90)),
     }
+    # pred = the model; naive = mean speed of the training rows; persist = the
+    # strip's own last speed (v_train). Kept per strip for breakdowns.
     test[[LOCATION_ID, "seg", "v_test", "test_span_yr"]].assign(
-        pred=pred, naive=fit_rows["v_test"].mean()
+        pred=pred, naive=fit_rows["v_test"].mean(), persist=test["v_train"].to_numpy()
     ).to_parquet(cfg.model_out_dir / "segment_test.parquet", index=False)
     logger.info(
         "segment-horizon test: MAE %.3f · tail %.3f (n=%d) · R² %.3f"

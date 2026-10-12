@@ -10,9 +10,9 @@ run on a hybrid from `python -m src.hybrid` carries that hybrid's record too.
 uv run python -m src.provenance        # the model runs as a table (below)
 ```
 
-**Reference run: `20261013-gate-sam`** — the current defaults (`python -m src.pipeline`
+**Reference run: `20261013-ref`** — the current defaults (`python -m src.pipeline`
 with no options): Luke's 10 Jul `_nearest` hybrid, 0310 height model, quality gate
-only where the hybrid prefers height.
+only where the hybrid prefers height, `is_nvo` fixed for inference-only regions.
 
 ## Ledger
 
@@ -37,6 +37,9 @@ report in the challenger's `compare/` folder.
 | 20261012-stage-luke | 2026-10-12 | 1.031 | +35% | 3.17 | 2.44 | 5,738 | Model stage on the hybrid stage's rebuild of Luke's _nearest hybrid; should match 20261012 |
 | 20261013-gate-sam | 2026-10-12 | 1.190 | +34% | 3.66 | 2.76 | 6,754 | Quality gate only where the hybrid prefers height: SAM-preferred main-channel regions come |
 | 20261013-gate-sam-side | 2026-10-12 | 1.308 | +32% | 3.77 | 3.29 | 8,732 | As 20261013-gate-sam plus SAM-preferred side-channel regions, river category ngeul_<river> |
+| 20261013-force-height | 2026-10-13 | 0.287 | +5% | 4.05 | 0.72 | 6,865 | Height model everywhere (hybrid 20261013-force-height); compare with 20261013-ref |
+| 20261013-force-sam | 2026-10-13 | 1.697 | +30% | 4.61 | 3.77 | 5,901 | SAM everywhere (hybrid 20261013-force-sam); compare with 20261013-ref |
+| 20261013-ref | 2026-10-13 | 1.190 | +34% | 3.66 | 2.76 | 6,754 | New reference: defaults (gate only where the hybrid prefers height) with the is_nvo fix fo |
 
 Records of runs before 2026-10-12 were written afterwards; their settings are
 reconstructed (field `reconstructed`).
@@ -55,3 +58,8 @@ reconstructed (field `reconstructed`).
   as much and are predicted with +30 % skill. Now the default.
 - **20261013-gate-sam-side (C)** — B plus side channels: +20 % skill there; not the
   default until the predictions are checked in QGIS.
+- **20261013-ref / -force-height / -force-sam** — error per source and per VVR,
+  and height model or SAM everywhere instead of Luke's choice. Height everywhere
+  scores 0.29 m/yr but no better than the naive mean: the height model sees the
+  banks barely move. SAM everywhere 1.70; poor in Luke's height regions (3.76).
+  Report: `data/04_runs/20261013-ref/compare/source_report.pdf` (also in Drive, `runs/`).

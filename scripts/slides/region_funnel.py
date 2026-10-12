@@ -30,7 +30,7 @@ ap.add_argument("--run", required=True)
 ap.add_argument("--hybrid-gpkg", default=None)
 ap.add_argument("--out", default=None)
 args = ap.parse_args()
-cfg = ExperimentConfig(experiment=args.run, hybrid_gpkg=args.hybrid_gpkg)
+cfg = ExperimentConfig.from_run(args.run, hybrid_gpkg=args.hybrid_gpkg)
 
 scope = set(normalise_location_id(gpd.read_file(cfg.scope_gpkg))[LOCATION_ID])
 lines = normalise_location_id(gpd.read_file(cfg.hybrid_gpkg, layer="lines"))

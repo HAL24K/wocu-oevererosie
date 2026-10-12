@@ -111,3 +111,19 @@ def test_run_record_carries_the_hybrid_record(tmp_path):
     rec = describe_inputs(cfg)["hybrid_gpkg"]["hybrid_record"]
     assert rec["name"] == "h1" and rec["settings"] == {"sam_rules": True}
     assert "extra" not in rec
+
+
+def test_force_model_overrules_luke_and_drops_regions_without_lines():
+    from src.hybrid.run import force_preference
+
+    rationale = pd.DataFrame(
+        {"location_id": ["a", "b"], "model_preference": ["segmentation", "height"]}
+    )
+    height = pd.DataFrame({"location_id": ["b"]})
+    seg = pd.DataFrame({"location_id": ["a", "b"]})
+    out = force_preference(rationale, height, seg, "height")
+    assert list(out["location_id"]) == ["b"]  # a has no height lines
+    assert list(out["luke_preference"]) == ["height"]
+    out = force_preference(rationale, height, seg, "segmentation")
+    assert list(out["model_preference"]) == ["segmentation", "segmentation"]
+    assert list(out["luke_preference"]) == ["segmentation", "height"]

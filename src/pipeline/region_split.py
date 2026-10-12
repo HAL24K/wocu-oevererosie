@@ -124,7 +124,10 @@ def build_region_split(
     # ── is_nvo via spatial join ───────────────────────────────────────────────
     vvr_polys = gpd.read_file(proc_gpkg, layer="vvr_rates_of_change")
     scope_geom = normalise_location_id(scope_quality)
-    scope_ok = scope_geom[scope_geom["location_id"].isin(features_ok.index)][
+    # Train/test and inference-only regions alike (until 2026-10-13 only the
+    # former, so every inference-only region had is_nvo = False).
+    modelled = features_ok.index.union(inference_ok.index)
+    scope_ok = scope_geom[scope_geom["location_id"].isin(modelled)][
         ["location_id", "geometry"]
     ].to_crs(vvr_polys.crs)
     nvo_ids = set(

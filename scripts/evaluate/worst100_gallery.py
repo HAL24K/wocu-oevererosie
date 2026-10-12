@@ -108,6 +108,7 @@ ap.add_argument("--hybrid-gpkg", default=None)
 ap.add_argument("--sample-spacing-m", type=float, default=None)
 ap.add_argument("--preference", choices=["all", "segmentation", "height"], default="all")
 ap.add_argument("--n", type=int, default=100)
+ap.add_argument("--vvr-only", action="store_true", help="only regions with a VVR (is_nvo)")
 ap.add_argument("--out", default=None, help="output stem (default triage/worst<n>_gallery_<run>)")
 ap.add_argument("--cover-text", default=None, help="text file rendered as page 1")
 ap.add_argument("--gpkg", action="store_true", help="also write vlakken + lijnen gpkg")
@@ -115,13 +116,15 @@ ap.add_argument("--causes-gpkg", default=None, help="review gpkg with hoofdoorza
 ap.add_argument("--mark-outlier", action="store_true", help="draw the survey furthest off trend in red")
 args = ap.parse_args()
 
-cfg = ExperimentConfig(
-    experiment=args.run, hybrid_gpkg=args.hybrid_gpkg, sample_spacing_m=args.sample_spacing_m
+cfg = ExperimentConfig.from_run(
+    args.run, hybrid_gpkg=args.hybrid_gpkg, sample_spacing_m=args.sample_spacing_m
 )
 TRIAGE = cfg.exports_dir
 stem = args.out or str(TRIAGE / f"worst{args.n}_gallery_{args.run}")
 if args.preference != "all":
     stem = args.out or str(TRIAGE / f"worst{args.n}_{args.preference}_{args.run}")
+if args.vvr_only:
+    stem = args.out or str(TRIAGE / f"worst{args.n}_vvr_{args.run}")
 
 vl = normalise_location_id(
     gpd.read_file(TRIAGE / f"worst_predicted_v2_{args.run}.gpkg", layer="vlakken")
@@ -145,6 +148,8 @@ vvr = gpd.read_file(
 vvr_sidx = vvr.sindex
 
 ranked = vl[vl["rank_horizon"].notna()].sort_values("rank_horizon")
+if args.vvr_only:
+    ranked = ranked[ranked["is_nvo"].astype(bool)]
 if args.preference != "all":
     ranked = ranked[ranked["model_preference"] == args.preference]
 top = ranked.head(args.n).copy()
@@ -220,8 +225,8 @@ def panel(ax, loc, row):
     ax.set_title(
         f"{cause_txt}#{int(row['rank_in_set'])} {loc}\n"
         f"{pref_en} · horizon error {row['err_horizon_mean']:.1f} m (max {row['err_horizon_max']:.1f}) · flags: {flag_label(row)}\n"
-        f"{outlier_txt.lstrip(' ·')}",
-        fontsize=5.9,
+        f"{outlier_txt.lstrip(' ·')}".rstrip(),
+        fontsize=6.5,
         color=GREY,
         loc="left",
     )
@@ -434,7 +439,11 @@ with PdfPages(pdf_path) as pdf:
                 if cause is not None
                 else f"#{start + 1}–#{start + len(chunk)}"
             )
-            fig, axes = plt.subplots(2, 3, figsize=(11.69, 8.27))
+            # Fixed spacing: the panels keep an equal aspect, which tight_layout
+            # does not account for, so captions ran into the row above.
+            fig, axes = plt.subplots(
+                2, 3, figsize=(11.69, 8.27), gridspec_kw={"hspace": 0.32, "wspace": 0.06}
+            )
             fig.suptitle(
                 f"worst-predicted regions · run {args.run}"
                 + (f" · {args.preference} preference only" if args.preference != "all" else "")
@@ -449,7 +458,7 @@ with PdfPages(pdf_path) as pdf:
                 panel(ax, loc, row)
             for ax in axes.flatten()[len(chunk) :]:
                 ax.set_axis_off()
-            fig.tight_layout(rect=(0, 0, 1, 0.9))
+            fig.subplots_adjust(top=0.84, bottom=0.02, left=0.02, right=0.98)
             pdf.savefig(fig, dpi=150)
             plt.close(fig)
             print(f"page {page}", flush=True)

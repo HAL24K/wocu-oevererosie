@@ -55,7 +55,7 @@ WARN = LinearSegmentedColormap.from_list("warn", ["#d7191c", "#f46d43", "#fdae61
 WARN_NORM = Normalize(2027, 2031)
 FILL_ALPHA = 0.6
 
-cfg = ExperimentConfig(experiment=args.run)
+cfg = ExperimentConfig.from_run(args.run)
 args.out = args.out or str(cfg.figures_dir / "location_slides.pptx")
 Path(args.out).parent.mkdir(parents=True, exist_ok=True)
 TRIAGE = cfg.exports_dir

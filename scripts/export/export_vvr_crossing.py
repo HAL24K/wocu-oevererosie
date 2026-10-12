@@ -39,7 +39,7 @@ ap.add_argument("--until", type=int, default=2050)
 ap.add_argument("--out", default=None)
 args = ap.parse_args()
 
-cfg = ExperimentConfig(experiment=args.run, hybrid_gpkg=args.hybrid_gpkg)
+cfg = ExperimentConfig.from_run(args.run, hybrid_gpkg=args.hybrid_gpkg)
 YEARS = list(range(args.start, args.until + 1))
 
 vvr = gpd.read_file(cfg.signalering_gpkg, layer="Vlak_vrije_ruimte_natuurvriendelijke_oever_pl").to_crs(28992)
