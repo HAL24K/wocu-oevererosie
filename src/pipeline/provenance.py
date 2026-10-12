@@ -1,6 +1,6 @@
 """The model stage's run record: ``04_runs/<experiment>/run.json``.
 
-Also copied to ``docs/runs/<experiment>.json`` (tracked; see ``src.provenance``).
+Also added to ``docs/runs/ledger.jsonl`` (tracked; see ``src.provenance``).
 When the hybrid line set was built by ``python -m src.hybrid``, the record
 carries that hybrid's own record too, so a run traces back to the raw files.
 """
@@ -69,4 +69,6 @@ def run_record(
 
 
 def write_run_record(cfg: ExperimentConfig, record: dict[str, Any]) -> Path:
-    return write_record(record, cfg.run_dir / "run.json", cfg.experiment, cfg.data_dir)
+    return write_record(
+        record, cfg.run_dir / "run.json", "run", cfg.experiment, cfg.data_dir
+    )

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import warnings
+from pathlib import Path
 
 import geopandas as gpd
 import pandas as pd
@@ -21,7 +22,7 @@ warnings.filterwarnings("ignore")
 ap = argparse.ArgumentParser()
 ap.add_argument("--base", required=True, help="experiment:hybrid_gpkg")
 ap.add_argument("--run", action="append", default=[], help="label:experiment:hybrid_gpkg")
-ap.add_argument("--out", required=True)
+ap.add_argument("--out", help="CSV (default: <base run>/compare/mask_runs.csv)")
 args = ap.parse_args()
 
 cfg = ExperimentConfig(experiment="summary")
@@ -73,6 +74,8 @@ for spec in [f"baseline (Luke's hybrid):{args.base}", *args.run]:
         }
     )
 res = pd.DataFrame(rows)
-res.to_csv(args.out, index=False)
+out = args.out or ExperimentConfig(experiment=args.base.split(":")[0]).compare_dir / "mask_runs.csv"
+Path(out).parent.mkdir(parents=True, exist_ok=True)
+res.to_csv(out, index=False)
 print(res.round(3).to_string(index=False))
-print("→", args.out)
+print("→", out)

@@ -25,6 +25,7 @@ def test_defaults_are_the_reference_settings(tmp_path):
     assert (cfg.sample_spacing_m, cfg.segment_sample_spacing_m) == (5.0, 1.5)
     assert cfg.split_from == tmp_path / "02_context/frozen_split_20260907.parquet"
     assert not cfg.fresh_split
+    assert cfg.quality_gate == "height_preferred" and not cfg.side_channels
 
 
 def test_config_override_wins_over_default(tmp_path):
@@ -181,11 +182,20 @@ def test_run_record_on_a_scratch_data_dir_stays_out_of_the_repo(tmp_path, monkey
     import src.provenance as prov
     from src.pipeline.provenance import write_run_record
 
-    ledger = tmp_path / "ledger"
-    ledger.mkdir()
-    monkeypatch.setattr(prov, "LEDGER_DIR", ledger)
+    ledger = tmp_path / "ledger.jsonl"
+    monkeypatch.setattr(prov, "LEDGER", ledger)
     cfg = ExperimentConfig(experiment="t7", data_dir=tmp_path / "data")
-    cfg.run_dir.mkdir(parents=True)
     path = write_run_record(cfg, {"experiment": "t7"})
     assert path == cfg.run_dir / "run.json"
-    assert not list(ledger.iterdir())
+    assert not ledger.exists()
+
+
+def test_ledger_keeps_one_line_per_run(tmp_path):
+    from src.provenance import append_to_ledger, read_ledger
+
+    ledger = tmp_path / "ledger.jsonl"
+    append_to_ledger({"kind": "run", "id": "a", "v": 1}, ledger)
+    append_to_ledger({"kind": "hybrid", "id": "a", "v": 2}, ledger)
+    append_to_ledger({"kind": "run", "id": "a", "v": 3}, ledger)  # re-run of a
+    rows = read_ledger(ledger)
+    assert [(r["kind"], r["v"]) for r in rows] == [("hybrid", 2), ("run", 3)]

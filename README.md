@@ -42,9 +42,10 @@ uv run python -m src.pipeline --experiment 20261013-ref --notes "what this run t
 ```
 
 With no `--hybrid` it reads Luke's 10 Jul `_nearest` delivery and reproduces
-the reference run. Options: `--hybrid-gpkg` (any hybrid file), `--no-export`
+the reference run (`20261013-gate-sam`, about 4 minutes). Options: `--hybrid-gpkg` (any hybrid file), `--no-export`
 (skip the large GeoPackage), `--resume` (reuse per-step parquets), `--end-year`,
-`--raw-gpkg`, `--fresh-split`. All defaults: `src/pipeline/config.py`.
+`--raw-gpkg`, `--fresh-split`, `--quality-gate all` (the height-model gate on
+every region, as before 13 Oct), `--side-channels`. All defaults: `src/pipeline/config.py`.
 
 **Both in one go**: add `--run-model <experiment>` to `python -m src.hybrid`.
 
@@ -69,7 +70,7 @@ src/
   analysis/    region_inspector, for notebooks and evaluation scripts
 scripts/
   hybrid/      compare a hybrid with Luke's file; export one in his delivery format
-  evaluate/    worst-predicted regions, galleries, comparisons between runs
+  evaluate/    compare_runs (fair run-vs-run), worst-predicted regions, galleries
   export/      deliverables from a run: predicted bank lines, VVR crossing years
   data_prep/   how 02_context files were made (structures, water stations)
   slides/      figures for the 14/15 Oct sessions (remove afterwards)
@@ -80,17 +81,32 @@ data/          git-ignored; layout in data/README.md
 ```
 
 Scripts run from the repo root: `PYTHONPATH=. uv run python scripts/<group>/<script>.py`.
-Their output goes to the run's `exports/` folder; copy to `data/05_deliverables/`
-what goes out.
+
+**Every experiment owns its files.** A model run writes only into
+`data/04_runs/<experiment>/`, a hybrid only into `data/03_hybrid/<name>/`, and so
+do the scripts that work on them (`--run`, `--hybrid`):
+
+```
+04_runs/<experiment>/
+  run.json     the record (also a line in docs/runs/ledger.jsonl)
+  features/    per-step parquets            model/   bundle, predictions, report.html
+  exports/     GeoPackages, CSVs, PDFs      figures/ figures and slides
+  compare/     comparisons this run makes against another (the challenger owns them)
+```
+
+Nothing an experiment produces goes into the repository except its ledger line.
+What goes out to people is copied to `data/05_deliverables/`.
+`scripts/backup_to_drive.py` copies the light part of every run and hybrid
+(records, exports, figures, comparisons, reports) to Drive, `WOCU Oevererosie/runs/`.
 
 ## Provenance
 
 Every model run writes `run.json` (inputs with size and date, every setting,
-git commit, metrics) into its run folder, every hybrid writes `hybrid.json`
-into its folder, and both are copied to `docs/runs/` (`hybrids/` for the
-latter), which is tracked. A run on a hybrid from `src.hybrid` carries that
-hybrid's record, so every number traces back to the raw files. Add `--notes`
-to say what a run or hybrid is for. The ledger is
+git commit, metrics) and every hybrid `hybrid.json` into its folder, and both add
+one line to `docs/runs/ledger.jsonl`, the only experiment file in git. A run on
+a hybrid from `src.hybrid` carries that hybrid's record, so every number traces
+back to the raw files. Add `--notes` to say what a run or hybrid is for;
+`uv run python -m src.provenance` prints the runs as a table. The ledger is
 [docs/runs/README.md](docs/runs/README.md). The state before the October 2026
 clean-up is tagged `pre-cleanup-20261012`.
 
@@ -105,12 +121,14 @@ clean-up is tagged `pre-cleanup-20261012`.
 
 ## Known issues
 
-- **The quality gate is a height-model flag.** `region_split.py` keeps regions whose
-  `estimate_reliability_height_model` is `OK`, so all 4,255 side-channel regions in
-  the hybrid and ~1,900 main-channel regions where the hybrid prefers SAM are never
-  modelled.
-- **Side channels have no river category.** Their `river` value is `ngeul`, which
-  the encoding does not know (→ −1), so the parent river is lost.
+- **Side channels are not in the default run.** `--side-channels` admits them
+  (run 20261013-gate-sam-side: +20 % skill there, against +34 % elsewhere); check
+  their predictions in QGIS before making it the default.
+- **1,103 main-channel regions are not in the hybrid**: Luke's model only takes
+  regions with at least one SAM line, so height-only regions never enter.
+- **Inference-only regions always get `is_nvo = False`** (`region_split.py` computes
+  the VVR join for train/test regions only), so their predictions miss that
+  feature. The VVR crossing years in the output use their own join and are fine.
 - **`bend_exposure` is read from a March 2026 parquet**, not computed; regions
   outside it get 0.
 - **The train/test split is random across adjacent regions**, so spatial features

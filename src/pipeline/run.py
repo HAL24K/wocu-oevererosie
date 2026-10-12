@@ -513,8 +513,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument(
         "--quality-gate",
         choices=["all", "height_preferred"],
-        default="all",
-        help="height-model quality gate on all regions, or only where the hybrid prefers height",
+        default="height_preferred",
+        help="height-model quality gate only where the hybrid prefers height (default), or on all regions",
     )
     ap.add_argument(
         "--side-channels",

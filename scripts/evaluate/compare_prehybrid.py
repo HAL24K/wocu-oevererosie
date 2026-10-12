@@ -17,6 +17,7 @@ import geopandas as gpd
 import pandas as pd
 import pyogrio
 
+from src.analysis.tee import tee_to
 from src.pipeline.config import ExperimentConfig
 from src.sources.geometry import LOCATION_ID, normalise_location_id
 
@@ -26,8 +27,10 @@ ap.add_argument("--base", required=True)
 ap.add_argument("--base-hybrid", required=True)
 ap.add_argument("--clean", required=True)
 ap.add_argument("--clean-hybrid", required=True)
-ap.add_argument("--out", help="write the per-strip table to this parquet")
+ap.add_argument("--out", help="per-strip table (default: <clean run>/compare/)")
 args = ap.parse_args()
+compare_dir = ExperimentConfig(experiment=args.clean).compare_dir
+tee_to(compare_dir / f"compare_prehybrid_vs_{args.base}.txt")
 
 cfg = ExperimentConfig(experiment=args.base)
 scope = normalise_location_id(gpd.read_file(cfg.scope_gpkg)).to_crs(28992)[[LOCATION_ID, "geometry"]]
@@ -103,6 +106,6 @@ for run in (args.base, args.clean):
         y = y[y.notna() & (y != 9999)]
         print(f"  {run}: by 2027 {int((y <= 2027).sum())} · by 2031 {int((y <= 2031).sum())} · by 2050 {int((y <= 2050).sum())}")
 
-if args.out:
-    t.to_parquet(args.out)
-    print("→", args.out)
+out = args.out or compare_dir / f"compare_prehybrid_vs_{args.base}.parquet"
+t.to_parquet(out)
+print("→", out)

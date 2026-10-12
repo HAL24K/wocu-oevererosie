@@ -17,7 +17,7 @@ Steps:
    Regions that lost all SAM pieces in step 2 take their height lines.
 
 Writes ``03_hybrid/<name>/hybrid.gpkg`` (``lines``, ``lines_all``,
-``model_preference``) and ``hybrid.json`` (a copy goes to ``docs/runs/hybrids/``).
+``model_preference``) and ``hybrid.json`` (also added to ``docs/runs/ledger.jsonl``).
 """
 
 from __future__ import annotations
@@ -360,7 +360,7 @@ def build_hybrid(cfg: HybridConfig, notes: str = "") -> HybridResult:
         "timings_s": timings,
     }
     path = write_record(
-        record, cfg.out_dir / "hybrid.json", f"hybrids/{cfg.name}", cfg.data_dir
+        record, cfg.out_dir / "hybrid.json", "hybrid", cfg.name, cfg.data_dir
     )
     logger.info("hybrid → %s (%s); record → %s", cfg.hybrid_gpkg, res.counts, path)
     return res

@@ -2,7 +2,7 @@
 
 | Where | What it is |
 |---|---|
-| [runs/](runs/README.md) | One record per model run: inputs, settings, code version, metrics. The ledger |
+| [runs/](runs/README.md) | `ledger.jsonl`: one line per model run and hybrid (inputs, settings, code version, metrics), and the run table |
 | [PIPELINE_CHANGES.md](PIPELINE_CHANGES.md) | What changed in the model stage since August, and why |
 | [loop_experiment/](loop_experiment/README.md) | The August experiment that produced the cleaning rules, trajectory features and segment model. `LEARNINGS.md` is the summary; `ledger.csv` its runs |
 | [analyses/](analyses/) | Dated analysis notes. They describe the code and data as they were on that date |

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 import warnings
+from pathlib import Path
 
 import geopandas as gpd
 import matplotlib
@@ -102,7 +103,8 @@ ax.add_patch(FancyBboxPatch((51, -2.05), 46, 1.4, boxstyle="round,pad=0.02,round
 ax.text(53, -1.35, "Both-lines export: de te dunne SAM-regio's hebben vaak wél\nhoogtejaren — samen halen velen alsnog ≥ 3 jaren (bovengrens).", fontsize=10, va="center", color=DARK)
 ax.text(3, len(stages) + 0.75, "Van scope naar model — waar blijven de regio's?", fontsize=15, fontweight="bold", color=DARK)
 ax.text(3, len(stages) + 0.32, f"run {args.run} · alle foutcijfers gaan over de {fmt(n['modelled'])} gemodelleerde regio's", fontsize=9.5, color="#6b7b7b")
-out = args.out or str(cfg.data_dir.parent / "docs/presentations/fig" / f"funnel_regions_{args.run}.png")
+out = args.out or str(cfg.figures_dir / "funnel_regions.png")
+Path(out).parent.mkdir(parents=True, exist_ok=True)
 fig.savefig(out, dpi=170, bbox_inches="tight", facecolor="white")
 fig.savefig(out.replace(".png", ".pdf"), bbox_inches="tight", facecolor="white")
 print("→", out)

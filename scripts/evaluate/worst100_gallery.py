@@ -34,14 +34,14 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 from matplotlib.backends.backend_pdf import PdfPages  # noqa: E402
 
-from src.cleaning.consensus import survey_consensus  # noqa: E402
-from src.cleaning.rules import N_STATION_BINS  # noqa: E402
 from src.analysis.region_inspector import (  # noqa: E402
     VVR_PURPLE,
     RegionInspector,
     _line_parts,
     measured_color,
 )
+from src.cleaning.consensus import survey_consensus  # noqa: E402
+from src.cleaning.rules import N_STATION_BINS  # noqa: E402
 from src.pipeline.config import ExperimentConfig  # noqa: E402
 from src.sources.geometry import LOCATION_ID, normalise_location_id  # noqa: E402
 

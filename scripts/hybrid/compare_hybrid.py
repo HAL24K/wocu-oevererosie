@@ -8,16 +8,21 @@ Run: ``PYTHONPATH=. uv run python scripts/hybrid/compare_hybrid.py
 from __future__ import annotations
 
 import argparse
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import pyogrio
+
+from src.analysis.tee import tee_to
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--ours", required=True)
 ap.add_argument("--theirs", required=True)
 ap.add_argument("--examples", type=int, default=8)
 args = ap.parse_args()
+# A comparison belongs to the hybrid being compared: kept in its folder.
+tee_to(Path(args.ours).parent / "compare" / f"vs_{Path(args.theirs).stem}.txt")
 
 NUM = [
     "distinct_dates_height", "distinct_dates_segmentation", "nr_points_height", "nr_points_segmentation",

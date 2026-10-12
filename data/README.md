@@ -26,7 +26,8 @@ The numbers say how far along the process a file is. Nothing ever writes into
   repro_20261006/       our reproduction of his _nearest file with his code
   <date>-<name>/        future hybrids built from 01_raw by our own rules
 
-04_runs/<experiment>/   one model run: features/, model/, exports/, run.json
+04_runs/<experiment>/   one model run, and everything made from it: run.json, features/,
+                        model/, exports/, figures/, compare/
 05_deliverables/        what went out to people, as sent
 ```
 
@@ -50,10 +51,10 @@ A hybrid folder from `src.hybrid` holds `hybrid.gpkg` (`lines`, `lines_all`,
 - **0310 vs 0210 height model.** 0310 is 0210 plus 4,642 side-channel regions
   (`ngeul_*`); the 12,130 shared regions and centrelines are identical. 0210 is in
   the Drive archive.
-- **Side channels are not modelled yet.** Luke's hybrid covers 4,255 of them, but
-  the quality gate in `region_split.py` (`estimate_reliability_height_model == OK`)
-  drops them all: the height model has `MISSING_DATA` there. The same gate also
-  drops ~1,900 main-channel regions where the hybrid prefers SAM.
+- **The quality gate** (`estimate_reliability_height_model == OK` in
+  `luke_postprocessed/`) applies since 13 Oct only where the hybrid prefers the
+  height model. Side channels are all `MISSING_DATA` there; `--side-channels`
+  admits the SAM-preferred ones.
 - `luke_postprocessed/` is used for the quality gate, VVR polygons, erosion volumes
   and the output GeoPackage's base layers. Luke's newer 0330 version is in Drive
   (`inputs/luke/`); switching is an open question.

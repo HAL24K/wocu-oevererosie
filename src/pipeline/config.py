@@ -92,10 +92,11 @@ class ExperimentConfig:
     # does not know are split at random. fresh_split=True ignores it.
     split_from: Path | None = None
     fresh_split: bool = False
-    # Quality gate: "all" keeps only regions whose height model Luke rated OK;
-    # "height_preferred" applies that only where the hybrid prefers the height
-    # model, so SAM-preferred regions come in whatever the height model says.
-    quality_gate: str = "all"
+    # Quality gate on Luke's height-model reliability. "height_preferred"
+    # (default since 2026-10-13, run 20261013-gate-sam) applies it only where
+    # the hybrid prefers the height model; SAM-preferred regions come in
+    # whatever the height model says. "all" = the gate on every region.
+    quality_gate: str = "height_preferred"
     side_channels: bool = False  # admit ngeul_* regions (only with height_preferred)
     test_size: float = 0.20
     seed: int = 42
@@ -174,8 +175,18 @@ class ExperimentConfig:
 
     @property
     def exports_dir(self) -> Path:
-        """Where scripts/exports write files derived from this run."""
+        """GeoPackages, CSVs and PDFs derived from this run (scripts/export, evaluate)."""
         return self.run_dir / "exports"
+
+    @property
+    def figures_dir(self) -> Path:
+        """Figures and slides made from this run (scripts/slides)."""
+        return self.run_dir / "figures"
+
+    @property
+    def compare_dir(self) -> Path:
+        """Comparisons of this run with another; the challenger owns them."""
+        return self.run_dir / "compare"
 
     @property
     def output_gpkg(self) -> Path:

@@ -13,6 +13,7 @@ Run: ``uv run python scripts/hybrid/export_hybrid_delivery.py --repro data/03_hy
 from __future__ import annotations
 
 import argparse
+from pathlib import Path
 
 import geopandas as gpd
 import numpy as np
@@ -22,8 +23,12 @@ import pyogrio
 ap = argparse.ArgumentParser()
 ap.add_argument("--repro", required=True)
 ap.add_argument("--reference", required=True)
-ap.add_argument("--out-stem", required=True)
+ap.add_argument("--out-stem", help="default: <hybrid folder>/delivery_format/<reference name>")
 args = ap.parse_args()
+if args.out_stem is None:
+    folder = Path(args.repro).parent / "delivery_format"
+    folder.mkdir(parents=True, exist_ok=True)
+    args.out_stem = str(folder / Path(args.reference).stem)
 
 ref_pref = pyogrio.read_dataframe(args.reference, layer="model_preference")
 ref_lines = pyogrio.read_dataframe(args.reference, layer="lines")

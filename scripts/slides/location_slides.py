@@ -31,7 +31,7 @@ warnings.filterwarnings("ignore")
 ap = argparse.ArgumentParser()
 ap.add_argument("--run", required=True)
 ap.add_argument("--hybrid-gpkg", required=True)
-ap.add_argument("--out", required=True)
+ap.add_argument("--out", help="pptx (default: <run>/figures/location_slides.pptx)")
 ap.add_argument("--half-width-m", type=float, default=260.0)
 ap.add_argument("--experiments", help="CSV from scripts/evaluate/summarise_mask_runs.py; adds a results slide up front")
 ap.add_argument("--takeaways", nargs="*", default=[], help="bullets under the results table")
@@ -56,6 +56,8 @@ WARN_NORM = Normalize(2027, 2031)
 FILL_ALPHA = 0.6
 
 cfg = ExperimentConfig(experiment=args.run)
+args.out = args.out or str(cfg.figures_dir / "location_slides.pptx")
+Path(args.out).parent.mkdir(parents=True, exist_ok=True)
 TRIAGE = cfg.exports_dir
 scope = normalise_location_id(gpd.read_file(cfg.scope_gpkg, layer="vlakken_scope")).to_crs(28992)
 vvr_pl = gpd.read_file(cfg.signalering_gpkg, layer="Vlak_vrije_ruimte_natuurvriendelijke_oever_pl").to_crs(28992)

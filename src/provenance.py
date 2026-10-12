@@ -1,8 +1,10 @@
 """Records of what a stage used and produced, shared by both stages.
 
 A record is one small JSON file: input files (path, size, date), settings, the
-code version and results. It is written next to the output and copied to
-``docs/runs/`` (tracked in git), so it outlives the output's data.
+code version and results. It is written next to the output (``run.json`` or
+``hybrid.json``) and added as one line to ``docs/runs/ledger.jsonl``, which is
+tracked in git, so it outlives the output's data. One file, however many
+experiments: ``python -m src.provenance`` prints the runs as a table.
 """
 
 from __future__ import annotations
@@ -15,7 +17,7 @@ from typing import Any
 
 import src.paths as PATHS
 
-LEDGER_DIR = PATHS.ROOT_DIR / "docs" / "runs"
+LEDGER = PATHS.ROOT_DIR / "docs" / "runs" / "ledger.jsonl"
 
 
 def git_info() -> dict[str, Any]:
@@ -63,19 +65,62 @@ def now() -> str:
     return datetime.now().isoformat(timespec="seconds")
 
 
-def write_record(
-    record: dict[str, Any], path: Path, ledger_name: str, data_dir: Path
-) -> Path:
-    """Write ``record`` to ``path`` and to ``docs/runs/<ledger_name>.json``.
+def read_ledger(path: Path | None = None) -> list[dict[str, Any]]:
+    path = path or LEDGER
+    if not path.exists():
+        return []
+    return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
 
-    The tracked copy is only written for the project's own data tree, so test
-    runs on a temporary data dir leave the repository alone.
+
+def append_to_ledger(entry: dict[str, Any], path: Path | None = None) -> None:
+    """Add ``entry`` to the ledger, replacing an earlier entry with the same kind and id."""
+    path = path or LEDGER
+    rows = [
+        r
+        for r in read_ledger(path)
+        if (r.get("kind"), r.get("id")) != (entry["kind"], entry["id"])
+    ]
+    rows.append(entry)
+    path.write_text("".join(json.dumps(r, default=str) + "\n" for r in rows))
+
+
+def write_record(
+    record: dict[str, Any], path: Path, kind: str, record_id: str, data_dir: Path
+) -> Path:
+    """Write ``record`` to ``path`` and add it to the ledger in git.
+
+    ``kind`` is ``"run"`` or ``"hybrid"``. The ledger entry is only written for
+    the project's own data tree, so test runs on a temporary data dir leave the
+    repository alone.
     """
-    text = json.dumps(record, indent=2, default=str) + "\n"
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(text)
-    if data_dir.resolve() == PATHS.DATA_DIR.resolve() and LEDGER_DIR.exists():
-        target = LEDGER_DIR / f"{ledger_name}.json"
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(text)
+    path.write_text(json.dumps(record, indent=2, default=str) + "\n")
+    if data_dir.resolve() == PATHS.DATA_DIR.resolve() and LEDGER.parent.exists():
+        append_to_ledger({"kind": kind, "id": record_id, **record})
     return path
+
+
+def ledger_table(rows: list[dict[str, Any]]) -> str:
+    """Markdown table of the model runs in the ledger, oldest first."""
+    out = [
+        "| Run | Created | Segment MAE | Skill | Tail MAE | Region MAE | Regions | Notes |",
+        "|---|---|---|---|---|---|---|---|",
+    ]
+    for r in sorted(
+        (r for r in rows if r["kind"] == "run"), key=lambda r: r["created"]
+    ):
+        seg = r["metrics"]["segment"]
+        reg = r["metrics"]["region"].get("5 – LightGBM", {})
+        c = r.get("counts", {})
+        n = c.get("regions_train", 0) + c.get("regions_test", 0)
+        note = (r.get("notes") or "").split(". ")[0][:90]
+        out.append(
+            f"| {r['id']} | {r['created'][:10]} | {seg.get('test_mae', float('nan')):.3f} "
+            f"| {1 - seg['test_mae'] / seg['naive_mae']:+.0%} | {seg.get('test_tail_mae', float('nan')):.2f} "
+            f"| {reg.get('test_mae', float('nan')):.2f} | {n:,} | {note} |"
+        )
+    return "\n".join(out)
+
+
+if __name__ == "__main__":
+    print(ledger_table(read_ledger()))
