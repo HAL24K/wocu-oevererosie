@@ -1,105 +1,55 @@
 # data
 
-Git-ignored. Several GB of GeoPackages; the git remote does **not** back this up.
+Git-ignored and not backed up by git. Older material is archived in Google Drive:
+`My Drive/WOCU Oevererosie/archive/` (`repo_data/`, `repo_data_20261012/`).
 
-## Layout
+The numbers say how far along the process a file is. Nothing ever writes into
+`01_raw`.
 
 ```
-01_raw/          as delivered, never modified
-02_processed/    post-processed deliveries and derived context layers
-03_features/     model-ready feature tables, one folder per experiment
-04_model_outputs/ trained bundles and prediction GeoPackages, one folder per experiment
-archive/         superseded and phase-1 material — see below
-water_stations_timeseries/cleaned/  the discharge parquets the pipeline reads
+01_raw/                 as delivered by someone else, never modified
+  sam/                  Lars: SAM bank lines, full AOI (73,810 lines)
+  height_model/         Luke: height-model output, 0310 (scope regions, centrelines, bank points)
+  luke_postprocessed/   Luke: post-processed 0310 (quality gate, VVR polygons, erosion volumes)
+  scope/                scope_fase2, signaleringslijn (VVR), RWS Nevengeulen legger
+  soil/ structures/ water_stations/ shipping/
+
+02_context/             context layers we derived; inputs to the model stage
+  structures.gpkg       groynes + structures   (scripts/data_prep/prep_structures.py)
+  vegetatielegger.gpkg, land_use.gpkg          (phase-1 WFS downloads)
+  water_stations_for_modeling.gpkg, discharge/ (notebooks/provenance/)
+  region_features_v2.parquet                   bend_exposure (notebooks/provenance/)
+  frozen_split_20260907.parquet                the test regions every run is graded on
+
+03_hybrid/              hybrid line sets: the input of the model stage, one folder each
+  luke_20260710/        Luke's delivery as received (default and _nearest), his note
+  repro_20261006/       our reproduction of his _nearest file with his code
+  <date>-<name>/        future hybrids built from 01_raw by our own rules
+
+04_runs/<experiment>/   one model run: features/, model/, exports/, run.json
+05_deliverables/        what went out to people, as sent
 ```
 
-Experiment folders under `03_features/` and `04_model_outputs/` share a name.
-`20260617a` is the current reference run; `20260314` produced byte-identical features
-and is kept for comparison.
+## The two stages
 
-## What the pipeline actually reads
+```
+01_raw/sam + 01_raw/height_model ──(hybrid stage)──▶ 03_hybrid/<name>/
+03_hybrid/<name>/ + 01_raw + 02_context ──(model stage)──▶ 04_runs/<experiment>/
+```
 
-Every path below appears in the config cell of
-`notebooks/04_model/20260617a/00_master.ipynb`.
+The model stage defaults are in `src/pipeline/config.py`; with no overrides a run
+reproduces the reference run (`docs/runs/README.md`). The hybrid stage is
+`scripts/hybrid/reproduce_hybrid.py` for now.
 
-| Path | Role |
-|---|---|
-| `01_raw/erosion/wocu_output_fase2_20260210.gpkg` | Primary input — 4.8 M bank points |
-| `02_processed/erosion/wocu_post_processed_fase2_20260310.gpkg` | Quality gate, VVR polygons, erosion volumes |
-| `01_raw/scope/scope_fase2.gpkg` | Scope polygons and centrelines |
-| `01_raw/scope/20260205_signaleringslijn.gpkg` | VVR threshold lines |
-| `01_raw/soil/BRO_DownloadBodemkaart.gpkg` | Soil group feature |
-| `02_processed/wfs_context/vegetatielegger.gpkg` | Vegetation feature |
-| `02_processed/wfs_context/land_use.gpkg` | Land-use feature |
-| `02_processed/water_stations/water_stations_for_modeling.gpkg` | Nearest discharge station |
-| `water_stations_timeseries/cleaned/discharge/*.parquet` | High-water metrics, 14 stations |
-| `02_processed/erosion/region_features_v2.parquet` | `bend_exposure` — a March artefact the pipeline still depends on |
+## Things to know
 
-## Phase 2 hybrid delivery
-
-| Path | Role |
-|---|---|
-| `02_processed/hybrid/hybrid_model_results_20260710.gpkg` | Current hybrid output — `lines` + `model_preference` |
-| `02_processed/hybrid/hybrid_model_results_nearest_20260710.gpkg` | A "nearest" variant, 165k lines vs 91k. Selection rule undocumented |
-| `02_processed/hybrid/notitie_hybride_model.docx` | Delivery notes — not yet read into any decision |
-| `01_raw/segmentation/oeverlijn_segmentatie_full_aoi.geojson` | Raw SAM segmentation, 73,810 lines, **no `location_id`** — upstream of the hybrid, not directly consumable |
-| `01_raw/segmentation/batches/` | The 28 batches the full-AOI file is merged from. Redundant with it |
-
-Not yet processed: nothing hybrid-derived exists in `03_features/` or `04_model_outputs/`.
-
-## QGIS exploration
-
-`02_processed/exploration_targets.gpkg` — 9 named regions worth looking at
-(far-bank suspects, clean height-model references, the densest hybrid region,
-the strongest March erosion), each with a note saying what to look for. Load it
-first, open its attribute table, and right-click → Zoom to Feature.
-
-`02_processed/scope_coverage.gpkg` — the union of `vlakken_scope` and the
-hybrid's `model_preference` (16,377 regions), classified by `coverage`:
-pref_height / pref_segmentation / new_in_hybrid / no_pref_unmeasurable /
-**no_pref_was_OK** — the last being 326 regions that were quality-OK in March
-yet received no preference in the hybrid delivery. Open question for the
-delivery team; style categorized on `coverage`.
-
-## 20260330 is newer than what we use
-
-`02_processed/erosion/wocu_post_processed_fase2_20260330.gpkg` postdates the 20260310
-file the pipeline reads. It differs — `summary_scope` has 27,067 rows against 16,772
-(duplicated per `type_oever`, which `region_split` already handles) and 1,383 VVR
-polygons against 1,410. No run has used it. Compared in
-`notebooks/04_model/compare_postprocessed_gpkg_20260310_vs_20260330.ipynb`.
-
-## archive/
-
-Moved out of the working tree, not deleted. 3.4 GB.
-
-`superseded/` — replaced by something newer:
-
-| File | Why |
-|---|---|
-| `20260315_model_results` | Extensionless byte-twin of the `.gpkg` beside it (md5-identical) |
-| `wocu_output_fase2_v4.gpkg` | Superseded by `wocu_output_fase2_20260210.gpkg` |
-| `wocu_post_processed_fase2_20260212/20260223.gpkg` | Superseded by 20260310 |
-| `wocu_lgb_predictions_20260313/20260314.gpkg`, `wocu_erosion_predictions_20260313.gpkg` | Old outputs that sat in `02_processed/` instead of `04_model_outputs/` |
-| `wocu_output_fase2_v4_w_*.gpkg`, `all_wfs_data_batch_*.gpkg`, `phase1_*_complete_*.gpkg` | Phase-1 WFS-enriched products, matching `src/legacy/` |
-| `hybrid_model_results_20260708.gpkg` | Superseded by the 20260710 delivery |
-| `vegetatiemonitor.gpkg` | 371 MB, never referenced in code. Blocked on RWS access |
-| `all_water_stations.gpkg` | 367 MB, superseded by the 156 KB `water_stations_for_modeling.gpkg` |
-| `station_attribution.gpkg` | Loose output of an old station-matching run |
-
-`superseded/experiments/` — the 20260217, 20260303 and 20260312 model-output
-folders in full, plus the prediction GeoPackages from 20260314. That experiment's
-`bundle.joblib` and four `model_*.joblib` stay in place: they are small, and their
-metrics are the honest baseline the current run is compared against.
-
-`water/` — the old `archive_water/` tree: station caches, historical JSON, and
-reliability GeoPackages from the water-station selection work.
-
-Also here from phase 1: `sam/` (the 2025 SAM exports, superseded by the hybrid),
-`luke_for_feedback/`, and `feedback.zip`.
-
-## Known duplication outside the repo
-
-`Hybride model/` and `Resultaten/` also exist one level up, in the project folder, with
-identical checksums — roughly 480 MB duplicated. The copies here are canonical. The
-originals were left in place in case the delivery folder is shared.
+- **0310 vs 0210 height model.** 0310 is 0210 plus 4,642 side-channel regions
+  (`ngeul_*`); the 12,130 shared regions and centrelines are identical. 0210 is in
+  the Drive archive.
+- **Side channels are not modelled yet.** Luke's hybrid covers 4,255 of them, but
+  the quality gate in `region_split.py` (`estimate_reliability_height_model == OK`)
+  drops them all: the height model has `MISSING_DATA` there. The same gate also
+  drops ~1,900 main-channel regions where the hybrid prefers SAM.
+- `luke_postprocessed/` is used for the quality gate, VVR polygons, erosion volumes
+  and the output GeoPackage's base layers. Luke's newer 0330 version is in Drive
+  (`inputs/luke/`); switching is an open question.

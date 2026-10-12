@@ -1,8 +1,7 @@
-"""Step 01 (hybrid source) — cleaned bank observations from the line delivery.
+"""Step 01 — cleaned bank observations from a hybrid line set.
 
-The graduated replacement for the point-cloud step when ``cfg.source ==
-"hybrid"``: sample every delivered line against its region centreline, run
-the e8 cleaning stack (experiments/loop/TRACK1_REPORT.md), aggregate with
+Sample every delivered line against its region centreline, run
+the e8 cleaning stack (docs/loop_experiment/TRACK1_REPORT.md), aggregate with
 the furthest-N convention, collapse to per-year distances and apply the
 region-level |v| guard.
 
@@ -138,7 +137,7 @@ def build_structures_geom(cfg: ExperimentConfig, centrelines: gpd.GeoSeries):
     """Kribben, masked kunstwerken and (optionally) secondary water, buffered.
 
     Kribben and kunstwerken come from ``structures.gpkg`` (BKN deliveries,
-    scripts/prep_structures.py); only the kunstwerken categories listed in
+    scripts/data_prep/prep_structures.py); only the kunstwerken categories listed in
     ``cfg.kunstwerk_categories`` are masked.
 
     Secondary water: vegetatielegger 'Water' parts that touch no centreline —

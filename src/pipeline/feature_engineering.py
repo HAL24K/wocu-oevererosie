@@ -27,8 +27,6 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 
-import src.constants as CONST
-
 # ── Hydrology constants ───────────────────────────────────────────────────────
 
 # High-water threshold (m³/s) per discharge station — used for event detection.
@@ -270,13 +268,44 @@ def build_features(
 # ── Public helpers ─────────────────────────────────────────────────────────────
 
 
-def encode_col(series: pd.Series, category_key: str) -> pd.Series:
-    """Ordinal-encode a categorical series using KNOWN_CATEGORIES from constants.
+# Ordered category lists for the ordinal encoding; unknown values → -1.
+KNOWN_CATEGORIES = {
+    "BrpGewas_majority_class_category": [
+        "Grasland",
+        "Landschapselement",
+        "Natuurterrein",
+        "Bouwland",
+    ],
+    "rws_vegetatielegger:vegetatieklassen_majority_class_vlklasse": [
+        "Gras en Akker",
+        "Riet en Ruigte",
+        "Verhard oppervlak",
+        "Bos",
+        "Water",
+        "Struweel",
+        "90/10",
+    ],
+    # River segment — ordered roughly by typical flow regime / channel size
+    "river": ["maas1", "maas2", "maas3", "rijn", "nederrijn", "ijssel1", "ijssel2"],
+    # Soil group — ordered by erosion resistance (most resistant first)
+    "soil_group": [
+        "River clay",
+        "River sand-clay",
+        "Other",
+        "Sandy",
+        "Soft (peat/podzol)",
+    ],
+}
+UNKNOWN_CATEGORY = -1
 
-    Unknown values map to DEFAULT_UNKNOWN_CATEGORY_LABEL.
+
+def encode_col(series: pd.Series, category_key: str) -> pd.Series:
+    """Ordinal-encode a categorical series using ``KNOWN_CATEGORIES``.
+
+    Unknown values map to ``UNKNOWN_CATEGORY``.
     """
-    mapping = {v: i for i, v in enumerate(CONST.KNOWN_CATEGORIES[category_key])}
-    return series.map(lambda x: mapping.get(x, CONST.DEFAULT_UNKNOWN_CATEGORY_LABEL))
+    mapping = {v: i for i, v in enumerate(KNOWN_CATEGORIES[category_key])}
+    return series.map(lambda x: mapping.get(x, UNKNOWN_CATEGORY))
 
 
 def soil_group_fn(code: object) -> object:

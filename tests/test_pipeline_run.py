@@ -10,9 +10,21 @@ from src.pipeline.run import build_start_points, combine_feature_tables
 
 def test_config_resolves_default_paths_under_data_dir(tmp_path):
     cfg = ExperimentConfig(experiment="t1", data_dir=tmp_path)
-    assert cfg.raw_gpkg == tmp_path / "01_raw/erosion/wocu_output_fase2_20260210.gpkg"
-    assert cfg.features_dir == tmp_path / "03_features/t1"
+    assert (
+        cfg.raw_gpkg == tmp_path / "01_raw/height_model/wocu_output_fase2_20260310.gpkg"
+    )
+    assert cfg.hybrid_gpkg.parent == tmp_path / "03_hybrid/luke_20260710"
+    assert cfg.features_dir == tmp_path / "04_runs/t1/features"
+    assert cfg.model_out_dir == tmp_path / "04_runs/t1/model"
     assert cfg.output_gpkg.name == "wocu_lgb_predictions_t1.gpkg"
+
+
+def test_defaults_are_the_reference_settings(tmp_path):
+    cfg = ExperimentConfig(experiment="t1", data_dir=tmp_path)
+    assert cfg.hybrid_gpkg.name == "hybrid_model_results_nearest_20260710.gpkg"
+    assert (cfg.sample_spacing_m, cfg.segment_sample_spacing_m) == (5.0, 1.5)
+    assert cfg.split_from == tmp_path / "02_context/frozen_split_20260907.parquet"
+    assert not cfg.fresh_split
 
 
 def test_config_override_wins_over_default(tmp_path):
@@ -80,7 +92,7 @@ def test_combine_backfills_test_span_and_keeps_shared_columns_only():
         "raw_gpkg",
         "mask_buffer_m",
         "structures_gpkg",
-        "source",
+        "fresh_split",
         "hybrid_gpkg",
         "water_mask",
         "temporal_max_dev",
@@ -140,3 +152,40 @@ def test_train_honest_validation_never_touches_test(tmp_path):
     results = train_and_save_models(df, tmp_path / "out", seed=1, val_frac=0.2)
     assert "5 – LightGBM" in results
     assert results["5 – LightGBM"]["test_mae"] < results["0 – Naive mean"]["test_mae"]
+
+
+def test_run_record_names_inputs_settings_and_metrics(tmp_path):
+    from src.pipeline.provenance import run_record
+
+    (tmp_path / "01_raw/height_model").mkdir(parents=True)
+    (tmp_path / "01_raw/height_model/wocu_output_fase2_20260310.gpkg").write_bytes(
+        b"x" * 7
+    )
+    cfg = ExperimentConfig(experiment="t6", data_dir=tmp_path)
+    rec = run_record(
+        cfg, {"5 – LightGBM": {"test_mae": 2.0}}, {"test_mae": 1.0}, notes="n"
+    )
+    assert rec["inputs"]["raw_gpkg"] == {
+        "path": "01_raw/height_model/wocu_output_fase2_20260310.gpkg",
+        "bytes": 7,
+        "modified": rec["inputs"]["raw_gpkg"]["modified"],
+    }
+    assert rec["inputs"]["hybrid_gpkg"]["missing"] is True
+    assert rec["settings"]["sample_spacing_m"] == 5.0
+    assert "raw_gpkg" not in rec["settings"]
+    assert rec["metrics"]["segment"]["test_mae"] == 1.0
+    assert rec["notes"] == "n"
+
+
+def test_run_record_on_a_scratch_data_dir_stays_out_of_the_repo(tmp_path, monkeypatch):
+    import src.pipeline.provenance as prov
+    from src.pipeline.provenance import write_run_record
+
+    ledger = tmp_path / "ledger"
+    ledger.mkdir()
+    monkeypatch.setattr(prov, "LEDGER_DIR", ledger)
+    cfg = ExperimentConfig(experiment="t7", data_dir=tmp_path / "data")
+    cfg.run_dir.mkdir(parents=True)
+    path = write_run_record(cfg, {"experiment": "t7"})
+    assert path == cfg.run_dir / "run.json"
+    assert not list(ledger.iterdir())

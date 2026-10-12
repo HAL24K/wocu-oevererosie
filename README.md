@@ -1,157 +1,99 @@
 # WOCU River Bank Erosion Prediction
 
 Predicts where Dutch river banks will be in future years, per ~100 m scope region,
-across the Rijntakken, IJssel, Maas and their side channels. Phase 2 of a POC for
-Rijkswaterstaat.
+along the Rijntakken, IJssel and Maas. Phase 2 of a POC for Rijkswaterstaat.
+Output is a GeoPackage opened in QGIS.
 
-**Stack**: Python 3.12 · geopandas · LightGBM · uv. Output is a GeoPackage opened in QGIS.
+**Stack**: Python 3.12 · geopandas · LightGBM · uv.
 
----
+## Two stages
 
-## Start here
-
-One command runs the whole pipeline and writes a browsable report:
-
-```bash
-uv run python -m src.pipeline --experiment 20260825a
+```
+SAM lines (Lars) ─┐
+                  ├─ hybrid stage ──▶ hybrid line set ──▶ model stage ──▶ predicted bank positions
+height model (Luke)┘   per region: SAM    data/03_hybrid/     clean, features,     data/04_runs/<experiment>/
+                       or height lines                       train, predict
 ```
 
-Outputs land in `data/03_features/<experiment>/` and `data/04_model_outputs/<experiment>/`,
-including `report.html` — figures and tables for every step, viewable in a browser.
-Inputs and parameters live in `src/pipeline/config.py` (`ExperimentConfig`). The default
-source is the hybrid *line* delivery with the cleaning rules, trajectory features, honest
-validation and the segment-horizon artifact that graduated from the loop-engineering
-experiment (what changed and why: [`docs/PIPELINE_CHANGES.md`](docs/PIPELINE_CHANGES.md);
-the evidence: [`experiments/loop/LEARNINGS.md`](experiments/loop/LEARNINGS.md)).
-`--source points` reproduces the pre-August point-cloud pipeline (20260617a reference run).
-Useful flags: `--no-export` (skip the 185 MB GeoPackage), `--resume` (reuse per-step
-parquets), `--end-year`.
+The model stage can start from any hybrid line set: Luke's delivery, our
+reproduction of it, or one we build ourselves with other cleaning rules.
 
-The master notebook (`notebooks/04_model/20260617a/00_master.ipynb`) documents the same
-flow interactively, and `notebooks/01_scenarios.ipynb` replays individual steps with
-different parameters against cached inputs. Everything else in `notebooks/` is history — see
-[`notebooks/README.md`](notebooks/README.md).
+**Model stage** — one command, writes a browsable `report.html` and a run record:
 
----
+```bash
+uv run python -m src.pipeline --experiment 20261012-test --notes "what this run tests"
+uv run python -m src.pipeline --experiment 20261012-test --hybrid-gpkg data/03_hybrid/<name>/hybrid.gpkg
+```
+
+With no overrides a run reproduces the reference run. Options: `--no-export`
+(skip the large GeoPackage), `--resume` (reuse per-step parquets), `--end-year`,
+`--raw-gpkg`, `--fresh-split`. All defaults: `src/pipeline/config.py`.
+
+**Hybrid stage** — for now a script (`scripts/hybrid/reproduce_hybrid.py`, Luke's
+algorithm on his raw inputs; `prehybrid_clean.py` applies our cleaning rules
+first). Moving it into `src/hybrid` as a proper stage is the next step.
 
 ## Setup
 
-The virtualenv must **not** live inside this repository — the folder is synced by
-Google Drive, which corrupts venvs (it deletes module files while leaving their
-metadata behind) and makes every import crawl.
-
 ```bash
-export UV_PROJECT_ENVIRONMENT="$HOME/.venvs/wocu-oevererosie"   # add to ~/.zshrc
-uv sync
+uv sync                      # runtime + dev tools (pytest, ruff, jupyter, python-pptx)
+uv run pytest                # tests
+uv run ruff check src tests && uv run ruff format src tests
 ```
 
-Then, for notebooks:
+For notebooks: `uv run python -m ipykernel install --user --name wocu --display-name "WOCU erosion (3.12)"`.
 
-```bash
-uv run python -m ipykernel install --user --name wocu --display-name "WOCU erosion (3.12)"
-```
-
-and pick **WOCU erosion (3.12)** as the kernel. `src` is installed editable, so
-imports work without `PYTHONPATH` fiddling.
-
-| Task | Command |
-|---|---|
-| Tests | `./run_tests.sh` — or `uv run pytest tests/ -m "not integration"` |
-| Lint | `uv run ruff check src tests` |
-| Format | `uv run ruff format src tests` |
-
-Integration tests call live WFS services and are excluded from CI. Three of them
-currently fail on upstream schema drift; run them with `./run_tests.sh -m integration`.
-
----
-
-## The pipeline
+## Where things are
 
 ```
-delivery (points or lines)
-   │
-   ├── src/cleaning/           composable cleaning rules (sample / line / survey level)
-   ├── src/sources/            read any delivery into bank observations
-   │                           (location_id, date, dist_m, source)
-   ▼
-src/pipeline/
-   config.py                   ExperimentConfig — all paths and parameters
-   run.py                      orchestrator + CLI; writes report.html per run
-   hybrid_prep.py              01 · lines → samples → structure mask → cleaning → dist/year
-   bank_distances.py           01 · (points source) reduce a point cloud to one distance per region-year
-   region_split.py             02 · pivot to t1/t2/t3, quality filter, train/test split
-   feature_engineering.py      03 · vegetation, land use, soil, hydrology, bend exposure
-   trajectory.py               03b · per-region history descriptors up to the forecast origin
-   train.py                    05 · six models, LightGBM primary (honest early stopping); saves a bundle
-   segments.py                 08 · R=5 segment-horizon model → segment_predictions.parquet
-   curvature.py                     bend exposure — not yet wired into 03
-   │
-   ▼
-src/model/
-   predictor.py                iterative multi-year prediction
-   feature_shifter.py          rolling feature state between prediction steps
-   export_utils.py             model bundle save/load
-   │
-   ▼
-src/erosion/
-   centerline_utils.py         geometry, VVR crossing years
-   export.py                   assemble the output GeoPackage
-   plot_utils.py               scope-region figures
+src/
+  hybrid/      hybrid stage: luke_v2 (port of Luke's hybrid model), prehybrid_clean
+  pipeline/    model stage, one module per step (see its __init__.py), config, provenance
+  cleaning/    cleaning rules, shared by both stages
+  sources/     scope geometry and the bank-observation table
+  analysis/    region_inspector, for notebooks and evaluation scripts
+scripts/
+  hybrid/      build, export and compare hybrid line sets
+  evaluate/    worst-predicted regions, galleries, comparisons between runs
+  export/      deliverables from a run: predicted bank lines, VVR crossing years
+  data_prep/   how 02_context files were made (structures, water stations)
+  slides/      figures for the 14/15 Oct sessions (remove afterwards)
+qgis/          QGIS project, layer paths relative to ../data
+docs/          runs/ (one record per run), PIPELINE_CHANGES.md, loop experiment, analyses
+notebooks/     two inspection notebooks + provenance/
+data/          git-ignored; layout in data/README.md
 ```
 
-`scripts/` holds two live utilities — `viz_point_selection.py` (the furthest-points
-figure) and `find_nearest_waterweb_stations.py`. Six one-off API and GeoPackage probes
-are in `scripts/archive/`.
+Scripts run from the repo root: `PYTHONPATH=. uv run python scripts/<group>/<script>.py`.
+Their output goes to the run's `exports/` folder; copy to `data/05_deliverables/`
+what goes out.
 
-Shared: `src/constants.py` (category dictionaries, column names), `src/paths.py`.
+## Provenance
 
-`src/legacy/` is phase-1 code — the `DataCollector → DataHandler → BaselineErosionModel`
-stack. **Nothing in the live pipeline imports it.** It is kept because it holds the only
-working WFS clients; see its `__init__.py`.
-
-There is no API. A FastAPI skeleton (`app/`, serving only `/` and `/health`, importing
-nothing from `src`) was removed in the flattening commit; recover it from git history if
-an API is ever wanted here.
-
----
+Every run writes `run.json` (inputs with size and date, every setting, git
+commit, metrics) into its run folder and a copy into `docs/runs/`, which is
+tracked. Add `--notes` to say what a run is for. The ledger is
+[docs/runs/README.md](docs/runs/README.md). The state before the October 2026
+clean-up is tagged `pre-cleanup-20261012`.
 
 ## Conventions
 
-- **CRS** is EPSG:28992 (RD New) throughout, in every layer and every output.
-- **Region key** is `location_id`, e.g. `ijssel1_l_0010_0020` — cluster, bank side,
-  chainage range. Deliveries call it `position_id` or `scope_region_id`;
-  `src.sources.geometry.normalise_location_id` is the single place that reconciles them.
-- **Data layout** under `data/`: `01_raw` → `02_processed` → `03_features` →
-  `04_model_outputs`, with feature and output folders named after the experiment.
-- **Time** is integer years in the modelling path. The hybrid delivery carries real
-  dates; `BankObservations.to_dist_per_year()` collapses them.
-- `data/` is git-ignored — several GB of GeoPackages.
-
----
-
-## Documentation
-
-| Document | What it is |
-|---|---|
-| [docs/BACKLOG.md](docs/BACKLOG.md) | **Highest signal.** Numbered, diagnosed open items |
-| [docs/DATA_INVENTORY.md](docs/DATA_INVENTORY.md) | Data sources, provenance, status |
-| [docs/FEATURE_GAP_ANALYSIS.md](docs/FEATURE_GAP_ANALYSIS.md) | Features we have vs. want, and what blocks the rest |
-| [docs/CENTERLINE_IMPLEMENTATION_PLAN.md](docs/CENTERLINE_IMPLEMENTATION_PLAN.md) | Centreline approach design notes |
-| [docs/legacy/](docs/legacy/) | Phase-1 architecture and its TODO list — describes `src/legacy/`, not the current pipeline |
-
----
+- **CRS** is EPSG:28992 (RD New) everywhere.
+- **Region key** is `location_id`, e.g. `ijssel1_l_0010_0020` (river section, bank
+  side, chainage). Deliveries call it `position_id` or `scope_region_id`;
+  `src.sources.geometry.normalise_location_id` reconciles them.
+- **Time** is integer years in the modelling path; the hybrid lines carry real
+  dates, collapsed per year in step 1.
 
 ## Known issues
 
-Read these before trusting a number:
-
-- **The naive mean beats LightGBM** on test MAE (0.784 vs 0.937). A constant currently
-  predicts bank retreat as well as the model does.
-- **`train.py` early-stops on the test set**, which biases its reported metrics. The
-  `0.801` figure in the `20260617a` bundle is optimistic; `0.937` is the honest one.
-- **The train/test split is random across adjacent regions**, so spatially derived
-  features leak between them.
-- **Four hydrology features describe the same window as the target**, and cannot exist
-  at prediction time — `FeatureShifter` holds them constant instead.
-- **`bend_exposure` is read from a March 2026 parquet** rather than computed, so new
-  regions get NaN.
+- **The quality gate is a height-model flag.** `region_split.py` keeps regions whose
+  `estimate_reliability_height_model` is `OK`, so all 4,255 side-channel regions in
+  the hybrid and ~1,900 main-channel regions where the hybrid prefers SAM are never
+  modelled.
+- **Side channels have no river category.** Their `river` value is `ngeul`, which
+  the encoding does not know (→ −1), so the parent river is lost.
+- **`bend_exposure` is read from a March 2026 parquet**, not computed; regions
+  outside it get 0.
+- **The train/test split is random across adjacent regions**, so spatial features
+  leak between neighbours.

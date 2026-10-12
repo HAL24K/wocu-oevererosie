@@ -1,8 +1,15 @@
-"""Pipeline steps for the WOCU erosion prediction workflow.
+"""Model stage: hybrid line set → cleaned observations → features → model → predictions.
 
-Each module corresponds to one numbered notebook in the pipeline:
-    bank_distances     — notebook 01
-    region_split       — notebook 02
-    feature_engineering — notebook 03
-    train              — notebook 05
+config              ExperimentConfig: inputs, parameters, output locations
+run                 the orchestration, step by step (``python -m src.pipeline``)
+hybrid_prep         step 1: sample and clean the hybrid lines, per-year distances
+region_split        step 2: quality gate, train/test split
+feature_engineering step 3: context and discharge features
+trajectory          step 3b: history descriptors per region
+train               step 4: baselines and LightGBM
+predict             step 5: iterative prediction (with feature_shifter)
+centerline, export  step 6–7: bank positions, VVR crossing years, GeoPackage
+segments            step 8: the segment-horizon artifact
+provenance          the run record (run.json, docs/runs/)
+report              the HTML report
 """

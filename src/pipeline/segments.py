@@ -1,4 +1,4 @@
-"""Step 08 (hybrid source) — the segment-horizon artifact.
+"""Step 08 — the segment-horizon artifact.
 
 Graduated from tracks 2+3 of the loop-engineering experiment (k6): each
 region is cut into ``segment_R`` station bins; every segment gets its own

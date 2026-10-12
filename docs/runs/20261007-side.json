@@ -1,0 +1,209 @@
+{
+  "experiment": "20261007-side",
+  "created": "2026-10-07T17:33:18",
+  "notes": "Settings reconstructed on 2026-10-12 from comparison logs and docs/PIPELINE_CHANGES.md; the run itself recorded none. Row 'side channels' in 20261007_mask_runs.csv.",
+  "git": {
+    "note": "not recorded at run time"
+  },
+  "inputs": {
+    "raw_gpkg": {
+      "path": "01_raw/erosion/wocu_output_fase2_20260210.gpkg (archived to Drive: archive/repo_data_20261012/)"
+    },
+    "proc_gpkg": {
+      "path": "01_raw/luke_postprocessed/wocu_post_processed_fase2_20260310.gpkg",
+      "bytes": 166621184,
+      "modified": "2026-04-01T15:46:25"
+    },
+    "scope_gpkg": {
+      "path": "01_raw/scope/scope_fase2.gpkg",
+      "bytes": 6610944,
+      "modified": "2026-02-25T10:09:44"
+    },
+    "veg_gpkg": {
+      "path": "02_context/vegetatielegger.gpkg",
+      "bytes": 93229056,
+      "modified": "2026-02-16T20:36:20"
+    },
+    "lu_gpkg": {
+      "path": "02_context/land_use.gpkg",
+      "bytes": 18636800,
+      "modified": "2026-02-16T20:35:46"
+    },
+    "soil_gpkg": {
+      "path": "01_raw/soil/BRO_DownloadBodemkaart.gpkg",
+      "bytes": 153059328,
+      "modified": "2026-01-14T13:44:27"
+    },
+    "stations_gpkg": {
+      "path": "02_context/water_stations_for_modeling.gpkg",
+      "bytes": 155648,
+      "modified": "2026-02-17T20:02:01"
+    },
+    "discharge_dir": {
+      "path": "02_context/discharge"
+    },
+    "reference_features_v2": {
+      "path": "02_context/region_features_v2.parquet",
+      "bytes": 904131,
+      "modified": "2026-03-11T06:32:31"
+    },
+    "signalering_gpkg": {
+      "path": "01_raw/scope/20260205_signaleringslijn.gpkg",
+      "bytes": 12447744,
+      "modified": "2026-03-13T15:04:31"
+    },
+    "structures_gpkg": {
+      "path": "02_context/structures.gpkg",
+      "bytes": 8687616,
+      "modified": "2026-08-25T19:26:14"
+    },
+    "hybrid_gpkg": {
+      "path": "reproduction with side channels (Nevengeulen legger) masked from SAM before the hybrid step; file deleted"
+    },
+    "split_from": {
+      "path": "data/02_context/frozen_split_20260907.parquet",
+      "bytes": 57375,
+      "modified": "2026-10-12T22:01:42"
+    }
+  },
+  "settings": {
+    "signalering_layer": "Vlak_vrije_ruimte_natuurvriendelijke_oever_ln",
+    "structures_layer": "kribben",
+    "kunstwerken_layer": "kunstwerken",
+    "kunstwerk_categories": [
+      "brug",
+      "kade_damwand",
+      "steiger_afmeer",
+      "sluis_stuw"
+    ],
+    "mask_buffer_m": 10.0,
+    "min_samples_per_obs": 8,
+    "n_points": 3,
+    "n_samples": 20,
+    "sample_spacing_m": 5.0,
+    "segment_sample_spacing_m": 1.5,
+    "min_samples_per_line": 3,
+    "fresh_split": false,
+    "test_size": 0.2,
+    "seed": 42,
+    "start_year": 2026,
+    "end_year": 2050,
+    "model_name": "lgb",
+    "water_mask": true,
+    "tortuosity_max": 3.0,
+    "nearbank_frac": 0.25,
+    "nearbank_min_ref": 30.0,
+    "maze_max_ratio": 1.8,
+    "maze_min_iqr": 20.0,
+    "fragment_min_cov": 0.25,
+    "temporal_max_dev": 15.0,
+    "temporal_min_surveys": 3,
+    "temporal_protect_years": 3,
+    "farbank_v_limit": 50.0,
+    "trajectory_features": true,
+    "val_frac": 0.15,
+    "segment_R": 20,
+    "segment_n_samples": 60,
+    "horizon_min_years": 2,
+    "build_segments": true,
+    "export_gpkg": true,
+    "resume": false
+  },
+  "counts": {
+    "regions_train": 4641,
+    "regions_test": 1155,
+    "regions_inference_only": 1584
+  },
+  "metrics": {
+    "region": {
+      "0 \u2013 Naive mean": {
+        "train_rmse": 5.87781435943828,
+        "train_mae": 2.855853587839747,
+        "train_r2": 0.0,
+        "train_tail_mae": 6.933420133184428,
+        "train_tail_n": 855,
+        "test_rmse": 5.45780331760629,
+        "test_mae": 2.6027537168634236,
+        "test_r2": -0.002827252255943602,
+        "test_tail_mae": 6.390657031211794,
+        "test_tail_n": 181
+      },
+      "1 \u2013 v_train baseline": {
+        "train_rmse": 9.852328626471934,
+        "train_mae": 5.224419962904421,
+        "train_r2": -1.8096100503042511,
+        "train_tail_mae": 9.922006576906666,
+        "train_tail_n": 855,
+        "test_rmse": 9.04476433506135,
+        "test_mae": 4.7405636911758355,
+        "test_r2": -1.754132796466791,
+        "test_tail_mae": 9.0964730083143,
+        "test_tail_n": 181
+      },
+      "2 \u2013 OLS v_train": {
+        "train_rmse": 5.5703059323899815,
+        "train_mae": 2.7788070616770804,
+        "train_r2": 0.10189654881601817,
+        "train_tail_mae": 6.5684942990829285,
+        "train_tail_n": 855,
+        "test_rmse": 5.305390813244497,
+        "test_mae": 2.5459162298175824,
+        "test_r2": 0.05239983497062983,
+        "test_tail_mae": 6.012126766010315,
+        "test_tail_n": 181
+      },
+      "3 \u2013 Ridge numeric": {
+        "train_rmse": 5.470668143112622,
+        "train_mae": 2.865548785352336,
+        "train_r2": 0.1337385051270501,
+        "train_tail_mae": 6.340670021243763,
+        "train_tail_n": 855,
+        "test_rmse": 5.247483586997769,
+        "test_mae": 2.6572088645516163,
+        "test_r2": 0.07297265834824862,
+        "test_tail_mae": 5.851700120172605,
+        "test_tail_n": 181
+      },
+      "4 \u2013 Ridge + cat": {
+        "train_rmse": 5.399995005949702,
+        "train_mae": 2.836069888947604,
+        "train_r2": 0.15597563217458965,
+        "train_tail_mae": 6.01423077534915,
+        "train_tail_n": 855,
+        "test_rmse": 5.209006440376754,
+        "test_mae": 2.6719641489846575,
+        "test_r2": 0.08651766278006223,
+        "test_tail_mae": 5.512162542637814,
+        "test_tail_n": 181
+      },
+      "5 \u2013 LightGBM": {
+        "train_rmse": 3.614689755472439,
+        "train_mae": 1.8289566816004903,
+        "train_r2": 0.6218097524200474,
+        "train_tail_mae": 4.066625432086932,
+        "train_tail_n": 855,
+        "test_rmse": 4.892165244972059,
+        "test_mae": 2.354255291806592,
+        "test_r2": 0.19426430912703407,
+        "test_tail_mae": 5.283362980581824,
+        "test_tail_n": 181
+      }
+    },
+    "segment": {
+      "R": 20,
+      "horizon_min_years": 2,
+      "n_train": 44289,
+      "n_val": 6752,
+      "n_test": 10955,
+      "test_mae": 1.008777978540659,
+      "test_r2": 0.5340125819270619,
+      "test_tail_mae": 3.2100583303735304,
+      "tail_n": 1003,
+      "naive_mae": 1.600005861352734,
+      "persist_mae": 4.042565377573037,
+      "pos_err_median_m": 1.0467693839276966,
+      "pos_err_p90_m": 4.6075815078451345
+    }
+  },
+  "data_kept": "deleted on 2026-10-12; this record is what remains"
+}

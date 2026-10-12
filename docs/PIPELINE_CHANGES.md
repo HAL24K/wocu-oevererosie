@@ -3,7 +3,7 @@
 What changed in `src/` between the feature branch (`feature/data-exploration-
 notebooks`, 2026-08-19) and the merge of `experiment/loop-engineering`
 (2026-08-25), and why. The *evidence* for every choice is in
-`experiments/loop/` (LEARNINGS.md → TRACK{1,2,3}_REPORT.md → ledger.csv);
+`docs/loop_experiment/` (LEARNINGS.md → TRACK{1,2,3}_REPORT.md → ledger.csv);
 this page only records what the product pipeline now does differently.
 
 ## The one-line version
@@ -43,22 +43,22 @@ All thresholds are `ExperimentConfig` fields.
 
 ## New inputs
 
-- `data/02_processed/hybrid/hybrid_model_results_20260710.gpkg` — the line delivery (`hybrid_gpkg`).
-- `data/02_processed/structures/structures.gpkg` — lean kribben + kunstwerken
+- `data/03_hybrid/luke_20260710/hybrid_model_results_20260710.gpkg` — the line delivery (`hybrid_gpkg`).
+- `data/02_context/structures.gpkg` — lean kribben + kunstwerken
   layers derived from the 2026-08-25 RWS GIS deliveries by
-  `scripts/prep_structures.py` (`structures_gpkg`, `kunstwerk_categories`).
-- `data/02_processed/wfs_context/vegetatielegger.gpkg` — already an input; the
+  `scripts/data_prep/prep_structures.py` (`structures_gpkg`, `kunstwerk_categories`).
+- `data/02_context/vegetatielegger.gpkg` — already an input; the
   `Water` class is now also used for the secondary-water mask (`water_mask`).
 
 ## New outputs per run
 
-- `03_features/<exp>/samples.parquet`, `observations.parquet` — the kept
+- `04_runs/<exp>/features/samples.parquet`, `observations.parquet` — the kept
   samples and per-(region, date) observations, for QGIS inspection.
-- `04_model_outputs/<exp>/segment_predictions.parquet` — one row per
+- `04_runs/<exp>/model/segment_predictions.parquet` — one row per
   segment: `location_id, seg, seg_center, last_year, last_dist_m, v_pred,
   pred_dist_m_horizon, n_seg_years`. Not yet consumed by the GeoPackage
   export; input for the planned any-segment-crosses-VVR alert.
-- `04_model_outputs/<exp>/segment_metrics.json`.
+- `04_runs/<exp>/model/segment_metrics.json`.
 
 ## What was tried and deliberately *not* brought over
 
@@ -89,4 +89,4 @@ test regions common to raw-len and near-fz the region MAE is identical
 (2.27 vs 2.26); the `_nearest` delivery mainly softens the extremes (max
 region error 68 → 40 m/yr) while making the kronkelend/doolhof rules
 redundant (1,735 → 13 and 2,294 → 427 surveys dropped). Details:
-`docs/hybrid_input_comparison_20260907.md`.
+`docs/analyses/hybrid_input_comparison_20260907.md`.

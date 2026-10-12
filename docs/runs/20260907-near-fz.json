@@ -1,0 +1,209 @@
+{
+  "experiment": "20260907-near-fz",
+  "created": "2026-09-07T21:13:01",
+  "notes": "Settings reconstructed on 2026-10-12 from comparison logs and docs/PIPELINE_CHANGES.md; the run itself recorded none. Reference run behind the September deliverables (05_deliverables). Luke's _nearest hybrid; split frozen to the earlier 20260907-raw-len run. Code: commit 9df19ae.",
+  "git": {
+    "note": "not recorded at run time"
+  },
+  "inputs": {
+    "raw_gpkg": {
+      "path": "01_raw/erosion/wocu_output_fase2_20260210.gpkg (archived to Drive: archive/repo_data_20261012/)"
+    },
+    "proc_gpkg": {
+      "path": "01_raw/luke_postprocessed/wocu_post_processed_fase2_20260310.gpkg",
+      "bytes": 166621184,
+      "modified": "2026-04-01T15:46:25"
+    },
+    "scope_gpkg": {
+      "path": "01_raw/scope/scope_fase2.gpkg",
+      "bytes": 6610944,
+      "modified": "2026-02-25T10:09:44"
+    },
+    "veg_gpkg": {
+      "path": "02_context/vegetatielegger.gpkg",
+      "bytes": 93229056,
+      "modified": "2026-02-16T20:36:20"
+    },
+    "lu_gpkg": {
+      "path": "02_context/land_use.gpkg",
+      "bytes": 18636800,
+      "modified": "2026-02-16T20:35:46"
+    },
+    "soil_gpkg": {
+      "path": "01_raw/soil/BRO_DownloadBodemkaart.gpkg",
+      "bytes": 153059328,
+      "modified": "2026-01-14T13:44:27"
+    },
+    "stations_gpkg": {
+      "path": "02_context/water_stations_for_modeling.gpkg",
+      "bytes": 155648,
+      "modified": "2026-02-17T20:02:01"
+    },
+    "discharge_dir": {
+      "path": "02_context/discharge"
+    },
+    "reference_features_v2": {
+      "path": "02_context/region_features_v2.parquet",
+      "bytes": 904131,
+      "modified": "2026-03-11T06:32:31"
+    },
+    "signalering_gpkg": {
+      "path": "01_raw/scope/20260205_signaleringslijn.gpkg",
+      "bytes": 12447744,
+      "modified": "2026-03-13T15:04:31"
+    },
+    "structures_gpkg": {
+      "path": "02_context/structures.gpkg",
+      "bytes": 8687616,
+      "modified": "2026-08-25T19:26:14"
+    },
+    "hybrid_gpkg": {
+      "path": "03_hybrid/luke_20260710/hybrid_model_results_nearest_20260710.gpkg"
+    },
+    "split_from": {
+      "path": "data/02_context/frozen_split_20260907.parquet",
+      "bytes": 57375,
+      "modified": "2026-10-12T22:01:42"
+    }
+  },
+  "settings": {
+    "signalering_layer": "Vlak_vrije_ruimte_natuurvriendelijke_oever_ln",
+    "structures_layer": "kribben",
+    "kunstwerken_layer": "kunstwerken",
+    "kunstwerk_categories": [
+      "brug",
+      "kade_damwand",
+      "steiger_afmeer",
+      "sluis_stuw"
+    ],
+    "mask_buffer_m": 10.0,
+    "min_samples_per_obs": 8,
+    "n_points": 3,
+    "n_samples": 20,
+    "sample_spacing_m": 5.0,
+    "segment_sample_spacing_m": 1.5,
+    "min_samples_per_line": 3,
+    "fresh_split": false,
+    "test_size": 0.2,
+    "seed": 42,
+    "start_year": 2026,
+    "end_year": 2050,
+    "model_name": "lgb",
+    "water_mask": true,
+    "tortuosity_max": 3.0,
+    "nearbank_frac": 0.25,
+    "nearbank_min_ref": 30.0,
+    "maze_max_ratio": 1.8,
+    "maze_min_iqr": 20.0,
+    "fragment_min_cov": 0.25,
+    "temporal_max_dev": 15.0,
+    "temporal_min_surveys": 3,
+    "temporal_protect_years": 3,
+    "farbank_v_limit": 50.0,
+    "trajectory_features": true,
+    "val_frac": 0.15,
+    "segment_R": 20,
+    "segment_n_samples": 60,
+    "horizon_min_years": 2,
+    "build_segments": true,
+    "export_gpkg": true,
+    "resume": false
+  },
+  "counts": {
+    "regions_train": 4605,
+    "regions_test": 1145,
+    "regions_inference_only": 1632
+  },
+  "metrics": {
+    "region": {
+      "0 \u2013 Naive mean": {
+        "train_rmse": 6.1414252483838725,
+        "train_mae": 2.950808572410812,
+        "train_r2": 0.0,
+        "train_tail_mae": 7.051993504888754,
+        "train_tail_n": 858,
+        "test_rmse": 5.767904552806398,
+        "test_mae": 2.73853008913327,
+        "test_r2": -0.00159048158374131,
+        "test_tail_mae": 6.928884003209805,
+        "test_tail_n": 180
+      },
+      "1 \u2013 v_train baseline": {
+        "train_rmse": 10.172578143069035,
+        "train_mae": 5.378623358252761,
+        "train_r2": -1.7436185411604472,
+        "train_tail_mae": 10.009932501202366,
+        "train_tail_n": 858,
+        "test_rmse": 9.4754405517587,
+        "test_mae": 4.977763735103265,
+        "test_r2": -1.7030425422389004,
+        "test_tail_mae": 9.866187992359094,
+        "test_tail_n": 180
+      },
+      "2 \u2013 OLS v_train": {
+        "train_rmse": 5.854771975512064,
+        "train_mae": 2.8764976491731695,
+        "train_r2": 0.09117214271849006,
+        "train_tail_mae": 6.701751701266283,
+        "train_tail_n": 858,
+        "test_rmse": 5.552820172017831,
+        "test_mae": 2.6549090533904165,
+        "test_r2": 0.0717151200120304,
+        "test_tail_mae": 6.435786082309303,
+        "test_tail_n": 180
+      },
+      "3 \u2013 Ridge numeric": {
+        "train_rmse": 5.775690316639805,
+        "train_mae": 2.9529829412280737,
+        "train_r2": 0.11555779675829947,
+        "train_tail_mae": 6.5262870816169425,
+        "train_tail_n": 858,
+        "test_rmse": 5.508804760761362,
+        "test_mae": 2.750615961114692,
+        "test_r2": 0.08637322241081036,
+        "test_tail_mae": 6.3352292985481675,
+        "test_tail_n": 180
+      },
+      "4 \u2013 Ridge + cat": {
+        "train_rmse": 5.7111000836635215,
+        "train_mae": 2.924408249930004,
+        "train_r2": 0.13522883158913912,
+        "train_tail_mae": 6.190149961880314,
+        "train_tail_n": 858,
+        "test_rmse": 5.476233928327054,
+        "test_mae": 2.783323453729829,
+        "test_r2": 0.09714492881303405,
+        "test_tail_mae": 5.9893788526539105,
+        "test_tail_n": 180
+      },
+      "5 \u2013 LightGBM": {
+        "train_rmse": 4.730812867066687,
+        "train_mae": 2.300454446435248,
+        "train_r2": 0.4066195979720236,
+        "train_tail_mae": 5.281739593869088,
+        "train_tail_n": 858,
+        "test_rmse": 5.143743948650166,
+        "test_mae": 2.4458927777117037,
+        "test_r2": 0.2034505505824422,
+        "test_tail_mae": 5.9297675762556565,
+        "test_tail_n": 180
+      }
+    },
+    "segment": {
+      "R": 20,
+      "horizon_min_years": 2,
+      "n_train": 43804,
+      "n_val": 6589,
+      "n_test": 10835,
+      "test_mae": 1.0647454494262976,
+      "test_r2": 0.5119660234809601,
+      "test_tail_mae": 3.2673793926947297,
+      "tail_n": 1000,
+      "naive_mae": 1.6352821211512314,
+      "persist_mae": 4.191022174981245,
+      "pos_err_median_m": 1.0787475924176548,
+      "pos_err_p90_m": 4.851333530258415
+    }
+  },
+  "data_kept": "data/04_runs/20260907-near-fz/"
+}

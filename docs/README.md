@@ -1,34 +1,19 @@
 # Documentation
 
-## Current
-
-| Document | What it is | Read it when |
-|---|---|---|
-| [BACKLOG.md](BACKLOG.md) | Numbered open items with diagnoses, written during development | Picking up work. Highest signal per line in the repo |
-| [DATA_INVENTORY.md](DATA_INVENTORY.md) | Data sources, provenance, delivery status | Working out where a file came from |
-| [FEATURE_GAP_ANALYSIS.md](FEATURE_GAP_ANALYSIS.md) | Model features vs. what asset managers asked for; what is available, derivable, or blocked | Considering a new feature |
-| [CENTERLINE_IMPLEMENTATION_PLAN.md](CENTERLINE_IMPLEMENTATION_PLAN.md) | Design notes for the centreline approach | Touching geometry |
-
-The root [README](../README.md) covers setup, the pipeline map and known issues.
-[notebooks/README.md](../notebooks/README.md) says which notebook is
-the pipeline and which 57 are history.
-
-## legacy/
-
-Phase-1 material. Accurate about the `DataCollector → DataHandler → BaselineErosionModel`
-stack that now lives in `src/legacy/`, and **wrong about the current pipeline** —
-it predates it.
-
-| Document | Note |
+| Where | What it is |
 |---|---|
-| [legacy/ARCHITECTURE-phase1.md](legacy/ARCHITECTURE-phase1.md) | Was `ARCHITECTURE.md` at the repo root, where it was routinely mistaken for current |
-| [legacy/TODO-phase1-wfs.md](legacy/TODO-phase1-wfs.md) | Was `TODO.md`. All 13 open items concern scaling WFS fetching to 12,130 regions — an approach abandoned in favour of pre-bundled GeoPackages |
-| [legacy/DATAHANDLER_WORKFLOW.md](legacy/DATAHANDLER_WORKFLOW.md) | How `DataHandler` was meant to be driven |
-| [legacy/GEOPACKAGE_LOADING.md](legacy/GEOPACKAGE_LOADING.md) | The GeoPackage loader added to `DataHandler` |
+| [runs/](runs/README.md) | One record per model run: inputs, settings, code version, metrics. The ledger |
+| [PIPELINE_CHANGES.md](PIPELINE_CHANGES.md) | What changed in the model stage since August, and why |
+| [loop_experiment/](loop_experiment/README.md) | The August experiment that produced the cleaning rules, trajectory features and segment model. `LEARNINGS.md` is the summary; `ledger.csv` its runs |
+| [analyses/](analyses/) | Dated analysis notes. They describe the code and data as they were on that date |
 
-## Where the docs are still thin
+The data layout is in [data/README.md](../data/README.md); setup and the stage
+overview in the root [README](../README.md). Project status, plans and meeting
+notes are in Notion (WOCU hub → "Model as built").
 
-- No record of why the target is `v_test` (a velocity) rather than a position or a volume.
-- No spec for the concept viewer, so "output suitable for a viewer" cannot be checked.
-- The hybrid delivery's `notitie_hybride_model.docx` lives in `data/02_processed/hybrid/`
-  and has not been read into any decision here.
+## Decisions recorded elsewhere
+
+- **Shipping intensity** was assessed in March and not adopted: RWS publishes
+  passages per river block, far coarser than the ~100 m regions.
+- **0310 vs 0330 post-processed file.** Luke's 0330 version (Drive, `inputs/luke/`)
+  has 213 more regions marked `OK`. The pipeline still reads 0310; switching is open.

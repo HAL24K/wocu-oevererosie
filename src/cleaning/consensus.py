@@ -26,9 +26,13 @@ MIN_SHARE_OFF = 0.3  # partial displacements shorter than this are left alone
 
 @dataclass
 class Consensus:
-    profiles: pd.DataFrame  # survey date x station bin -> median dist (NaN where not covered)
+    profiles: (
+        pd.DataFrame
+    )  # survey date x station bin -> median dist (NaN where not covered)
     core: list  # dates of the agreeing group
-    off: pd.DataFrame  # per flagged date: dev_m (signed median), share_off, bins_off (list)
+    off: (
+        pd.DataFrame
+    )  # per flagged date: dev_m (signed median), share_off, bins_off (list)
     reason: str  # "ok", "no majority", "too few surveys"
     consensus: pd.Series | None = None  # median profile of the core
 
@@ -66,7 +70,9 @@ def survey_consensus(
     far = np.nanmax(D.values) if np.isfinite(D.values).any() else 0.0
     Dm = D.fillna(far + tol).values.copy()
     np.fill_diagonal(Dm, 0.0)
-    labels = fcluster(linkage(squareform(Dm, checks=False), "complete"), t=tol, criterion="distance")
+    labels = fcluster(
+        linkage(squareform(Dm, checks=False), "complete"), t=tol, criterion="distance"
+    )
     sizes = pd.Series(labels).value_counts()
     tie = len(sizes) > 1 and sizes.iloc[0] == sizes.iloc[1]
     # A reference of 2 out of 6 is not a consensus; it just paints the rest red.

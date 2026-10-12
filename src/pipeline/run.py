@@ -1,21 +1,16 @@
-"""Run the full erosion prediction pipeline from an :class:`ExperimentConfig`.
-
-This lifts the orchestration that previously lived only in
-``notebooks/04_model/20260617a/00_master.ipynb`` — including the four steps
-that existed nowhere else: building the prediction start points, assembling
-the combined feature table, projecting predicted distances back to
-coordinates, and the acceptance checks. Logic is kept identical to the
-notebook so a run reproduces the 20260617a reference.
+"""Model stage: a hybrid line set in, predicted bank positions out.
 
 Command line::
 
-    uv run python -m src.pipeline --experiment 20260817a
+    uv run python -m src.pipeline --experiment 20261012-hm0310
+    uv run python -m src.pipeline --experiment test --hybrid-gpkg data/03_hybrid/<name>/hybrid.gpkg
     uv run python -m src.pipeline --experiment quick --end-year 2035 --no-export
 
-Each run writes its per-step parquets to ``03_features/<experiment>/``, the
-model bundle and predictions to ``04_model_outputs/<experiment>/``, and a
-self-contained HTML report (figures + tables, browsable like the notebook
-output) next to them.
+With no options a run reproduces the reference run (``docs/runs/README.md``).
+Each run writes to ``04_runs/<experiment>/``: the per-step parquets in
+``features/``, the model bundle, predictions and an HTML report in ``model/``,
+and ``run.json`` (inputs, settings, code version, metrics; a copy goes to
+``docs/runs/``).
 """
 
 from __future__ import annotations
@@ -29,21 +24,24 @@ from typing import Any
 import geopandas as gpd
 import pandas as pd
 
-from src.erosion.centerline_utils import (
+from src.pipeline.centerline import (
     build_ref_geom_lookup,
     compute_vvr_crossing_year,
     ensure_location_id_column,
     get_nvo_location_ids,
     point_from_offset,
 )
-from src.erosion.export import export_predictions
-from src.model.export_utils import load_model_bundle
-from src.model.predictor import predict_iterative_ml
 from src.pipeline.config import ExperimentConfig
+from src.pipeline.export import export_predictions
 from src.pipeline.feature_engineering import build_features
+from src.pipeline.hybrid_prep import build_observations
+from src.pipeline.model_bundle import load_model_bundle
+from src.pipeline.predict import predict_iterative_ml
+from src.pipeline.provenance import run_record, write_run_record
 from src.pipeline.region_split import build_region_split
+from src.pipeline.segments import build_segment_artifact
 from src.pipeline.train import train_and_save_models
-from src.sources import HeightModelPointSource
+from src.pipeline.trajectory import TRAJ_FEATS2, trajectory_features
 
 logger = logging.getLogger(__name__)
 
@@ -217,8 +215,11 @@ def acceptance_checks(
 # ── the run itself ─────────────────────────────────────────────────────────────
 
 
-def run(cfg: ExperimentConfig, write_report: bool = True) -> RunResult:
-    """Execute the pipeline end to end. Returns everything it produced."""
+def run(cfg: ExperimentConfig, write_report: bool = True, notes: str = "") -> RunResult:
+    """Execute the pipeline end to end. Returns everything it produced.
+
+    ``notes`` goes into the run record: say what the run is testing.
+    """
     missing = cfg.missing_inputs()
     if missing:
         raise FileNotFoundError(
@@ -249,15 +250,9 @@ def run(cfg: ExperimentConfig, write_report: bool = True) -> RunResult:
     samples_path = cfg.features_dir / "samples.parquet"
     res.dist_per_year = cached(dpy_path)
     if res.dist_per_year is None:
-        if cfg.source == "hybrid":
-            from src.pipeline.hybrid_prep import build_observations
-
-            samples, observations, res.dist_per_year = build_observations(cfg)
-            samples.to_parquet(samples_path, index=False)
-            observations.to_parquet(obs_path, index=False)
-        else:
-            source = HeightModelPointSource(cfg.raw_gpkg, n_points=cfg.n_points)
-            res.dist_per_year = source.load().to_dist_per_year()
+        samples, observations, res.dist_per_year = build_observations(cfg)
+        samples.to_parquet(samples_path, index=False)
+        observations.to_parquet(obs_path, index=False)
         res.dist_per_year.to_parquet(dpy_path, index=False)
     done("1 · bank distances", t)
 
@@ -268,9 +263,7 @@ def run(cfg: ExperimentConfig, write_report: bool = True) -> RunResult:
     res.region_split = cached(split_path)
     res.region_inference = cached(inf_path)
     if res.region_split is None or res.region_inference is None:
-        frozen = (
-            pd.read_parquet(cfg.split_from)["split"] if cfg.split_from else None
-        )
+        frozen = None if cfg.fresh_split else pd.read_parquet(cfg.split_from)["split"]
         res.region_split, res.region_inference = build_region_split(
             res.dist_per_year,
             proc_gpkg=cfg.proc_gpkg,
@@ -304,12 +297,10 @@ def run(cfg: ExperimentConfig, write_report: bool = True) -> RunResult:
         res.region_inference_features.to_parquet(inf_feat_path)
     done("3 · feature engineering", t)
 
-    # 3b · trajectory features (hybrid source) ---------------------------------
+    # 3b · trajectory features -------------------------------------------------
     extra_features: list[str] = []
-    if cfg.source == "hybrid" and cfg.trajectory_features:
+    if cfg.trajectory_features:
         t = step("3b · trajectory features")
-        from src.pipeline.trajectory import TRAJ_FEATS2, trajectory_features
-
         observations = pd.read_parquet(cfg.features_dir / "observations.parquet")
         for frame, meta in (
             (res.region_features, res.region_split),
@@ -324,15 +315,13 @@ def run(cfg: ExperimentConfig, write_report: bool = True) -> RunResult:
         extra_features = list(TRAJ_FEATS2)
         done("3b · trajectory features", t)
 
-    if cfg.source == "hybrid":
-        # hybrid regions extend beyond the reference feature coverage; the
-        # linear baselines cannot digest the resulting NaNs (the experiment
-        # harness and prep script filled them the same way).
-        for frame in (res.region_features, res.region_inference_features):
-            num = frame.select_dtypes("number").columns
-            frame[num] = frame[num].fillna(0.0)
-        res.region_features.to_parquet(feat_path)
-        res.region_inference_features.to_parquet(inf_feat_path)
+    # hybrid regions extend beyond the reference feature coverage; the linear
+    # baselines cannot digest the resulting NaNs.
+    for frame in (res.region_features, res.region_inference_features):
+        num = frame.select_dtypes("number").columns
+        frame[num] = frame[num].fillna(0.0)
+    res.region_features.to_parquet(feat_path)
+    res.region_inference_features.to_parquet(inf_feat_path)
 
     # 4 · train -----------------------------------------------------------------
     t = step("4 · train")
@@ -419,11 +408,9 @@ def run(cfg: ExperimentConfig, write_report: bool = True) -> RunResult:
         )
         done("7 · export GeoPackage", t)
 
-    # 8 · segment-horizon artifact (hybrid source) -------------------------------
-    if cfg.source == "hybrid" and cfg.build_segments:
+    # 8 · segment-horizon artifact -------------------------------------------------
+    if cfg.build_segments:
         t = step("8 · segment-horizon artifact")
-        from src.pipeline.segments import build_segment_artifact
-
         kept_line_idx = pd.read_parquet(
             cfg.features_dir / "samples.parquet", columns=["line_idx"]
         )["line_idx"].unique()
@@ -442,6 +429,18 @@ def run(cfg: ExperimentConfig, write_report: bool = True) -> RunResult:
         write_run_report(res, bank_positions)
         logger.info("report → %s", cfg.report_path)
 
+    record = run_record(
+        cfg,
+        res.train_results,
+        res.segment_metrics,
+        counts={
+            "regions_train": int((res.region_split["split"] == "train").sum()),
+            "regions_test": int((res.region_split["split"] == "test").sum()),
+            "regions_inference_only": len(res.region_inference),
+        },
+        notes=notes,
+    )
+    logger.info("run record → %s", write_run_record(cfg, record))
     return res
 
 
@@ -449,14 +448,11 @@ def main(argv: list[str] | None = None) -> int:
     import argparse
 
     ap = argparse.ArgumentParser(description="Run the erosion prediction pipeline.")
-    ap.add_argument("--experiment", required=True, help="run name, e.g. 20260817a")
     ap.add_argument(
-        "--source",
-        choices=["hybrid", "points"],
-        default="hybrid",
-        help="'hybrid' (default) = line delivery, cleaning rules, trajectory "
-        "features, honest validation, segment artifact; 'points' = the "
-        "pre-2026-08 point-cloud pipeline",
+        "--experiment", required=True, help="run name, e.g. 20261012-hm0310"
+    )
+    ap.add_argument(
+        "--notes", default="", help="what this run tests (goes into run.json)"
     )
     ap.add_argument("--start-year", type=int, default=2026)
     ap.add_argument("--end-year", type=int, default=2050)
@@ -467,37 +463,47 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument(
         "--resume", action="store_true", help="reuse existing per-step parquets"
     )
-    ap.add_argument("--hybrid-gpkg", help="override the hybrid line delivery")
+    ap.add_argument(
+        "--hybrid-gpkg", help="hybrid line set (default: Luke's 10 Jul _nearest)"
+    )
+    ap.add_argument("--raw-gpkg", help="height-model delivery (default: 0310)")
     ap.add_argument(
         "--sample-spacing-m",
         type=float,
-        help="one sample per this many metres of line (default: 20 per line)",
+        default=5.0,
+        help="one sample per this many metres of line",
     )
     ap.add_argument(
         "--segment-sample-spacing-m",
         type=float,
-        help="same for the segment artifact (default: 60 per line)",
+        default=1.5,
+        help="same for the segment artifact",
     )
     ap.add_argument(
-        "--split-from", help="inherit train/test regions from this region_split.parquet"
+        "--split-from",
+        help="train/test label per region (default: the reference run's split)",
+    )
+    ap.add_argument(
+        "--fresh-split", action="store_true", help="ignore --split-from, split anew"
     )
     args = ap.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     cfg = ExperimentConfig(
         experiment=args.experiment,
-        source=args.source,
         start_year=args.start_year,
         end_year=args.end_year,
         seed=args.seed,
         export_gpkg=not args.no_export,
         resume=args.resume,
         hybrid_gpkg=args.hybrid_gpkg,
+        raw_gpkg=args.raw_gpkg,
         sample_spacing_m=args.sample_spacing_m,
         segment_sample_spacing_m=args.segment_sample_spacing_m,
         split_from=args.split_from,
+        fresh_split=args.fresh_split,
     )
-    result = run(cfg)
+    result = run(cfg, notes=args.notes)
     return 0 if result.all_checks_passed else 1
 
 

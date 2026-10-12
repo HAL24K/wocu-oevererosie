@@ -1,0 +1,56 @@
+regions: ours 15282, theirs 15282, shared 15282, only ours 0, only theirs 0
+preference agrees: 15271 / 15282 (99.9%)
+ours          height  segmentation
+theirs                            
+height          2148             4
+segmentation       7         13123
+
+rationale fields — share of shared regions equal (|Δ| < 1e-6 or both NaN):
+  distinct_dates_height          100.0%   median |Δ| 0
+  distinct_dates_segmentation    100.0%   median |Δ| 0
+  nr_points_height                93.8%   median |Δ| 0
+  nr_points_segmentation          93.1%   median |Δ| 0
+  p50_dist_height                 95.2%   median |Δ| 0
+  p50_dist_segmentation           93.4%   median |Δ| 0
+  p90_dist_height                 97.2%   median |Δ| 0
+  p90_dist_segmentation           97.6%   median |Δ| 0
+  diff_p50_height                 97.6%   median |Δ| 0
+  diff_p50_segmentation           98.9%   median |Δ| 0
+  diff_p90_height                 96.7%   median |Δ| 0
+  diff_p90_segmentation           97.9%   median |Δ| 0
+  kpi_slope                      100.0%   median |Δ| 0
+  points_height [0-10]            99.7%   median |Δ| 0
+  points_segmentation [0-10]      99.3%   median |Δ| 0
+
+winner lines per (region, model):
+  hoogtemodel  groups   2159 · count equal  90.4% · total length equal  87.6% · dates equal  99.5%
+  segmentation groups  13134 · count equal  99.9% · total length equal  99.9% · dates equal  99.9%
+
+examples of mismatching (region, model):
+                                   n_theirs  n_ours  length_theirs  length_ours
+location_id           model                                                    
+ijssel1_l_10100_10110 hoogtemodel       7.0     4.0          226.4        229.7
+ijssel1_l_10650_10660 hoogtemodel      16.0    15.0          244.2        246.4
+ijssel1_l_10690_10700 hoogtemodel      15.0    12.0          250.0        250.2
+ijssel1_l_10700_10710 hoogtemodel       8.0     5.0          189.4        191.1
+ijssel1_l_10800_10810 hoogtemodel       6.0     5.0          301.5        302.6
+ijssel1_l_2130_2140   hoogtemodel      13.0    13.0          250.8        251.3
+ijssel1_l_2470_2480   hoogtemodel      20.0    18.0          236.7        238.7
+ijssel1_l_2500_2510   hoogtemodel      13.0    12.0          246.8        250.5
+ijssel1_l_2540_2550   hoogtemodel      11.0    10.0          298.1        299.2
+ijssel1_l_3030_3040   hoogtemodel      14.0    14.0          369.0        372.4
+ijssel1_l_3040_3050   hoogtemodel      10.0     8.0          358.5        360.7
+ijssel1_l_3050_3060   hoogtemodel      10.0     9.0          338.4        340.5
+
+examples of preference mismatches (ours | theirs):
+  ijssel1_l_4520_4530: ours segmentation [np.float64(3.0), np.float64(4.0)] | theirs height [np.float64(3.0), np.float64(3.0)]
+  ijssel1_l_7820_7830: ours segmentation [np.float64(4.0), np.float64(5.0)] | theirs height [np.float64(4.0), np.float64(4.0)]
+  ijssel1_r_1660_1670: ours segmentation [np.float64(3.0), np.float64(4.0)] | theirs height [np.float64(4.0), np.float64(3.0)]
+  ijssel1_r_6070_6080: ours height [np.float64(5.0), np.float64(4.0)] | theirs segmentation [np.float64(4.0), np.float64(5.0)]
+  ijssel2_r_2210_2220: ours height [np.float64(4.0), np.float64(4.0)] | theirs segmentation [np.float64(3.0), np.float64(4.0)]
+  maas1_r_0220_0230: ours height [np.float64(4.0), np.float64(4.0)] | theirs segmentation [np.float64(4.0), np.float64(5.0)]
+  maas3_l_14840_14850: ours height [np.float64(4.0), np.float64(4.0)] | theirs segmentation [np.float64(4.0), np.float64(5.0)]
+  maas3_r_11960_11970: ours height [np.float64(7.0), np.float64(7.0)] | theirs segmentation [np.float64(6.0), np.float64(7.0)]
+  nederrijn_l_7080_7090: ours height [np.float64(5.0), np.float64(5.0)] | theirs segmentation [np.float64(5.0), np.float64(6.0)]
+  nederrijn_l_7900_7910: ours height [np.float64(4.0), np.float64(4.0)] | theirs segmentation [np.float64(4.0), np.float64(5.0)]
+  rijn_l_7130_7140: ours segmentation [np.float64(5.0), np.float64(6.0)] | theirs height [np.float64(5.0), np.float64(5.0)]
