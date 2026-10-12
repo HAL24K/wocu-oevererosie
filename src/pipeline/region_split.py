@@ -67,6 +67,7 @@ def build_region_split(
     test_size: float = 0.20,
     random_seed: int = 42,
     frozen_split: pd.Series | None = None,
+    gate_exempt: set[str] | None = None,
     quality_col: str = QUALITY_COL,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Build region_split and region_inference_only from dist_per_year.
@@ -78,6 +79,8 @@ def build_region_split(
         test_size: Fraction for the held-out test set (stratified by cluster).
         random_seed: Random seed for reproducibility.
         quality_col: Column in summary_scope used as quality gate (keep == 'OK').
+        gate_exempt: Regions kept whatever their quality value (e.g. regions
+                     where the hybrid prefers SAM over the height model).
 
     Returns:
         (region_split, region_inference_only) — both indexed by location_id.
@@ -107,11 +110,16 @@ def build_region_split(
     scope_quality = scope_quality.drop_duplicates(subset=["location_id"])
     quality_map = scope_quality.set_index("location_id")[quality_col]
 
+    exempt = pd.Index(sorted(gate_exempt or ()))
     split_records["quality"] = split_records.index.map(quality_map)
-    features_ok = split_records[split_records["quality"] == "OK"].copy()
+    features_ok = split_records[
+        (split_records["quality"] == "OK") | split_records.index.isin(exempt)
+    ].copy()
 
     inference_records["quality"] = inference_records.index.map(quality_map)
-    inference_ok = inference_records[inference_records["quality"] == "OK"].copy()
+    inference_ok = inference_records[
+        (inference_records["quality"] == "OK") | inference_records.index.isin(exempt)
+    ].copy()
 
     # ── is_nvo via spatial join ───────────────────────────────────────────────
     vvr_polys = gpd.read_file(proc_gpkg, layer="vvr_rates_of_change")

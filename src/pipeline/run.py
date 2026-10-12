@@ -212,6 +212,27 @@ def acceptance_checks(
     return checks
 
 
+def gate_exempt_regions(cfg: ExperimentConfig) -> set[str] | None:
+    """Regions that skip the height-model quality gate (``cfg.quality_gate``)."""
+    if cfg.quality_gate == "all":
+        return None
+    if cfg.quality_gate != "height_preferred":
+        raise ValueError(f"unknown quality_gate {cfg.quality_gate!r}")
+    from pyogrio import read_dataframe
+
+    pref = read_dataframe(
+        cfg.hybrid_gpkg,
+        layer="model_preference",
+        columns=["location_id", "model_preference"],
+        read_geometry=False,
+    )
+    sam = pref.loc[pref["model_preference"] == "segmentation", "location_id"]
+    if not cfg.side_channels:
+        sam = sam[~sam.str.startswith("ngeul_")]
+    logger.info("   quality gate skipped for %d SAM-preferred regions", len(sam))
+    return set(sam)
+
+
 # ── the run itself ─────────────────────────────────────────────────────────────
 
 
@@ -270,6 +291,7 @@ def run(cfg: ExperimentConfig, write_report: bool = True, notes: str = "") -> Ru
             test_size=cfg.test_size,
             random_seed=cfg.seed,
             frozen_split=frozen,
+            gate_exempt=gate_exempt_regions(cfg),
         )
         res.region_split.to_parquet(split_path)
         res.region_inference.to_parquet(inf_path)
@@ -488,6 +510,17 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument(
         "--fresh-split", action="store_true", help="ignore --split-from, split anew"
     )
+    ap.add_argument(
+        "--quality-gate",
+        choices=["all", "height_preferred"],
+        default="all",
+        help="height-model quality gate on all regions, or only where the hybrid prefers height",
+    )
+    ap.add_argument(
+        "--side-channels",
+        action="store_true",
+        help="admit side-channel regions (with --quality-gate height_preferred)",
+    )
     args = ap.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO, format="%(message)s")
@@ -505,6 +538,8 @@ def main(argv: list[str] | None = None) -> int:
         segment_sample_spacing_m=args.segment_sample_spacing_m,
         split_from=args.split_from,
         fresh_split=args.fresh_split,
+        quality_gate=args.quality_gate,
+        side_channels=args.side_channels,
     )
     result = run(cfg, notes=args.notes)
     return 0 if result.all_checks_passed else 1

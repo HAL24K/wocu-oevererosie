@@ -27,7 +27,12 @@ import shapely
 from sklearn.metrics import mean_absolute_error, r2_score
 
 from src.pipeline.config import ExperimentConfig
-from src.pipeline.hybrid_prep import build_structures_geom, load_lines, sample_lines
+from src.pipeline.hybrid_prep import (
+    build_structures_geom,
+    load_lines,
+    sample_lines,
+    top_n_mean,
+)
 from src.pipeline.trajectory import TRAJ_FEATS2, traj_row
 from src.sources.geometry import LOCATION_ID, ScopeGeometry
 
@@ -79,14 +84,7 @@ def _segment_yearly(cfg: ExperimentConfig, kept_line_idx) -> pd.DataFrame:
     R = cfg.segment_R
     dense = dense.assign(seg=np.minimum((dense["station"] * R).astype(int), R - 1))
     g = dense.groupby([*SEG_KEY, "date"], sort=False)
-    top = (
-        g["dist"]
-        .nlargest(3)
-        .groupby(level=[0, 1, 2], sort=False)
-        .mean()
-        .rename("dist_m")
-        .reset_index()
-    )
+    top = top_n_mean(dense, [*SEG_KEY, "date"], "dist", 3, "dist_m")
     counts = g.agg(n=("dist", "size"), model=("model", "first")).reset_index()
     seg_obs = top.merge(counts, on=[*SEG_KEY, "date"], how="left")
     seg_obs = seg_obs[seg_obs["n"] >= 3].reset_index(drop=True)

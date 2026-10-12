@@ -128,8 +128,10 @@ def build_features(
     inference = inference.copy()
 
     # River column derived from location_id prefix
-    split["river"] = split.index.to_series().str.extract(r"^([a-z]+\d*)_")[0]
-    inference["river"] = inference.index.to_series().str.extract(r"^([a-z]+\d*)_")[0]
+    # Side channels keep their parent river: ngeul_maas_l_… → "ngeul_maas".
+    river_re = r"^(ngeul_[a-z]+|[a-z]+\d*)_"
+    split["river"] = split.index.to_series().str.extract(river_re)[0]
+    inference["river"] = inference.index.to_series().str.extract(river_re)[0]
 
     all_ids = split.index.union(inference.index)
 
@@ -286,7 +288,24 @@ KNOWN_CATEGORIES = {
         "90/10",
     ],
     # River segment — ordered roughly by typical flow regime / channel size
-    "river": ["maas1", "maas2", "maas3", "rijn", "nederrijn", "ijssel1", "ijssel2"],
+    # Side channels are appended so the main rivers keep their codes.
+    "river": [
+        "maas1",
+        "maas2",
+        "maas3",
+        "rijn",
+        "nederrijn",
+        "ijssel1",
+        "ijssel2",
+        "ngeul_maas",
+        "ngeul_rijn",
+        "ngeul_ijssel",
+        "ngeul_nederrijn",
+        "ngeul_bovenmerwede",
+        "ngeul_zwartewater",
+        "ngeul_afgedamdemaas",
+        "ngeul_oudemaas",
+    ],
     # Soil group — ordered by erosion resistance (most resistant first)
     "soil_group": [
         "River clay",

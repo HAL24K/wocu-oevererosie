@@ -92,6 +92,11 @@ class ExperimentConfig:
     # does not know are split at random. fresh_split=True ignores it.
     split_from: Path | None = None
     fresh_split: bool = False
+    # Quality gate: "all" keeps only regions whose height model Luke rated OK;
+    # "height_preferred" applies that only where the hybrid prefers the height
+    # model, so SAM-preferred regions come in whatever the height model says.
+    quality_gate: str = "all"
+    side_channels: bool = False  # admit ngeul_* regions (only with height_preferred)
     test_size: float = 0.20
     seed: int = 42
     start_year: int = 2026
