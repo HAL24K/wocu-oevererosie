@@ -1,10 +1,10 @@
 """Predicted year the bank crosses the signaleringslijn, per scope region.
 
 Uses the segment-resolution forecast (R = 20): each strip is projected forward
-from its own last observation, the strips are joined into a bank line per year,
-and the first year that line touches the signaleringslijn
-(``Vlak_vrije_ruimte_natuurvriendelijke_oever_ln``) is the crossing year.
-"Any strip crosses" is the alert, which is what the segment artifact was for.
+from its own last observation along its own perpendicular to the centreline,
+and the first year a strip reaches the far edge of the VVR on that ray is the
+region's crossing year. Strips are tested one by one; nothing is joined, so a
+strip without data never takes part. "Any strip crosses" is the alert.
 
 Output layer ``vvr_kruising_vlakken``: scope polygons of the regions that have
 a VVR, with ``kruisingsjaar``, an ordered ``kruising_klasse`` for styling, and
