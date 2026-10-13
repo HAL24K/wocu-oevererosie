@@ -30,7 +30,9 @@ import pandas as pd
 import shapely
 from sklearn.metrics import mean_absolute_error, r2_score
 
+from src.analysis.predicted_lines import forecast_dist
 from src.pipeline.config import ExperimentConfig
+from src.pipeline.forecast import stable_forecast
 from src.pipeline.hybrid_prep import (
     build_structures_geom,
     load_lines,
@@ -293,7 +295,6 @@ def build_segment_artifact(
     fwd["v_pred"] = model.predict(fwd[feat_names])
     fwd["last_year"] = fwd["t2"]
     fwd["last_dist_m"] = fwd["dist_t2"]
-    fwd["pred_dist_m_horizon"] = fwd["dist_t2"] + fwd["v_pred"] * H
     out_cols = [
         LOCATION_ID,
         "seg",
@@ -304,6 +305,18 @@ def build_segment_artifact(
         "pred_dist_m_horizon",
         "n_seg_years",
     ]
+    if cfg.forecast_mode == "stable":
+        fwd = stable_forecast(
+            fwd,
+            seg_obs,
+            short_years=H,
+            alpha=cfg.forecast_drift_alpha,
+            smooth_v=cfg.forecast_smooth_v,
+            smooth_start=cfg.forecast_smooth_start,
+            jump_k=cfg.forecast_jump_k_m,
+        )
+        out_cols += ["short_years", "v_long", "last_dist_raw_m", "v_model", "sam_last"]
+    fwd["pred_dist_m_horizon"] = forecast_dist(fwd, fwd["last_year"] + H)
     out_path = cfg.model_out_dir / "segment_predictions.parquet"
     fwd[out_cols].to_parquet(out_path, index=False)
     (cfg.model_out_dir / "segment_metrics.json").write_text(

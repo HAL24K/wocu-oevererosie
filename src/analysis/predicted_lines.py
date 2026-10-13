@@ -14,6 +14,25 @@ import pandas as pd
 from shapely.geometry import LineString, MultiLineString
 
 
+def forecast_dist(g: pd.DataFrame, year) -> np.ndarray:
+    """Forecast distance to the centreline per strip in ``year``.
+
+    ``last_dist_m + v_pred * min(dt, short_years) + v_long * dt`` with
+    ``dt = year - last_year``: the model's speed (``v_pred``) holds for at most
+    ``short_years`` (a correction towards where the bank really is), ``v_long`` is
+    the lasting drift. Without those two columns this is the plain
+    ``last_dist_m + v_pred * dt``.
+    """
+    dt = np.clip(np.asarray(year, float) - g["last_year"].to_numpy(float), 0, None)
+    cap = g["short_years"].to_numpy(float) if "short_years" in g else np.inf
+    v_long = g["v_long"].to_numpy(float) if "v_long" in g else 0.0
+    return (
+        g["last_dist_m"].to_numpy(float)
+        + g["v_pred"].to_numpy(float) * np.minimum(dt, cap)
+        + v_long * dt
+    )
+
+
 def runs_of_consecutive(segs: np.ndarray) -> list[np.ndarray]:
     """Indices into ``segs`` (sorted) grouped into runs of consecutive values."""
     if len(segs) == 0:
@@ -58,7 +77,7 @@ def region_lines(
     """
     g = g.sort_values("seg")
     seg = g["seg"].to_numpy()
-    dist = (g["last_dist_m"] + g["v_pred"] * (year - g["last_year"])).to_numpy()
+    dist = forecast_dist(g, year)
     pieces = []
     for run in runs_of_consecutive(seg):
         s, d = seg[run], dist[run]

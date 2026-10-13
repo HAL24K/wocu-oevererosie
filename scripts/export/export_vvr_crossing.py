@@ -27,6 +27,7 @@ from shapely.strtree import STRtree
 
 warnings.filterwarnings("ignore")
 
+from src.analysis.predicted_lines import forecast_dist  # noqa: E402
 from src.analysis.region_inspector import RegionInspector  # noqa: E402
 from src.pipeline.config import ExperimentConfig  # noqa: E402
 from src.sources.geometry import LOCATION_ID, normalise_location_id  # noqa: E402
@@ -84,7 +85,8 @@ for loc, g in segp.groupby(LOCATION_ID, sort=False):
     nx, ny = -ty / norm, tx / norm
     sign = np.sign((side.loc[loc, "x"] - base[:, 0]) * nx + (side.loc[loc, "y"] - base[:, 1]) * ny)
     sign[sign == 0] = 1.0
-    last_year, last_dist, vpred = g["last_year"].to_numpy(), g["last_dist_m"].to_numpy(), g["v_pred"].to_numpy()
+    # mean speed over the first five forecast years (the model's correction + drift)
+    vpred = (forecast_dist(g, args.start + 5) - forecast_dist(g, args.start)) / 5
 
     # per segment: where does the VVR start and end along the outward ray?
     near = np.full(len(g), np.nan)
@@ -110,11 +112,11 @@ for loc, g in segp.groupby(LOCATION_ID, sort=False):
 
     kruising = None
     for year in YEARS:
-        d = last_dist + vpred * (year - last_year)
+        d = forecast_dist(g, year)
         if np.any(d[has_vvr] >= far[has_vvr]):
             kruising = year
             break
-    d0 = last_dist + vpred * (args.start - last_year)
+    d0 = forecast_dist(g, args.start)
     span = np.where(far - near > 0, far - near, np.nan)
     consumed = np.clip((d0 - near) / span, 0, 1)
     rows.append({
