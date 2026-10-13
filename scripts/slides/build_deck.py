@@ -6,8 +6,13 @@ computed from the run's own numbers (``compare/source_report.csv``) and the
 region data for the live explorer (``figures/methodology_data.json``). Writes
 ``<run>/figures/deck/wocu_voorspellend_model.html``, which is published as the
 Claude artifact; ``--pdf`` also prints it to PDF with Chrome as an offline backup.
+``--short`` leaves out the slides marked ``data-skip-short`` (the 6-slide session version,
+``wocu_sessie_kort.html``). The map slide shows a stretch of the session it is for
+(``--sessie rijntakken|maas``), cropped from the ``scripts/export/session_project_v2.py``
+renders (``--renders``).
 
-Run: ``PYTHONPATH=. uv run python scripts/slides/build_deck.py --run 20261013-ref [--pdf <out.pdf>]``
+Run: ``PYTHONPATH=. uv run python scripts/slides/build_deck.py --run 20261013-ref [--short]
+[--sessie rijntakken|maas] [--pdf <out.pdf>]``
 """
 
 from __future__ import annotations
@@ -15,6 +20,8 @@ from __future__ import annotations
 import argparse
 import base64
 import html
+import json
+import re
 import subprocess
 from pathlib import Path
 
@@ -58,9 +65,27 @@ SHOWN = {
 ap = argparse.ArgumentParser()
 ap.add_argument("--run", required=True)
 ap.add_argument("--pdf", type=Path, help="also print the deck to this PDF (Chrome)")
+ap.add_argument("--short", action="store_true", help="session version without the detail slides")
+ap.add_argument("--sessie", choices=["rijntakken", "maas"], default="rijntakken")
+ap.add_argument(
+    "--renders",
+    type=Path,
+    default=Path("data/05_deliverables/sessie_20261014/renders"),
+    help="stretch renders of session_project_v2.py for the map slide",
+)
 args = ap.parse_args()
 cfg = ExperimentConfig.from_run(args.run)
 assets = cfg.figures_dir / "deck_assets"
+RENDERS = args.renders
+# Map slide per session: (render, crop box in pixels of the 1400×1000 render, caption)
+KAART = {
+    "rijntakken": (
+        "Onder_Elst_Elster_Buitenwaard.png",
+        (250, 60, 1250, 960),
+        "Elster Buitenwaard, Neder-Rijn",
+    ),
+    "maas": ("Broekhuizerweerd.png", (200, 0, 1200, 900), "Broekhuizerweerd, Maas"),
+}
 
 
 def uri(path: Path) -> str:
@@ -87,6 +112,18 @@ def features(group: str) -> str:
 
 def nl(v: float, d: int = 2) -> str:
     return f"{v:.{d}f}".replace(".", ",")
+
+
+def thousands(n: int) -> str:
+    return f"{n:,}".replace(",", ".")
+
+
+report = pd.read_csv(cfg.compare_dir / "source_report.csv")
+report = report[report["run"] == cfg.experiment].set_index("group")
+skill_all = report.loc["all test strips", "skill vs naive"]
+counts = json.loads((cfg.run_dir / "run.json").read_text())["counts"]
+seg_metrics = json.loads((cfg.model_out_dir / "segment_metrics.json").read_text())
+seg_test = pd.read_parquet(cfg.model_out_dir / "segment_test.parquet")
 
 
 def results_chart() -> str:
@@ -143,8 +180,8 @@ def progress_chart() -> str:
     """Skill against the historical average, March → October."""
     steps = [
         ("Maart", -20, "hoogtemodel, één snelheid per regio"),
-        ("September", 35, "SAM + hoogtemodel, opschonen, 20 strookjes"),
-        ("Oktober", 34, "en 1.000 regio's meer"),
+        ("September", 35, "SAM + hoogtemodel"),
+        ("Oktober", round(skill_all * 100), "opschonen vóór hybride"),
     ]
     x0, scale = 330, 6.5
     s = [
@@ -176,24 +213,71 @@ def progress_chart() -> str:
     return "".join(s)
 
 
+def kaart_uri() -> str:
+    """The session's map picture, cropped and saved as JPEG in deck_assets."""
+    from PIL import Image
+
+    name, box, _ = KAART[args.sessie]
+    img = Image.open(RENDERS / name).convert("RGB")
+    if box:
+        img = img.crop(box)
+    out = assets / f"kaart_{args.sessie}.jpg"
+    img.save(out, quality=85)
+    return uri(out)
+
+
 page = (HERE / "deck" / "deck_template.html").read_text()
+if args.short:
+    page = re.sub(
+        r"<!-- [^>]*-->\s*<section [^>]*data-skip-short>.*?</section>\s*",
+        "",
+        page,
+        flags=re.S,
+    )
+    page = page.replace(
+        "<title>WOCU Voorspellend Model</title>",
+        f"<title>WOCU Sessie {args.sessie.capitalize()}</title>",
+    )
 repl = {
     "{{DRONE}}": uri(assets / "header_block.png"),
     "{{HEADER}}": uri(assets / "header_block.png"),
     "{{REGION}}": uri(assets / "region_processing.jpg"),
     "{{FAILURES}}": uri(assets / "failure_modes.jpg"),
     "{{SHAP}}": uri(assets / "shap.png"),
+    "{{KAART}}": kaart_uri(),
+    "{{KAART_NAAM}}": KAART[args.sessie][2],
     "{{FEAT_geschiedenis}}": features("geschiedenis"),
     "{{FEAT_positie}}": features("positie"),
     "{{FEAT_context}}": features("context"),
     "{{RESULTS_CHART}}": results_chart(),
+    "{{ALL_MAE}}": nl(report.loc["all test strips", "LightGBM"]),
+    "{{ALL_NAIVE}}": nl(report.loc["all test strips", "naive"]),
+    "{{ALL_SKILL}}": str(round(skill_all * 100)),
+    "{{VVR_MAE}}": nl(report.loc["VVR regions", "LightGBM"]),
+    "{{VVR_NAIVE}}": nl(report.loc["VVR regions", "naive"]),
+    "{{VVR_SKILL}}": str(round(report.loc["VVR regions", "skill vs naive"] * 100)),
+    "{{N_REGIONS}}": thousands(counts["regions_train"] + counts["regions_test"]),
+    "{{N_TRAIN}}": thousands(counts["regions_train"]),
+    "{{N_TEST}}": thousands(counts["regions_test"]),
+    "{{N_EXAMPLES}}": thousands(seg_metrics["n_train"]),
+    "{{N_TEST_STRIPS}}": thousands(len(seg_test)),
+    "{{N_TEST_REGIONS}}": thousands(seg_test["location_id"].nunique()),
     "{{PROGRESS_CHART}}": progress_chart(),
-    "/*REGIONS*/null": (cfg.figures_dir / "methodology_data.json").read_text(),
+    "/*REGIONS*/null": "null"
+    if args.short
+    else (cfg.figures_dir / "methodology_data.json").read_text(),
 }
 for k, v in repl.items():
-    assert k in page, k
-    page = page.replace(k, v)
-out = cfg.figures_dir / "deck" / "wocu_voorspellend_model.html"
+    if k in page:
+        page = page.replace(k, v)
+    else:
+        assert args.short, k
+name = (
+    f"wocu_sessie_kort_{args.sessie}.html"
+    if args.short
+    else "wocu_voorspellend_model.html"
+)
+out = cfg.figures_dir / "deck" / name
 out.parent.mkdir(parents=True, exist_ok=True)
 out.write_text(page)
 print(f"→ {out} ({out.stat().st_size / 1e6:.1f} MB)")
