@@ -13,6 +13,9 @@ Outputs (under ``cfg.model_out_dir``):
                                and the predicted position horizon years out
                                — the input for a per-segment VVR alert
   segment_metrics.json         honest test metrics of the segment model
+  segment_test.parquet         per test strip: observed, predicted, naive, persistence
+  segment_model.joblib         the trained LightGBM strip model
+  segment_test_features.parquet  the inputs it was tested on (for SHAP)
 """
 
 from __future__ import annotations
@@ -20,6 +23,7 @@ from __future__ import annotations
 import json
 import logging
 
+import joblib
 import lightgbm as lgb
 import numpy as np
 import pandas as pd
@@ -239,6 +243,13 @@ def build_segment_artifact(
         "pos_err_median_m": float(np.median(pos_err)),
         "pos_err_p90_m": float(np.percentile(pos_err, 90)),
     }
+    # The trained strip model and the exact inputs it was tested on, for
+    # explanations (SHAP: scripts/slides/shap_strip_model.py).
+    joblib.dump(model, cfg.model_out_dir / "segment_model.joblib")
+    test[[LOCATION_ID, "seg", *feat_names]].to_parquet(
+        cfg.model_out_dir / "segment_test_features.parquet", index=False
+    )
+    metrics["features"] = feat_names
     # pred = the model; naive = mean speed of the training rows; persist = the
     # strip's own last speed (v_train). Kept per strip for breakdowns.
     test[[LOCATION_ID, "seg", "v_test", "test_span_yr"]].assign(
