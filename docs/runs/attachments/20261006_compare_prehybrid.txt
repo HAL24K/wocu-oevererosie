@@ -1,0 +1,28 @@
+== model choice: 15,232 regions in both hybrids ==
+after cleaning  height  segmentation    All
+before                                     
+height            1880           277   2157
+segmentation      1063         12012  13075
+All               2943         12289  15232
+
+== segment model, frozen test split: 10,856 / 11,264 test strips, 10,401 in both ==
+                                  n regions MAE base skill base MAE clean skill clean
+all                          10,401     710     1.04       +36%      1.04        +34%
+VVR regions                   2,100     131     1.04       +38%      1.00        +39%
+height-preferred (before)     3,155     269     0.37        +5%      0.40        +13%
+SAM-preferred (before)        7,246     441     1.33       +39%      1.32        +36%
+height-preferred (after)      3,229     279     0.54       +11%      0.36        +11%
+SAM-preferred (after)         7,172     431     1.26       +40%      1.35        +36%
+switched SAM→height             182      20     3.33       +21%      0.14        +51%
+switched height→SAM             108      10     0.26       +33%      1.22        +31%
+unchanged choice             10,111     680     1.01       +37%      1.06        +34%
+VVR, SAM-preferred (before)   1,482      84     1.32       +40%      1.29        +39%
+
+== segment horizon metrics (own test strips) ==
+  20261006-base: MAE 1.030 · tail 3.01 · naive 1.620 · skill +36% · R² 0.55 · n_test 10,856
+  20261006-preclean: MAE 1.013 · tail 3.38 · naive 1.503 · skill +33% · R² 0.42 · n_test 11,264
+
+== VVR polygons predicted to cross ==
+  20261006-base: by 2027 100 · by 2031 148 · by 2050 233
+  20261006-preclean: by 2027 87 · by 2031 123 · by 2050 238
+→ data/02_processed/hybrid_repro/compare_prehybrid_20261006.parquet

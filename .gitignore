@@ -87,3 +87,7 @@ pytest.xml
 *.jpg
 *.jpeg
 *.gif
+
+# Small provenance files (run records, ledgers) are tracked on purpose.
+!docs/**/*.csv
+!docs/**/*.json

@@ -28,7 +28,7 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
-from src.model.export_utils import save_model_bundle
+from src.pipeline.model_bundle import save_model_bundle
 
 # ── Feature sets ──────────────────────────────────────────────────────────────
 

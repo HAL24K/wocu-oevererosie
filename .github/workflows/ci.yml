@@ -33,10 +33,7 @@ jobs:
         run: uv run ruff format --check src tests
 
       - name: Unit tests
-        # Integration tests are excluded: they call live WFS services (PDOK/RWS),
-        # which makes them slow and dependent on upstream schema stability.
-        # Run them locally with: ./run_tests.sh -m integration
-        run: uv run pytest tests/ -m "not integration" --cov=src --cov-report=term-missing --cov-report=xml
+        run: uv run pytest tests/ --cov=src --cov-report=term-missing --cov-report=xml
 
       - name: Upload coverage
         if: always()

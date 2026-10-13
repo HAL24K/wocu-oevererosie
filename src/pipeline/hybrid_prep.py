@@ -1,8 +1,7 @@
-"""Step 01 (hybrid source) — cleaned bank observations from the line delivery.
+"""Step 01 — cleaned bank observations from a hybrid line set.
 
-The graduated replacement for the point-cloud step when ``cfg.source ==
-"hybrid"``: sample every delivered line against its region centreline, run
-the e8 cleaning stack (experiments/loop/TRACK1_REPORT.md), aggregate with
+Sample every delivered line against its region centreline, run
+the e8 cleaning stack (docs/loop_experiment/TRACK1_REPORT.md), aggregate with
 the furthest-N convention, collapse to per-year distances and apply the
 region-level |v| guard.
 
@@ -73,6 +72,32 @@ def load_lines(cfg: ExperimentConfig, geometry: ScopeGeometry) -> gpd.GeoDataFra
     return usable
 
 
+def top_n_mean(
+    df: pd.DataFrame, keys: list[str], col: str, n: int, name: str
+) -> pd.DataFrame:
+    """Mean of the ``n`` largest ``col`` values per ``keys`` group.
+
+    Same result as ``df.groupby(keys, sort=False)[col].nlargest(n)`` followed by
+    a per-group mean, groups in order of first appearance, but vectorised:
+    pandas runs ``nlargest`` per group in Python, which took ~20 minutes for
+    the ~950k segment groups of step 8.
+    """
+    gid = df.groupby(keys, sort=False).ngroup().to_numpy()
+    tmp = pd.DataFrame({"g": gid, "v": df[col].to_numpy()})
+    tmp = tmp[tmp["g"] >= 0].dropna(subset=["v"])
+    tmp = tmp.sort_values(["g", "v"], ascending=[True, False], kind="stable")
+    tmp = tmp[tmp.groupby("g", sort=False).cumcount() < n]
+    means = tmp.groupby("g", sort=True)["v"].mean()
+    first = df.loc[
+        pd.Series(gid, index=df.index).pipe(lambda s: (s >= 0) & ~s.duplicated()), keys
+    ].reset_index(drop=True)
+    return (
+        first.iloc[means.index.to_numpy()]
+        .assign(**{name: means.to_numpy()})
+        .reset_index(drop=True)
+    )
+
+
 def sample_lines(
     lines: gpd.GeoDataFrame,
     centrelines: gpd.GeoSeries,
@@ -138,7 +163,7 @@ def build_structures_geom(cfg: ExperimentConfig, centrelines: gpd.GeoSeries):
     """Kribben, masked kunstwerken and (optionally) secondary water, buffered.
 
     Kribben and kunstwerken come from ``structures.gpkg`` (BKN deliveries,
-    scripts/prep_structures.py); only the kunstwerken categories listed in
+    scripts/data_prep/prep_structures.py); only the kunstwerken categories listed in
     ``cfg.kunstwerk_categories`` are masked.
 
     Secondary water: vegetatielegger 'Water' parts that touch no centreline —
@@ -221,14 +246,7 @@ def build_observations(
         )
 
     grouped = kept.groupby([LOCATION_ID, "date"], sort=False)
-    top = (
-        grouped["dist"]
-        .nlargest(cfg.n_points)
-        .groupby(level=[0, 1], sort=False)
-        .mean()
-        .rename("dist_m")
-        .reset_index()
-    )
+    top = top_n_mean(kept, [LOCATION_ID, "date"], "dist", cfg.n_points, "dist_m")
     counts = grouped.agg(
         n_candidates=("dist", "size"), source=("model", "first")
     ).reset_index()

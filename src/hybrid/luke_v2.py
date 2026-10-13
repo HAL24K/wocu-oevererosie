@@ -88,12 +88,16 @@ def validate_segmentation_lines(lines_gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame
         elif "jaar" in lines_gdf.columns:
             lines_gdf["date"] = pd.to_datetime(lines_gdf["jaar"], format="%Y").dt.date
         else:
-            raise ValueError("Lines gdf must have either 'date', 'datum' or 'jaar' column")
+            raise ValueError(
+                "Lines gdf must have either 'date', 'datum' or 'jaar' column"
+            )
     lines_gdf["model"] = SEGMENTATION
     return lines_gdf[["date", "model", "geometry"]]
 
 
-def add_location_ids(lines_gdf: gpd.GeoDataFrame, polygons: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+def add_location_ids(
+    lines_gdf: gpd.GeoDataFrame, polygons: gpd.GeoDataFrame
+) -> gpd.GeoDataFrame:
     """A line gets every region whose polygon (+1 m) contains it entirely; others get NaN."""
     poly = polygons[[LOCATION_ID, "geometry"]].copy()
     poly["geometry"] = poly.geometry.buffer(1)
@@ -126,7 +130,12 @@ def get_clean_line(lines_location_id: gpd.GeoDataFrame, centreline) -> list[dict
                 new_lines.append(LineString(current_line))
             for new_line in new_lines:
                 new_lines_location_id.append(
-                    {"date": date_str, "model": SEGMENTATION, LOCATION_ID: location_id, "geometry": new_line}
+                    {
+                        "date": date_str,
+                        "model": SEGMENTATION,
+                        LOCATION_ID: location_id,
+                        "geometry": new_line,
+                    }
                 )
     return new_lines_location_id
 
@@ -138,7 +147,12 @@ def clean_location(location_id, lines_location_id, centrelines: dict) -> list[di
     except BaseException as e:  # noqa: BLE001 — his fallback: on any error, keep the raw lines
         logging.error("Skipping location_id %s: %s", location_id, e)
         return [
-            {"date": r["date"], "model": r["model"], LOCATION_ID: r[LOCATION_ID], "geometry": r["geometry"]}
+            {
+                "date": r["date"],
+                "model": r["model"],
+                LOCATION_ID: r[LOCATION_ID],
+                "geometry": r["geometry"],
+            }
             for _, r in lines_location_id.iterrows()
         ]
 
@@ -146,14 +160,20 @@ def clean_location(location_id, lines_location_id, centrelines: dict) -> list[di
 # ── height lines ──────────────────────────────────────────────────────────────
 
 
-def create_lines_from_points(gdf: gpd.GeoDataFrame, min_points: int = 6) -> gpd.GeoDataFrame:
+def create_lines_from_points(
+    gdf: gpd.GeoDataFrame, min_points: int = 6
+) -> gpd.GeoDataFrame:
     """OK points < 10 m apart in row order, per (location, year); the first point of a run is not status-checked."""
     lines = []
     for (location_id, annum), group_gdf in gdf.groupby([LOCATION_ID, "dtm_date"]):
         current = []
         for _, row in group_gdf.iterrows():
             # Precedence as in the source: (OK and < 10 m) if a run is open, else always accept.
-            if row["status"] == "OK" and row["geometry"].distance(current[-1]) < 10 if current else True:
+            if (
+                row["status"] == "OK" and row["geometry"].distance(current[-1]) < 10
+                if current
+                else True
+            ):
                 current.append(row["geometry"])
             else:
                 if len(current) >= min_points:
@@ -161,7 +181,12 @@ def create_lines_from_points(gdf: gpd.GeoDataFrame, min_points: int = 6) -> gpd.
                 current = []
         if len(current) >= min_points:
             lines.append(_height_line(location_id, annum, current))
-    return gpd.GeoDataFrame(lines, columns=[LOCATION_ID, "date", "model", "geometry"], geometry="geometry", crs=gdf.crs)
+    return gpd.GeoDataFrame(
+        lines,
+        columns=[LOCATION_ID, "date", "model", "geometry"],
+        geometry="geometry",
+        crs=gdf.crs,
+    )
 
 
 def _height_line(location_id, annum, points) -> dict:
@@ -183,7 +208,10 @@ def height_data_for_location(points_location: gpd.GeoDataFrame):
     if points_location.empty:
         raise ValueError("no points")
     points_ = points_location.drop_duplicates(subset=["geometry", "dtm_version"])
-    kpi = {d: get_slope_kpi(points_[points_["dtm_date"] == d]) for d in points_["dtm_date"].unique()}
+    kpi = {
+        d: get_slope_kpi(points_[points_["dtm_date"] == d])
+        for d in points_["dtm_date"].unique()
+    }
     return kpi, create_lines_from_points(points_, min_points=5)
 
 
@@ -191,19 +219,44 @@ def height_data_for_location(points_location: gpd.GeoDataFrame):
 
 
 def get_stats_from_line_wrt_centreline(line1, centreline) -> dict:
-    distances, _ = calculate_perpendicular_distances(_centreline_points(centreline), line1)
+    distances, _ = calculate_perpendicular_distances(
+        _centreline_points(centreline), line1
+    )
     if len(distances) < 2:
-        return {"num_points": len(distances), **dict.fromkeys(("dist_p10", "dist_p50", "dist_p90", "diff_p10", "diff_p50", "diff_p90"), np.nan)}
+        return {
+            "num_points": len(distances),
+            **dict.fromkeys(
+                (
+                    "dist_p10",
+                    "dist_p50",
+                    "dist_p90",
+                    "diff_p10",
+                    "diff_p50",
+                    "diff_p90",
+                ),
+                np.nan,
+            ),
+        }
     dist_p10, dist_p50, dist_p90 = np.percentile(distances, [10, 50, 90])
     diff = (np.diff(distances) ** 2) ** 0.5
     diff_p10, diff_p50, diff_p90 = np.percentile(diff, [10, 50, 90])
-    return {"num_points": len(distances), "dist_p10": dist_p10, "dist_p50": dist_p50, "dist_p90": dist_p90,
-            "diff_p10": diff_p10, "diff_p50": diff_p50, "diff_p90": diff_p90}
+    return {
+        "num_points": len(distances),
+        "dist_p10": dist_p10,
+        "dist_p50": dist_p50,
+        "dist_p90": dist_p90,
+        "diff_p10": diff_p10,
+        "diff_p50": diff_p50,
+        "diff_p90": diff_p90,
+    }
 
 
 def get_grouped_results(lines_height_gdf, lines_segmentation_gdf, centreline):
     all_results = []
-    for gdf, kind in ((lines_height_gdf, "height"), (lines_segmentation_gdf, "segmentation")):
+    for gdf, kind in (
+        (lines_height_gdf, "height"),
+        (lines_segmentation_gdf, "segmentation"),
+    ):
         for date_str in gdf["date"].unique():
             stats = get_stats_from_line_wrt_centreline(
                 MultiLineString(list(gdf[gdf["date"] == date_str].geometry)), centreline
@@ -211,10 +264,21 @@ def get_grouped_results(lines_height_gdf, lines_segmentation_gdf, centreline):
             stats["date"], stats["line_type"] = date_str, kind
             all_results.append(stats)
     df = pd.DataFrame(all_results)
-    grouped = df.groupby("line_type").agg(
-        {"num_points": "sum", "dist_p10": "min", "dist_p50": "mean", "dist_p90": "max",
-         "diff_p10": "max", "diff_p50": "max", "diff_p90": "max"}
-    ) if len(df) else pd.DataFrame()
+    grouped = (
+        df.groupby("line_type").agg(
+            {
+                "num_points": "sum",
+                "dist_p10": "min",
+                "dist_p50": "mean",
+                "dist_p90": "max",
+                "diff_p10": "max",
+                "diff_p50": "max",
+                "diff_p90": "max",
+            }
+        )
+        if len(df)
+        else pd.DataFrame()
+    )
     return grouped, df
 
 
@@ -228,7 +292,10 @@ def _bucket(ratio, edges_points):
 
 def determine_model_preference(g, kpi_type_oever, years_h, years_s):
     """Luke's points count; ties go to height."""
-    rationale = {"distinct_dates_height": years_h, "distinct_dates_segmentation": years_s}
+    rationale = {
+        "distinct_dates_height": years_h,
+        "distinct_dates_segmentation": years_s,
+    }
     if years_h < 2:
         pref = "segmentation"
     elif years_s < 2:
@@ -258,7 +325,16 @@ def determine_model_preference(g, kpi_type_oever, years_h, years_s):
         else:
             ps += 2
         for ratio, table in (
-            (r_p10, [(0.5, (0, 1)), (0.95, (1, 0)), (1.05, (1, 1)), (2, (0, 1)), (None, (1, 0))]),
+            (
+                r_p10,
+                [
+                    (0.5, (0, 1)),
+                    (0.95, (1, 0)),
+                    (1.05, (1, 1)),
+                    (2, (0, 1)),
+                    (None, (1, 0)),
+                ],
+            ),
             (r_p50, [(0.95, (1, 0)), (1.05, (1, 1)), (None, (0, 1))]),
             (r_p90, [(0.95, (1, 0)), (1.05, (1, 1)), (None, (0, 1))]),
             (r_n50, [(0.9, (1, 0)), (1.1, (1, 1)), (None, (0, 1))]),
@@ -274,8 +350,13 @@ def determine_model_preference(g, kpi_type_oever, years_h, years_s):
         elif slope >= 0.25:
             ph += 1
         pref = "height" if ph >= ps else "segmentation"
-        for k, col in (("nr_points", "num_points"), ("p50_dist", "dist_p50"), ("p90_dist", "dist_p90"),
-                       ("diff_p50", "diff_p50"), ("diff_p90", "diff_p90")):
+        for k, col in (
+            ("nr_points", "num_points"),
+            ("p50_dist", "dist_p50"),
+            ("p90_dist", "dist_p90"),
+            ("diff_p50", "diff_p50"),
+            ("diff_p90", "diff_p90"),
+        ):
             rationale[f"{k}_height"] = g.loc["height", col]
             rationale[f"{k}_segmentation"] = g.loc["segmentation", col]
         rationale["kpi_slope"] = slope
@@ -290,8 +371,15 @@ def hybrid_location(location_id, points_location, lines_seg, centreline):
     try:
         kpi, lines_h = height_data_for_location(points_location)
     except ValueError:
-        kpi, lines_h = {}, gpd.GeoDataFrame(columns=[LOCATION_ID, "date", "model", "geometry"], geometry="geometry")
+        kpi, lines_h = (
+            {},
+            gpd.GeoDataFrame(
+                columns=[LOCATION_ID, "date", "model", "geometry"], geometry="geometry"
+            ),
+        )
     grouped, _ = get_grouped_results(lines_h, lines_seg, centreline)
-    pref, rationale = determine_model_preference(grouped, kpi, lines_h["date"].nunique(), lines_seg["date"].nunique())
+    pref, rationale = determine_model_preference(
+        grouped, kpi, lines_h["date"].nunique(), lines_seg["date"].nunique()
+    )
     rationale[LOCATION_ID] = location_id
     return rationale, lines_h

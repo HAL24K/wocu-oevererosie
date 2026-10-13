@@ -10,9 +10,22 @@ from src.pipeline.run import build_start_points, combine_feature_tables
 
 def test_config_resolves_default_paths_under_data_dir(tmp_path):
     cfg = ExperimentConfig(experiment="t1", data_dir=tmp_path)
-    assert cfg.raw_gpkg == tmp_path / "01_raw/erosion/wocu_output_fase2_20260210.gpkg"
-    assert cfg.features_dir == tmp_path / "03_features/t1"
+    assert (
+        cfg.raw_gpkg == tmp_path / "01_raw/height_model/wocu_output_fase2_20260310.gpkg"
+    )
+    assert cfg.hybrid_gpkg.parent == tmp_path / "03_hybrid/luke_20260710"
+    assert cfg.features_dir == tmp_path / "04_runs/t1/features"
+    assert cfg.model_out_dir == tmp_path / "04_runs/t1/model"
     assert cfg.output_gpkg.name == "wocu_lgb_predictions_t1.gpkg"
+
+
+def test_defaults_are_the_reference_settings(tmp_path):
+    cfg = ExperimentConfig(experiment="t1", data_dir=tmp_path)
+    assert cfg.hybrid_gpkg.name == "hybrid_model_results_nearest_20260710.gpkg"
+    assert (cfg.sample_spacing_m, cfg.segment_sample_spacing_m) == (5.0, 1.5)
+    assert cfg.split_from == tmp_path / "02_context/frozen_split_20260907.parquet"
+    assert not cfg.fresh_split
+    assert cfg.quality_gate == "height_preferred" and not cfg.side_channels
 
 
 def test_config_override_wins_over_default(tmp_path):
@@ -80,7 +93,7 @@ def test_combine_backfills_test_span_and_keeps_shared_columns_only():
         "raw_gpkg",
         "mask_buffer_m",
         "structures_gpkg",
-        "source",
+        "fresh_split",
         "hybrid_gpkg",
         "water_mask",
         "temporal_max_dev",
@@ -140,3 +153,119 @@ def test_train_honest_validation_never_touches_test(tmp_path):
     results = train_and_save_models(df, tmp_path / "out", seed=1, val_frac=0.2)
     assert "5 – LightGBM" in results
     assert results["5 – LightGBM"]["test_mae"] < results["0 – Naive mean"]["test_mae"]
+
+
+def test_run_record_names_inputs_settings_and_metrics(tmp_path):
+    from src.pipeline.provenance import run_record
+
+    (tmp_path / "01_raw/height_model").mkdir(parents=True)
+    (tmp_path / "01_raw/height_model/wocu_output_fase2_20260310.gpkg").write_bytes(
+        b"x" * 7
+    )
+    cfg = ExperimentConfig(experiment="t6", data_dir=tmp_path)
+    rec = run_record(
+        cfg, {"5 – LightGBM": {"test_mae": 2.0}}, {"test_mae": 1.0}, notes="n"
+    )
+    assert rec["inputs"]["raw_gpkg"] == {
+        "path": "01_raw/height_model/wocu_output_fase2_20260310.gpkg",
+        "bytes": 7,
+        "modified": rec["inputs"]["raw_gpkg"]["modified"],
+    }
+    assert rec["inputs"]["hybrid_gpkg"]["missing"] is True
+    assert rec["settings"]["sample_spacing_m"] == 5.0
+    assert "raw_gpkg" not in rec["settings"]
+    assert rec["metrics"]["segment"]["test_mae"] == 1.0
+    assert rec["notes"] == "n"
+
+
+def test_run_record_on_a_scratch_data_dir_stays_out_of_the_repo(tmp_path, monkeypatch):
+    import src.provenance as prov
+    from src.pipeline.provenance import write_run_record
+
+    ledger = tmp_path / "ledger.jsonl"
+    monkeypatch.setattr(prov, "LEDGER", ledger)
+    cfg = ExperimentConfig(experiment="t7", data_dir=tmp_path / "data")
+    path = write_run_record(cfg, {"experiment": "t7"})
+    assert path == cfg.run_dir / "run.json"
+    assert not ledger.exists()
+
+
+def test_ledger_keeps_one_line_per_run(tmp_path):
+    from src.provenance import append_to_ledger, read_ledger
+
+    ledger = tmp_path / "ledger.jsonl"
+    append_to_ledger({"kind": "run", "id": "a", "v": 1}, ledger)
+    append_to_ledger({"kind": "hybrid", "id": "a", "v": 2}, ledger)
+    append_to_ledger({"kind": "run", "id": "a", "v": 3}, ledger)  # re-run of a
+    rows = read_ledger(ledger)
+    assert [(r["kind"], r["v"]) for r in rows] == [("hybrid", 2), ("run", 3)]
+
+
+def test_region_split_flags_vvr_for_inference_only_regions_too(tmp_path):
+    """Regression: inference-only regions always got is_nvo = False."""
+    import geopandas as gpd
+    from shapely.geometry import box
+
+    from src.pipeline.region_split import build_region_split
+
+    gpkg = tmp_path / "proc.gpkg"
+    ids = ["rijn_l_0000_0010", "rijn_l_0010_0020"]  # 3 years / 2 years
+    gpd.GeoDataFrame(
+        {"location_id": ids, "estimate_reliability_height_model": ["OK", "OK"]},
+        geometry=[box(0, 0, 10, 10), box(10, 0, 20, 10)],
+        crs=28992,
+    ).to_file(gpkg, layer="summary_scope")
+    gpd.GeoDataFrame(geometry=[box(5, 5, 15, 6)], crs=28992).to_file(
+        gpkg, layer="vvr_rates_of_change"
+    )
+    gpd.GeoDataFrame(
+        {
+            "location_id": ids[:1],
+            "date_before": ["2020-01-01"],
+            "date_after": ["2022-01-01"],
+            "area": [1.0],
+            "erosion_volume": [1.0],
+        },
+        geometry=[box(0, 0, 1, 1)],
+        crs=28992,
+    ).to_file(gpkg, layer="erosion_vlakken_filtered")
+    dpy = pd.DataFrame(
+        {
+            "location_id": [ids[0]] * 3 + [ids[1]] * 2,
+            "year": [2020, 2022, 2024, 2021, 2023],
+            "dist_m": [10.0, 11.0, 12.0, 5.0, 6.0],
+        }
+    )
+    split, inference = build_region_split(dpy, proc_gpkg=gpkg, test_size=0.5)
+    assert split.loc[ids[0], "is_nvo"]
+    assert inference.loc[ids[1], "is_nvo"]
+
+
+def test_from_run_restores_a_runs_own_settings(tmp_path):
+    import json
+
+    (tmp_path / "03_hybrid/h1").mkdir(parents=True)
+    (tmp_path / "03_hybrid/h1/hybrid.gpkg").write_bytes(b"")
+    run_dir = tmp_path / "04_runs/old"
+    run_dir.mkdir(parents=True)
+    (run_dir / "run.json").write_text(
+        json.dumps(
+            {
+                "settings": {"sample_spacing_m": None, "quality_gate": "all"},
+                "inputs": {
+                    "hybrid_gpkg": {"path": "03_hybrid/h1/hybrid.gpkg"},
+                    "raw_gpkg": {"path": "01_raw/gone.gpkg"},
+                },
+            }
+        )
+    )
+    cfg = ExperimentConfig.from_run("old", data_dir=tmp_path)
+    assert cfg.sample_spacing_m is None and cfg.quality_gate == "all"
+    assert cfg.hybrid_gpkg == tmp_path / "03_hybrid/h1/hybrid.gpkg"
+    assert cfg.raw_gpkg.name == "wocu_output_fase2_20260310.gpkg"  # gone → default
+    assert (
+        ExperimentConfig.from_run(
+            "old", data_dir=tmp_path, quality_gate=None
+        ).quality_gate
+        == "all"
+    )

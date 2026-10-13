@@ -1,7 +1,7 @@
 """Trajectory descriptors of a region's survey history (the traj2 set).
 
 Graduated from track 2 of the loop-engineering experiment
-(experiments/loop/TRACK2_REPORT.md): the winning way to consume the hybrid
+(docs/loop_experiment/TRACK2_REPORT.md): the winning way to consume the hybrid
 delivery's irregular multi-t history is to keep one horizon-normalized
 target per region and describe the history's *shape* as features — robust
 velocity, spread, acceleration, density, recency, source mix, and the

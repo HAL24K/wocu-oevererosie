@@ -1,0 +1,222 @@
+"""Centerline and geometry utilities for the erosion prediction pipeline."""
+
+import geopandas as gpd
+import numpy as np
+import pandas as pd
+from shapely import offset_curve
+from shapely.geometry import MultiPoint, Point
+
+from src.sources.geometry import normalise_location_id
+
+
+def ensure_location_id_column(df: pd.DataFrame) -> pd.DataFrame:
+    """Rename position_id to location_id if present. Returns a copy.
+
+    Thin alias for :func:`src.sources.geometry.normalise_location_id`, kept for
+    the many existing call sites in notebooks and this package.
+    """
+    return normalise_location_id(df)
+
+
+def _scalar_distance(p, geom) -> float:
+    """Get scalar distance, handling Shapely returning arrays."""
+    d = p.distance(geom)
+    arr = np.atleast_1d(np.asarray(d))
+    return float(arr.min()) if arr.size > 0 else float("inf")
+
+
+def _ref_centroid(ref) -> Point:
+    """Get centroid from reference geometry (geometry with .centroid or iterable of Points)."""
+    # Numpy array (ref_geom_lookup uses g.values) or GeoSeries — use MultiPoint
+    if isinstance(ref, np.ndarray) or hasattr(ref, "iloc"):
+        return MultiPoint(list(ref)).centroid
+    # Single Shapely geometry
+    if hasattr(ref, "geom_type"):
+        return ref.centroid
+    return MultiPoint(list(ref)).centroid
+
+
+def offset_line_toward(
+    centerline,
+    dist: float,
+    reference_geom,
+) -> object | None:
+    """
+    Offset centerline by dist toward the side where reference_geom lies.
+
+    Args:
+        centerline: LineString
+        dist: offset distance (meters)
+        reference_geom: geometry with .centroid (LineString, Polygon, etc.)
+            or iterable of Points (e.g. GeoSeries of bank points)
+
+    Returns:
+        Offset LineString or None if both sides fail
+    """
+    left = offset_curve(centerline, dist)
+    right = offset_curve(centerline, -dist)
+    if left is None or left.is_empty:
+        return right
+    if right is None or right.is_empty:
+        return left
+    centroid = _ref_centroid(reference_geom)
+    mid_l = left.interpolate(0.5, normalized=True)
+    mid_r = right.interpolate(0.5, normalized=True)
+    d_l = _scalar_distance(mid_l, centroid)
+    d_r = _scalar_distance(mid_r, centroid)
+    return left if d_l < d_r else right
+
+
+def point_from_offset(
+    centerline,
+    dist: float,
+    ref_geom,
+) -> Point | None:
+    """
+    Compute point at midpoint of centerline offset by dist toward ref_geom.
+
+    Used for historical bank position and predicted bank position.
+    """
+    offset_line = offset_line_toward(centerline, dist, ref_geom)
+    if offset_line is None or offset_line.is_empty:
+        return None
+    return offset_line.interpolate(0.5, normalized=True)
+
+
+def dist_signaleringslijn(centerline, vvr_geom, n_samples: int = 200) -> float:
+    """
+    Minimum perpendicular distance from centerline to VVR boundary.
+
+    Samples n_points along the centerline and returns the minimum distance
+    to the VVR geometry (or its boundary for Polygons).
+    """
+    if vvr_geom.geom_type == "LineString":
+        line_geoms = [vvr_geom]
+    elif vvr_geom.geom_type == "MultiLineString":
+        line_geoms = list(vvr_geom.geoms)
+    else:
+        line_geoms = [vvr_geom]
+    max_dist = 0
+    for geom in line_geoms:
+        for d in np.linspace(0, geom.length, n_samples):
+            pt = geom.interpolate(d)
+            dist = centerline.distance(pt)
+            if dist > max_dist:
+                max_dist = dist
+    return max_dist if max_dist > 0 else None
+
+
+def build_ref_geom_lookup(
+    bank_points: gpd.GeoDataFrame,
+    n_points: int = 3,
+    status_filter: str = "OK",
+) -> dict:
+    """
+    For each location_id, return numpy array of N furthest OK points from latest date.
+    Used as reference geometry for predicted bank positions.
+    """
+    ok = bank_points[bank_points["status"] == status_filter].copy()
+    max_dates = ok.groupby("location_id")["dtm_date"].transform("max")
+    latest = ok[ok["dtm_date"] == max_dates]
+    return (
+        latest.sort_values("dist", ascending=False)
+        .groupby("location_id")
+        .head(n_points)
+        .groupby("location_id")["geometry"]
+        .apply(lambda g: g.values)
+        .to_dict()
+    )
+
+
+def get_nvo_location_ids(vvr: gpd.GeoDataFrame, scope: gpd.GeoDataFrame) -> set[str]:
+    """Location IDs where VVR intersects scope (from spatial join)."""
+    scope_for_join = scope[["location_id", "geometry"]].copy()
+    vvr_for_join = (
+        vvr.to_crs(scope_for_join.crs) if vvr.crs != scope_for_join.crs else vvr
+    )
+    joined = gpd.sjoin(
+        vvr_for_join[["geometry"]], scope_for_join, how="left", predicate="intersects"
+    )
+    return set(joined["location_id"].dropna().astype(str).unique())
+
+
+def compute_vvr_crossing_year(
+    predicted_dist_df: pd.DataFrame,
+    nvo_location_ids: set[str],
+    centerlines: gpd.GeoDataFrame,
+    scope: gpd.GeoDataFrame,
+    signaleringslijn: gpd.GeoDataFrame,
+    dist_column: str = "predicted_dist_m",
+    reference_year: int = 2025,
+) -> pd.DataFrame:
+    """
+    For each NVO region: when does predicted bank distance exceed signaleringslijn?
+
+    Returns a DataFrame with columns:
+        location_id, dist_to_vvr_m, crossing_year, velocity_m_per_yr, years_to_crossing,
+        dist_{y} for each prediction year present in predicted_dist_df.
+    """
+    sig = (
+        signaleringslijn.to_crs(28992)
+        if signaleringslijn.crs.to_epsg() != 28992
+        else signaleringslijn
+    )
+    cl, sc = (
+        centerlines.set_index("location_id")["geometry"],
+        scope.set_index("location_id")["geometry"],
+    )
+    has_vel = "velocity_m_per_yr" in predicted_dist_df.columns
+
+    # Derive prediction years from the data — no hardcoded range
+    all_years = sorted(predicted_dist_df["year"].unique().tolist())
+
+    rows = []
+    for loc_id in nvo_location_ids:
+        cline, sgeom = cl.get(loc_id), sc.get(loc_id)
+        if cline is None or sgeom is None:
+            continue
+        pred = predicted_dist_df[
+            predicted_dist_df["location_id"] == loc_id
+        ].sort_values("year")
+        if pred.empty:
+            continue
+        vvr = (
+            sig[sig.intersects(sgeom.buffer(10))]
+            .geometry.union_all()
+            .intersection(sgeom)
+        )
+        if vvr is None or vvr.is_empty:
+            continue
+        try:
+            dist_to_vvr = dist_signaleringslijn(cline, vvr)
+        except (ValueError, TypeError):
+            continue
+        if dist_to_vvr is None:
+            continue
+        crossing_year = None
+        for i in range(len(pred) - 1):
+            d1, d2 = pred.iloc[i][dist_column], pred.iloc[i + 1][dist_column]
+            t1, t2 = pred.iloc[i]["year"], pred.iloc[i + 1]["year"]
+            if d1 >= dist_to_vvr:
+                crossing_year = float(t1)
+                break
+            if d2 >= dist_to_vvr:
+                crossing_year = float(t2)
+                break
+        if crossing_year is None and pred.iloc[-1][dist_column] >= dist_to_vvr:
+            crossing_year = float(pred.iloc[-1]["year"])
+        vel = pred.iloc[0]["velocity_m_per_yr"] if has_vel else None
+        dist_by_year = pred.set_index("year")[dist_column].to_dict()
+        row = {
+            "location_id": loc_id,
+            "dist_to_vvr_m": dist_to_vvr,
+            "crossing_year": crossing_year,
+            "velocity_m_per_yr": vel,
+            "years_to_crossing": crossing_year - reference_year
+            if crossing_year
+            else None,
+        }
+        for y in all_years:
+            row[f"dist_{y}"] = dist_by_year.get(y)
+        rows.append(row)
+    return pd.DataFrame(rows)

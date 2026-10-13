@@ -1,4 +1,4 @@
-"""Step 08 (hybrid source) — the segment-horizon artifact.
+"""Step 08 — the segment-horizon artifact.
 
 Graduated from tracks 2+3 of the loop-engineering experiment (k6): each
 region is cut into ``segment_R`` station bins; every segment gets its own
@@ -13,6 +13,9 @@ Outputs (under ``cfg.model_out_dir``):
                                and the predicted position horizon years out
                                — the input for a per-segment VVR alert
   segment_metrics.json         honest test metrics of the segment model
+  segment_test.parquet         per test strip: observed, predicted, naive, persistence
+  segment_model.joblib         the trained LightGBM strip model
+  segment_test_features.parquet  the inputs it was tested on (for SHAP)
 """
 
 from __future__ import annotations
@@ -20,6 +23,7 @@ from __future__ import annotations
 import json
 import logging
 
+import joblib
 import lightgbm as lgb
 import numpy as np
 import pandas as pd
@@ -27,7 +31,12 @@ import shapely
 from sklearn.metrics import mean_absolute_error, r2_score
 
 from src.pipeline.config import ExperimentConfig
-from src.pipeline.hybrid_prep import build_structures_geom, load_lines, sample_lines
+from src.pipeline.hybrid_prep import (
+    build_structures_geom,
+    load_lines,
+    sample_lines,
+    top_n_mean,
+)
 from src.pipeline.trajectory import TRAJ_FEATS2, traj_row
 from src.sources.geometry import LOCATION_ID, ScopeGeometry
 
@@ -79,14 +88,7 @@ def _segment_yearly(cfg: ExperimentConfig, kept_line_idx) -> pd.DataFrame:
     R = cfg.segment_R
     dense = dense.assign(seg=np.minimum((dense["station"] * R).astype(int), R - 1))
     g = dense.groupby([*SEG_KEY, "date"], sort=False)
-    top = (
-        g["dist"]
-        .nlargest(3)
-        .groupby(level=[0, 1, 2], sort=False)
-        .mean()
-        .rename("dist_m")
-        .reset_index()
-    )
+    top = top_n_mean(dense, [*SEG_KEY, "date"], "dist", 3, "dist_m")
     counts = g.agg(n=("dist", "size"), model=("model", "first")).reset_index()
     seg_obs = top.merge(counts, on=[*SEG_KEY, "date"], how="left")
     seg_obs = seg_obs[seg_obs["n"] >= 3].reset_index(drop=True)
@@ -241,8 +243,17 @@ def build_segment_artifact(
         "pos_err_median_m": float(np.median(pos_err)),
         "pos_err_p90_m": float(np.percentile(pos_err, 90)),
     }
+    # The trained strip model and the exact inputs it was tested on, for
+    # explanations (SHAP: scripts/slides/shap_strip_model.py).
+    joblib.dump(model, cfg.model_out_dir / "segment_model.joblib")
+    test[[LOCATION_ID, "seg", *feat_names]].to_parquet(
+        cfg.model_out_dir / "segment_test_features.parquet", index=False
+    )
+    metrics["features"] = feat_names
+    # pred = the model; naive = mean speed of the training rows; persist = the
+    # strip's own last speed (v_train). Kept per strip for breakdowns.
     test[[LOCATION_ID, "seg", "v_test", "test_span_yr"]].assign(
-        pred=pred, naive=fit_rows["v_test"].mean()
+        pred=pred, naive=fit_rows["v_test"].mean(), persist=test["v_train"].to_numpy()
     ).to_parquet(cfg.model_out_dir / "segment_test.parquet", index=False)
     logger.info(
         "segment-horizon test: MAE %.3f · tail %.3f (n=%d) · R² %.3f"

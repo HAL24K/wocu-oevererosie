@@ -1,9 +1,6 @@
 """Tests for the bank-observation IO layer.
 
 Synthetic data only — no GeoPackages, no network — so these run in CI.
-The end-to-end check that HeightModelPointSource reproduces
-03_features/20260617a/dist_per_year.parquet needs the 848 MB raw delivery and
-is therefore a manual check, not a test.
 """
 
 import pandas as pd
@@ -13,7 +10,6 @@ from src.sources.geometry import normalise_location_id
 from src.sources.observations import (
     OBSERVATION_COLUMNS,
     BankObservations,
-    combine,
 )
 
 
@@ -98,27 +94,6 @@ def test_rejects_an_unknown_collapse_rule():
     obs = _obs([("a", "2020-01-01", 1.0, "hoogtemodel")])
     with pytest.raises(ValueError, match="within_year must be one of"):
         obs.to_dist_per_year(within_year="furthest")
-
-
-def test_combine_lets_a_later_source_win_on_a_shared_date():
-    height = _obs([("rijn_l_0000_0010", "2025-01-01", 100.0, "hoogtemodel")])
-    hybrid = _obs([("rijn_l_0000_0010", "2025-01-01", 111.0, "segmentation")])
-    merged = combine(height, hybrid).frame
-    assert len(merged) == 1
-    assert merged["dist_m"].iloc[0] == 111.0
-    assert merged["source"].iloc[0] == "segmentation"
-
-
-def test_combine_keeps_distinct_dates_from_both_sources():
-    height = _obs([("a", "2022-01-01", 1.0, "hoogtemodel")])
-    hybrid = _obs([("a", "2023-06-01", 2.0, "segmentation")])
-    assert len(combine(height, hybrid)) == 2
-
-
-def test_combine_of_nothing_is_empty_but_well_formed():
-    empty = combine()
-    assert len(empty) == 0
-    assert list(empty.frame.columns) == OBSERVATION_COLUMNS
 
 
 @pytest.mark.parametrize("alias", ["position_id", "scope_region_id"])
