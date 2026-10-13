@@ -1,0 +1,545 @@
+<title>WOCU Voorspellend Model</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,400;0,600;0,700;1,400&display=swap">
+<style>
+/* Layout: a 16:9 deck in the WOCU asset-management house style (teal header block, white slides),
+   scaled to the window; one deliberate light look, the letterbox around it stays dark. */
+:root {
+  --teal: #2ab4a8;
+  --teal-dark: #1d8c83;
+  --ink: #333332;
+  --muted: #7d8688;
+  --line: #d8dddc;
+  --light: #eef1f0;
+  --water: #cfe3ec;
+  --sam: #2e7d5b;
+  --height: #496a8e;
+  --pred: #d97a2b;
+  --vvr: #7a4c9e;
+  --red: #d0442a;
+  --amber: #e8b03a;
+  --green: #5bae6a;
+  --stage: #1d2527;
+  --font: "Noto Sans", "Ebrima", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--stage); color: var(--ink); font-family: var(--font); overflow: hidden; }
+.viewport { position: fixed; inset: 0 0 56px 0; display: grid; place-items: center; }
+.deck { width: 1920px; height: 1080px; position: relative; transform-origin: center center; }
+.slide { position: absolute; inset: 0; background: #ffffff; overflow: hidden; display: none; }
+.slide.active { display: block; }
+.hdr { position: absolute; left: 140px; top: 0; width: 330px; height: 204px; }
+.hdr img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.hdr-word { position: absolute; left: 620px; top: 70px; font-size: 76px; font-weight: 700; color: var(--teal); letter-spacing: .005em; }
+.title { position: absolute; left: 200px; top: 256px; right: 140px; font-size: 52px; font-weight: 700; color: var(--teal); line-height: 1.15; text-wrap: balance; }
+.num { position: absolute; right: 70px; top: 54px; font-size: 26px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.foot { position: absolute; left: 200px; bottom: 34px; font-size: 22px; color: var(--muted); }
+.body { position: absolute; left: 200px; right: 140px; top: 370px; bottom: 96px; }
+.body p, .body li { font-size: 30px; line-height: 1.4; }
+.small { font-size: 24px !important; color: var(--muted); line-height: 1.4; }
+h3 { margin: 0 0 10px; font-size: 32px; font-weight: 700; color: var(--ink); }
+.k { color: var(--teal-dark); font-weight: 700; }
+svg text { font-family: var(--font); }
+
+/* cover */
+.cover { background: #ffffff; }
+.cover .band { position: absolute; left: 0; top: 0; bottom: 0; width: 760px; background: var(--teal); }
+.cover .band img { position: absolute; left: 150px; top: 330px; width: 460px; }
+.cover .text { position: absolute; left: 880px; right: 140px; top: 300px; display: grid; gap: 28px; }
+.cover h1 { margin: 0; font-size: 84px; line-height: 1.05; color: var(--teal); font-weight: 700; text-wrap: balance; }
+.cover .sub { font-size: 38px; color: var(--ink); line-height: 1.3; }
+.cover .meta { font-size: 28px; color: var(--muted); line-height: 1.5; margin-top: 30px; }
+
+/* features */
+.cols { display: grid; grid-template-columns: 1.25fr .8fr 1.25fr; gap: 36px; height: 100%; }
+.card { background: var(--light); border-radius: 18px; padding: 30px 34px; display: grid; align-content: start; gap: 14px; min-width: 0; }
+.card .tag { font-size: 22px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--teal-dark); }
+.feat { display: grid; grid-template-columns: 250px 1fr; gap: 4px 18px; font-size: 24px; line-height: 1.3; }
+.feat b { font-weight: 600; }
+.feat span { color: #4f5859; }
+.src { font-size: 20px; color: var(--muted); }
+
+/* results */
+.big { display: grid; grid-template-columns: 1fr 1fr; gap: 36px; }
+.bignum { border-left: 8px solid var(--teal); padding: 6px 0 6px 28px; display: grid; gap: 4px; }
+.bignum.vvr { border-color: var(--vvr); }
+.bignum .v { font-size: 92px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+.bignum .l { font-size: 28px; }
+.bignum .s { font-size: 24px; color: var(--muted); }
+
+/* explorer */
+.ex-wrap { display: grid; grid-template-columns: 1100px 1fr; gap: 44px; height: 100%; }
+.ex-map { position: relative; border-radius: 12px; overflow: hidden; background: var(--water); }
+.ex-map img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill; opacity: .9; }
+.ex-map svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.ex-side { display: grid; align-content: start; gap: 26px; min-width: 0; }
+.ex-side label { font-size: 26px; display: grid; gap: 10px; }
+.ex-side select { font: 26px var(--font); padding: 8px 12px; border: 2px solid var(--line); border-radius: 10px; background: #ffffff; color: var(--ink); }
+.ex-side input[type=range] { width: 100%; accent-color: var(--pred); height: 34px; }
+.yr { font-size: 64px; font-weight: 700; color: var(--pred); font-variant-numeric: tabular-nums; line-height: 1; }
+.legend { display: grid; gap: 10px; font-size: 24px; }
+.sw { display: inline-block; width: 40px; height: 6px; border-radius: 3px; vertical-align: middle; margin-right: 12px; }
+.pill { display: inline-block; font-size: 24px; font-weight: 700; padding: 6px 16px; border-radius: 99px; color: #ffffff; }
+
+/* questions */
+.qs { display: grid; gap: 34px; }
+.q { display: grid; grid-template-columns: 90px 1fr; align-items: start; gap: 24px; font-size: 38px; line-height: 1.3; }
+.q b { font-size: 60px; color: var(--teal); line-height: 1; }
+
+/* navigation */
+.nav { position: fixed; left: 0; right: 0; bottom: 0; height: 56px; display: flex; align-items: center; justify-content: center; gap: 14px; background: var(--stage); color: #dfe6e6; font: 15px var(--font); }
+.nav button { font: 15px var(--font); color: #dfe6e6; background: #2c3739; border: 1px solid #3e4b4e; border-radius: 6px; padding: 6px 14px; cursor: pointer; }
+.nav button:hover { background: #374447; }
+.nav button:focus-visible, .ex-side select:focus-visible, .ex-side input:focus-visible { outline: 3px solid var(--pred); outline-offset: 2px; }
+.nav .count { min-width: 70px; text-align: center; font-variant-numeric: tabular-nums; }
+.nav .hint { color: #8b9799; font-size: 13px; }
+@media (max-width: 600px) { .nav .hint { display: none; } }
+
+/* print: one slide per page, for the PDF backup */
+@media print {
+  @page { size: 1920px 1080px; margin: 0; }
+  html, body { height: auto; overflow: visible; background: #ffffff; }
+  .viewport { position: static; display: block; }
+  .deck { transform: none !important; width: 1920px; height: auto; }
+  .slide { position: relative; display: block !important; width: 1920px; height: 1080px; page-break-after: always; break-after: page; }
+  .nav { display: none; }
+}
+</style>
+
+<div class="viewport"><div class="deck" id="deck">
+
+<!-- 0 · cover -->
+<section class="slide cover" data-title="Titel">
+  <div class="band"><img src="{{DRONE}}" alt=""></div>
+  <div class="text">
+    <h1>Van meting naar voorspelling</h1>
+    <div class="sub">Het voorspellend model van de oevererosietool</div>
+    <div class="meta">Asset-management sessies · 14 en 15 oktober 2026<br>Alexander Bakker · Moraine Water</div>
+  </div>
+</section>
+
+<!-- 1 · workflow -->
+<section class="slide" data-title="Aanpak">
+  <div class="hdr"><img src="{{HEADER}}" alt=""></div><div class="hdr-word">Aanpak</div>
+  <div class="title">Van meting naar voorspelling</div>
+  <svg style="position:absolute;left:0;top:340px" width="1920" height="700" viewBox="0 0 1920 700" role="img" aria-label="Werkwijze: invoer, de lus van voorbereiden tot evalueren, en de uitvoer">
+    <defs>
+      <marker id="a-teal" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#2ab4a8"/></marker>
+      <marker id="a-grey" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#c9cecd"/></marker>
+      <marker id="a-orange" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#d97a2b"/></marker>
+    </defs>
+    <!-- input -->
+    <text x="80" y="20" font-size="24" font-weight="700" fill="#8a9193" letter-spacing="2">INVOER</text>
+    <g>
+      <rect x="80" y="45" width="200" height="130" rx="14" fill="#eef1f0"/><rect x="80" y="45" width="56" height="130" fill="#cfe3ec"/>
+      <rect x="120" y="60" width="145" height="100" fill="none" stroke="#8a9193" stroke-dasharray="6 5"/>
+      <path d="M170,62 C188,85 158,105 176,125 C192,142 164,152 172,160" fill="none" stroke="#496a8e" stroke-width="5" stroke-linecap="round"/>
+      <text x="300" y="98" font-size="28" font-weight="700" fill="#333332">Hoogtemodel</text>
+      <text x="300" y="132" font-size="22" fill="#8a9193">2015–2025 · Luke</text>
+    </g>
+    <g>
+      <rect x="80" y="205" width="200" height="130" rx="14" fill="#eef1f0"/><rect x="80" y="205" width="56" height="130" fill="#cfe3ec"/>
+      <rect x="120" y="220" width="145" height="100" fill="none" stroke="#8a9193" stroke-dasharray="6 5"/>
+      <path d="M160,222 C178,245 150,265 168,285 C182,302 156,312 164,320" fill="none" stroke="#2e7d5b" stroke-width="3.5" stroke-linecap="round"/>
+      <path d="M176,222 C194,245 166,265 184,285 C198,302 172,312 180,320" fill="none" stroke="#2e7d5b" stroke-width="3.5" stroke-linecap="round" opacity=".75"/>
+      <path d="M196,222 C214,245 186,265 204,285 C218,302 192,312 200,320" fill="none" stroke="#2e7d5b" stroke-width="3.5" stroke-linecap="round" opacity=".5"/>
+      <text x="300" y="258" font-size="28" font-weight="700" fill="#333332">SAM-satelliet-</text>
+      <text x="300" y="292" font-size="28" font-weight="700" fill="#333332">lijnen</text>
+      <text x="300" y="324" font-size="22" fill="#8a9193">2023–2026 · Lars</text>
+    </g>
+    <line x1="180" y1="345" x2="180" y2="392" stroke="#c9cecd" stroke-width="4" marker-end="url(#a-grey)"/>
+    <rect x="80" y="400" width="400" height="160" rx="16" fill="none" stroke="#c9cecd" stroke-width="2.5" stroke-dasharray="10 7"/>
+    <text x="104" y="444" font-size="24" font-weight="700" fill="#8a9193">Vooraf, door partners</text>
+    <text x="104" y="484" font-size="24" fill="#8a9193">SAM-lijnen opschonen</text>
+    <text x="104" y="520" font-size="24" fill="#8a9193">Hybride model: per regio</text>
+    <text x="104" y="548" font-size="24" fill="#8a9193">de beste bron</text>
+    <path d="M486,480 L520,480 L520,140 L548,140" fill="none" stroke="#c9cecd" stroke-width="5" marker-end="url(#a-grey)"/>
+    <!-- loop -->
+    <g>
+      <rect x="560" y="20" width="430" height="260" rx="22" fill="#ffffff" stroke="#2ab4a8" stroke-width="3"/>
+      <rect x="590" y="50" width="120" height="86" rx="10" fill="#eef1f0"/><rect x="590" y="50" width="34" height="86" fill="#cfe3ec"/>
+      <rect x="626" y="60" width="9" height="66" fill="#2ab4a8"/><rect x="643" y="60" width="9" height="66" fill="#2ab4a8"/><rect x="660" y="60" width="9" height="66" fill="#2ab4a8"/><rect x="677" y="60" width="9" height="66" fill="#2ab4a8"/><rect x="694" y="60" width="9" height="66" fill="#2ab4a8"/>
+      <text x="732" y="104" font-size="32" font-weight="700" fill="#333332">1  Voorbereiden</text>
+      <text x="590" y="190" font-size="26" fill="#333332">Opschonen en per regio</text>
+      <text x="590" y="226" font-size="26" fill="#333332">20 strookjes van ±5 m</text>
+    </g>
+    <g>
+      <rect x="1100" y="20" width="430" height="260" rx="22" fill="#ffffff" stroke="#2ab4a8" stroke-width="3"/>
+      <rect x="1130" y="58" width="100" height="14" fill="#2ab4a8"/><rect x="1130" y="82" width="76" height="14" fill="#2ab4a8"/><rect x="1130" y="106" width="52" height="14" fill="#c9cecd"/><rect x="1130" y="130" width="34" height="14" fill="#c9cecd"/>
+      <text x="1272" y="104" font-size="32" font-weight="700" fill="#333332">2  Kenmerken</text>
+      <text x="1272" y="140" font-size="32" font-weight="700" fill="#333332">kiezen</text>
+      <text x="1130" y="190" font-size="26" fill="#333332">Geschiedenis, positie en</text>
+      <text x="1130" y="226" font-size="26" fill="#333332">context per strookje</text>
+    </g>
+    <g>
+      <rect x="1100" y="400" width="430" height="260" rx="22" fill="#ffffff" stroke="#2ab4a8" stroke-width="3"/>
+      <rect x="1130" y="430" width="56" height="74" rx="8" fill="#eef1f0" stroke="#2ab4a8" stroke-width="2.5"/><rect x="1144" y="444" width="56" height="74" rx="8" fill="#eef1f0" stroke="#2ab4a8" stroke-width="2.5"/>
+      <rect x="1214" y="430" width="56" height="74" rx="8" fill="#eef1f0" stroke="#d97a2b" stroke-width="2.5"/>
+      <text x="1290" y="476" font-size="32" font-weight="700" fill="#333332">3  Trainen</text>
+      <text x="1290" y="512" font-size="32" font-weight="700" fill="#333332">en testen</text>
+      <text x="1130" y="570" font-size="26" fill="#333332">Leren op bekende regio's,</text>
+      <text x="1130" y="606" font-size="26" fill="#333332">toetsen op onbekende</text>
+    </g>
+    <g>
+      <rect x="560" y="400" width="430" height="260" rx="22" fill="#ffffff" stroke="#2ab4a8" stroke-width="3"/>
+      <rect x="590" y="430" width="120" height="86" rx="10" fill="#eef1f0"/><rect x="590" y="430" width="34" height="86" fill="#cfe3ec"/>
+      <rect x="626" y="442" width="74" height="62" fill="none" stroke="#8a9193" stroke-dasharray="5 4"/>
+      <circle cx="668" cy="468" r="24" fill="none" stroke="#333332" stroke-width="5"/><line x1="686" y1="486" x2="706" y2="508" stroke="#333332" stroke-width="7" stroke-linecap="round"/>
+      <text x="732" y="484" font-size="32" font-weight="700" fill="#333332">4  Evalueren</text>
+      <text x="590" y="570" font-size="26" fill="#333332">Slechtst voorspelde regio's</text>
+      <text x="590" y="606" font-size="26" fill="#333332">bekijken: wat ging er mis?</text>
+    </g>
+    <line x1="996" y1="150" x2="1092" y2="150" stroke="#2ab4a8" stroke-width="5" marker-end="url(#a-teal)"/>
+    <line x1="1315" y1="286" x2="1315" y2="392" stroke="#2ab4a8" stroke-width="5" marker-end="url(#a-teal)"/>
+    <line x1="1094" y1="530" x2="998" y2="530" stroke="#2ab4a8" stroke-width="5" marker-end="url(#a-teal)"/>
+    <line x1="775" y1="394" x2="775" y2="288" stroke="#2ab4a8" stroke-width="5" marker-end="url(#a-teal)"/>
+    <line x1="980" y1="410" x2="1112" y2="272" stroke="#d97a2b" stroke-width="4" stroke-dasharray="12 9" marker-end="url(#a-orange)"/>
+    <text x="1060" y="352" font-size="22" fill="#d97a2b">nieuwe regels,</text>
+    <text x="1060" y="380" font-size="22" fill="#d97a2b">andere kenmerken</text>
+    <text x="1045" y="700" font-size="24" font-weight="700" fill="#8a9193" text-anchor="middle">Herhalen zolang de slechtste regio's iets leren over de data</text>
+    <!-- output -->
+    <line x1="1540" y1="340" x2="1606" y2="340" stroke="#2ab4a8" stroke-width="6" marker-end="url(#a-teal)"/>
+    <text x="1620" y="20" font-size="24" font-weight="700" fill="#8a9193" letter-spacing="2">UITVOER (SCHETS)</text>
+    <rect x="1620" y="45" width="250" height="390" rx="16" fill="#eef1f0" stroke="#c9cecd" stroke-width="2"/>
+    <path d="M1650,45 C1680,140 1660,240 1690,330 C1700,380 1690,410 1694,435" fill="none" stroke="#cfe3ec" stroke-width="40"/>
+    <rect x="1750" y="70" width="96" height="44" fill="#5bae6a"/><rect x="1750" y="124" width="96" height="44" fill="#5bae6a"/><rect x="1750" y="178" width="96" height="44" fill="#e8b03a"/><rect x="1750" y="232" width="96" height="44" fill="#d0442a"/><rect x="1750" y="286" width="96" height="44" fill="#e8b03a"/><rect x="1750" y="340" width="96" height="44" fill="#5bae6a"/>
+    <path d="M1735,60 C1730,150 1742,250 1734,410" fill="none" stroke="#d97a2b" stroke-width="4" stroke-dasharray="10 8"/>
+    <line x1="1635" y1="478" x2="1855" y2="478" stroke="#8a9193" stroke-width="3"/><circle cx="1745" cy="478" r="13" fill="#2ab4a8"/>
+    <text x="1640" y="514" font-size="18" fill="#8a9193">2026</text><text x="1724" y="514" font-size="18" fill="#8a9193">2031</text><text x="1812" y="514" font-size="18" fill="#8a9193">2040</text>
+    <text x="1620" y="566" font-size="26" font-weight="700" fill="#333332">Voor de gebruiker</text>
+    <text x="1620" y="600" font-size="22" fill="#333332">Per regio het jaar waarin de</text>
+    <text x="1620" y="628" font-size="22" fill="#333332">oever de VVR bereikt, en de</text>
+    <text x="1620" y="656" font-size="22" fill="#333332">voorspelde oeverlijn per jaar</text>
+  </svg>
+</section>
+
+<!-- 2 · region processing -->
+<section class="slide" data-title="Een regio verwerken">
+  <div class="hdr"><img src="{{HEADER}}" alt=""></div><div class="hdr-word">Voorbereiden</div>
+  <div class="title">Van alle lijnen naar één positie per strookje</div>
+  <div class="body" style="top:360px;display:grid;grid-template-rows:1fr auto;gap:22px">
+    <img src="{{REGION}}" alt="Een scoperegio voor en na het verwerken" style="width:100%;height:100%;object-fit:contain;min-height:0">
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:36px">
+      <p style="margin:0;font-size:26px"><span class="k">Alle metingen.</span> Hoogtemodel en SAM, zoals het hybride model ze aanlevert.</p>
+      <p style="margin:0;font-size:26px"><span class="k">Opschonen.</span> Lijnen die geen oever kunnen zijn gaan eruit: kribben, kronkels, uitschieters in de tijd.</p>
+      <p style="margin:0;font-size:26px"><span class="k">20 strookjes.</span> Per strookje en meting één positie: het gemiddelde van de drie punten het verst van de rivier.</p>
+    </div>
+  </div>
+  <div class="foot">Maas, maas3_l_16480_16490 · 43 lijnen, 9 metingen 2023–2026</div>
+</section>
+
+<!-- 3 · features -->
+<section class="slide" data-title="Kenmerken">
+  <div class="hdr"><img src="{{HEADER}}" alt=""></div><div class="hdr-word">Kenmerken</div>
+  <div class="title">Wat het model per strookje meeneemt</div>
+  <div class="body" style="top:360px">
+    <div class="cols">
+      <div class="card">
+        <div class="tag">Geschiedenis van het strookje</div>
+        <div class="feat">{{FEAT_geschiedenis}}</div>
+        <div class="src">Bron: oeverlijnen uit het hybride model</div>
+      </div>
+      <div class="card">
+        <div class="tag">Positie in de regio</div>
+        <div class="feat" style="grid-template-columns:1fr">{{FEAT_positie}}</div>
+        <div class="src">Afgeleid</div>
+      </div>
+      <div class="card">
+        <div class="tag">Context van de regio</div>
+        <div class="feat">{{FEAT_context}}</div>
+        <div class="src">Bronnen: RWS, BRO, BRP, afvoer RWS, hoogtemodel</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 4 · train and test -->
+<section class="slide" data-title="Trainen en testen">
+  <div class="hdr"><img src="{{HEADER}}" alt=""></div><div class="hdr-word">Model</div>
+  <div class="title">Leren op bekende regio's, toetsen op onbekende</div>
+  <svg style="position:absolute;left:0;top:350px" width="1920" height="690" viewBox="0 0 1920 690" role="img" aria-label="Regio's verdeeld in een trainset en een testset, met hoe trainen en testen werken">
+    <defs>
+      <marker id="b-teal" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#2ab4a8"/></marker>
+      <marker id="b-orange" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#d97a2b"/></marker>
+    </defs>
+    <!-- stack of all regions -->
+    <g>
+      <rect x="132" y="240" width="190" height="230" rx="16" fill="#eef1f0" stroke="#8a9193" stroke-width="2"/>
+      <rect x="116" y="256" width="190" height="230" rx="16" fill="#eef1f0" stroke="#8a9193" stroke-width="2"/>
+      <rect x="100" y="272" width="190" height="230" rx="16" fill="#ffffff" stroke="#333332" stroke-width="2.5"/>
+      <rect x="100" y="272" width="54" height="230" fill="#cfe3ec"/>
+      <rect x="140" y="298" width="130" height="178" fill="none" stroke="#8a9193" stroke-dasharray="7 6"/>
+      <path d="M190,300 C212,340 176,380 198,420 C214,450 186,466 194,476" fill="none" stroke="#2e7d5b" stroke-width="4"/>
+      <text x="196" y="550" font-size="28" font-weight="700" fill="#333332" text-anchor="middle">Alle regio's</text>
+      <text x="196" y="584" font-size="22" fill="#8a9193" text-anchor="middle">met ≥ 3 meetjaren</text>
+      <text x="196" y="614" font-size="22" fill="#8a9193" text-anchor="middle">6.754</text>
+    </g>
+    <path d="M330,330 C380,240 400,170 460,150" fill="none" stroke="#2ab4a8" stroke-width="5" marker-end="url(#b-teal)"/>
+    <path d="M330,450 C380,540 400,560 460,560" fill="none" stroke="#d97a2b" stroke-width="5" marker-end="url(#b-orange)"/>
+    <text x="330" y="232" font-size="22" fill="#2ab4a8" font-weight="700">80 %</text>
+    <text x="330" y="570" font-size="22" fill="#d97a2b" font-weight="700">20 %</text>
+    <!-- train set -->
+    <g>
+      <rect x="490" y="40" width="300" height="220" rx="18" fill="#ffffff" stroke="#2ab4a8" stroke-width="3"/>
+      <rect x="520" y="72" width="50" height="62" rx="6" fill="#eef1f0" stroke="#2ab4a8" stroke-width="2"/><rect x="580" y="72" width="50" height="62" rx="6" fill="#eef1f0" stroke="#2ab4a8" stroke-width="2"/><rect x="640" y="72" width="50" height="62" rx="6" fill="#eef1f0" stroke="#2ab4a8" stroke-width="2"/><rect x="700" y="72" width="50" height="62" rx="6" fill="#eef1f0" stroke="#2ab4a8" stroke-width="2"/>
+      <text x="520" y="180" font-size="30" font-weight="700" fill="#333332">Trainset</text>
+      <text x="520" y="218" font-size="24" fill="#333332">5.406 regio's</text>
+    </g>
+    <!-- test set -->
+    <g>
+      <rect x="490" y="450" width="300" height="220" rx="18" fill="#ffffff" stroke="#d97a2b" stroke-width="3"/>
+      <rect x="520" y="482" width="50" height="62" rx="6" fill="#eef1f0" stroke="#d97a2b" stroke-width="2"/><rect x="580" y="482" width="50" height="62" rx="6" fill="#eef1f0" stroke="#d97a2b" stroke-width="2"/>
+      <text x="520" y="590" font-size="30" font-weight="700" fill="#333332">Testset</text>
+      <text x="520" y="628" font-size="24" fill="#333332">1.348 regio's</text>
+    </g>
+    <line x1="800" y1="150" x2="900" y2="150" stroke="#2ab4a8" stroke-width="5" marker-end="url(#b-teal)"/>
+    <line x1="800" y1="560" x2="900" y2="560" stroke="#d97a2b" stroke-width="5" marker-end="url(#b-orange)"/>
+    <!-- training panel -->
+    <g>
+      <rect x="920" y="0" width="900" height="320" rx="20" fill="#f6f8f7"/>
+      <text x="950" y="46" font-size="30" font-weight="700" fill="#2ab4a8">Trainen</text>
+      <text x="950" y="84" font-size="24" fill="#333332">Elk paar metingen van een strookje, minstens 2 jaar uit elkaar,</text>
+      <text x="950" y="116" font-size="24" fill="#333332">is één voorbeeld: hoe hard bewoog de oever daarna?</text>
+      <line x1="960" y1="270" x2="1780" y2="270" stroke="#8a9193" stroke-width="2"/>
+      <text x="960" y="302" font-size="20" fill="#8a9193">2023</text><text x="1230" y="302" font-size="20" fill="#8a9193">2024</text><text x="1500" y="302" font-size="20" fill="#8a9193">2025</text><text x="1740" y="302" font-size="20" fill="#8a9193">2026</text>
+      <polyline points="980,230 1120,222 1250,206 1390,214 1520,190 1660,176 1760,166" fill="none" stroke="#c9cecd" stroke-width="3"/>
+      <g fill="#2e7d5b"><circle cx="980" cy="230" r="10"/><circle cx="1120" cy="222" r="10"/><circle cx="1250" cy="206" r="10"/><circle cx="1390" cy="214" r="10"/><circle cx="1520" cy="190" r="10"/><circle cx="1660" cy="176" r="10"/><circle cx="1760" cy="166" r="10"/></g>
+      <path d="M980,200 C1080,150 1440,150 1520,165" fill="none" stroke="#2ab4a8" stroke-width="3" marker-end="url(#b-teal)"/>
+      <path d="M1120,196 C1250,138 1560,138 1660,150" fill="none" stroke="#2ab4a8" stroke-width="3" marker-end="url(#b-teal)"/>
+      <path d="M1250,182 C1380,128 1680,128 1760,140" fill="none" stroke="#2ab4a8" stroke-width="3" marker-end="url(#b-teal)"/>
+      <text x="1600" y="230" font-size="22" fill="#2ab4a8" font-weight="700">49.463 voorbeelden</text>
+    </g>
+    <!-- testing panel -->
+    <g>
+      <rect x="920" y="370" width="900" height="320" rx="20" fill="#f6f8f7"/>
+      <text x="950" y="416" font-size="30" font-weight="700" fill="#d97a2b">Testen</text>
+      <text x="950" y="454" font-size="24" fill="#333332">Het model voorspelt de laatste meting van een onbekend strookje</text>
+      <text x="950" y="486" font-size="24" fill="#333332">uit de metingen ervoor; de fout is het verschil met wat gemeten is.</text>
+      <line x1="960" y1="650" x2="1780" y2="650" stroke="#8a9193" stroke-width="2"/>
+      <polyline points="980,630 1120,622 1250,612 1390,616" fill="none" stroke="#c9cecd" stroke-width="3"/>
+      <g fill="#2e7d5b"><circle cx="980" cy="630" r="10"/><circle cx="1120" cy="622" r="10"/><circle cx="1250" cy="612" r="10"/><circle cx="1390" cy="616" r="10"/></g>
+      <line x1="1390" y1="616" x2="1700" y2="596" stroke="#d97a2b" stroke-width="4" stroke-dasharray="12 8"/>
+      <circle cx="1700" cy="596" r="12" fill="#ffffff" stroke="#d97a2b" stroke-width="4"/>
+      <circle cx="1700" cy="548" r="11" fill="#2e7d5b"/>
+      <line x1="1732" y1="548" x2="1732" y2="596" stroke="#333332" stroke-width="3"/>
+      <text x="1680" y="628" font-size="22" fill="#d97a2b" text-anchor="end">voorspeld</text>
+      <text x="1680" y="540" font-size="22" fill="#2e7d5b" text-anchor="end">gemeten</text>
+      <text x="1744" y="580" font-size="22" font-weight="700" fill="#333332">fout</text>
+      <text x="960" y="680" font-size="20" fill="#8a9193">12.532 teststrookjes in 844 regio's met een toetsbaar meetpaar</text>
+    </g>
+  </svg>
+</section>
+
+<!-- 5 · cleaning -->
+<section class="slide" data-title="Opschonen">
+  <div class="hdr"><img src="{{HEADER}}" alt=""></div><div class="hdr-word">Opschonen</div>
+  <div class="title">Wat we tegenkwamen in de slechtst voorspelde regio's</div>
+  <div class="body" style="top:350px;display:grid;grid-template-columns:1fr 420px;gap:40px">
+    <img src="{{FAILURES}}" alt="Zeven oorzaken van een slechte voorspelling, met een voorbeeld elk" style="width:100%;height:100%;object-fit:contain;min-height:0">
+    <div style="display:grid;align-content:start;gap:22px">
+      <p style="margin:0;font-size:28px">Steeds opnieuw: de <span class="k">slechtste regio's</span> bekijken op de satellietbeelden.</p>
+      <p style="margin:0;font-size:26px">Bijna altijd een <b>meetprobleem</b>, geen modelprobleem:</p>
+      <ul style="margin:0;padding-left:28px;display:grid;gap:10px;font-size:26px">
+        <li>lichte bewolking als water gezien</li>
+        <li>afgemeerde schepen als oever</li>
+        <li>nevengeul of plas achter de oever</li>
+        <li>hoogwater en werkzaamheden</li>
+      </ul>
+      <p class="small" style="margin:0">Elke oorzaak werd een nieuwe regel bij het opschonen. Review: Etienne, 7–8 sep.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 6 · results -->
+<section class="slide" data-title="Resultaten">
+  <div class="hdr"><img src="{{HEADER}}" alt=""></div><div class="hdr-word">Resultaten</div>
+  <div class="title">Hoe goed het model voorspelt</div>
+  <div class="body" style="top:350px;display:grid;grid-template-columns:760px 1fr;gap:60px">
+    <div style="display:grid;align-content:start;gap:44px">
+      <div class="bignum vvr"><div class="v">0,87 m/jr</div><div class="l">fout in <b>VVR-regio's</b></div><div class="s">39 % beter dan het historisch gemiddelde (1,42)</div></div>
+      <div class="bignum"><div class="v">1,19 m/jr</div><div class="l">fout over <b>alle regio's</b></div><div class="s">34 % beter dan het historisch gemiddelde (1,82)</div></div>
+      <p class="small" style="margin:0">Fout = gemiddelde afwijking van de oeververplaatsing per jaar, per strookje van 5 m, gemeten op regio's die het model nooit zag (12.532 strookjes).</p>
+    </div>
+    <div style="display:grid;align-content:start;gap:30px;min-width:0">
+      <svg width="100%" viewBox="0 0 900 400" role="img" aria-label="Fout van het model tegenover het historisch gemiddelde per groep regio's">{{RESULTS_CHART}}</svg>
+      <div style="display:grid;gap:10px">
+        <h3 style="font-size:28px">Dankzij de lus</h3>
+        <svg width="100%" viewBox="0 0 900 150" role="img" aria-label="Verbetering ten opzichte van het historisch gemiddelde, maart tot oktober">{{PROGRESS_CHART}}</svg>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 7 · SHAP -->
+<section class="slide" data-title="Wat drijft de voorspelling">
+  <div class="hdr"><img src="{{HEADER}}" alt=""></div><div class="hdr-word">Resultaten</div>
+  <div class="title">Waar het model het meest op let</div>
+  <div class="body" style="top:340px;display:grid;grid-template-columns:1000px 1fr;gap:56px">
+    <img src="{{SHAP}}" alt="SHAP-overzicht: invloed van elk kenmerk op de voorspelde snelheid" style="width:100%;height:100%;object-fit:contain;min-height:0">
+    <div style="display:grid;align-content:start;gap:26px">
+      <div class="bignum"><div class="v">82 %</div><div class="l">komt uit de <b>eigen geschiedenis</b> van het strookje</div></div>
+      <p style="margin:0;font-size:27px">Belangrijkst: de <b>laatste snelheid</b>, de <b>trend</b> en de <b>huidige afstand</b>; daarna de rivier.</p>
+      <p style="margin:0;font-size:27px">Een hoge waarde (rood) duwt de voorspelling vaak <b>omlaag</b>: snelle beweging in het verleden wordt deels teruggedraaid. Deels meetruis, deels echt herstel.</p>
+      <p class="small" style="margin:0">Elke stip is een teststrookje. Rechts van 0: het kenmerk verhoogt de voorspelde snelheid.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 8 · output, live -->
+<section class="slide" data-title="Wat u krijgt">
+  <div class="hdr"><img src="{{HEADER}}" alt=""></div><div class="hdr-word">Uitvoer</div>
+  <div class="title">Per regio de gemeten en voorspelde oever</div>
+  <div class="body" style="top:340px">
+    <div class="ex-wrap">
+      <div class="ex-map" id="ex-map"></div>
+      <div class="ex-side">
+        <label for="ex-region">Regio<select id="ex-region"></select></label>
+        <div style="display:grid;gap:8px">
+          <span style="font-size:26px">Voorspeld jaar</span>
+          <span class="yr" id="ex-year-out">2031</span>
+          <input type="range" id="ex-year" min="2026" max="2040" step="1" value="2031" aria-label="Voorspeld jaar">
+        </div>
+        <div id="ex-facts" style="display:grid;gap:10px;font-size:26px"></div>
+        <div class="legend">
+          <span><span class="sw" style="background:#2e7d5b"></span>gemeten (donker = recent)</span>
+          <span><span class="sw" style="background:#d97a2b"></span>voorspelde oever</span>
+          <span><span class="sw" style="background:#7a4c9e;height:14px;opacity:.6"></span>VVR</span>
+          <span><span class="sw" style="background:#18252b"></span>signaleringslijn</span>
+        </div>
+        <p class="small" style="margin:0">Schets: of dit QGIS, Power BI of een eigen webpagina wordt, bepalen we met uw input.</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot">Luchtfoto: PDOK</div>
+</section>
+
+<!-- 9 · questions -->
+<section class="slide" data-title="Uw input">
+  <div class="hdr"><img src="{{HEADER}}" alt=""></div><div class="hdr-word">Uw input</div>
+  <div class="title">Waar we uw input op willen</div>
+  <div class="body" style="top:380px">
+    <div class="qs">
+      <div class="q"><b>1</b><span>Welke tijdsresolutie wilt u zien: per jaar, of ook per maand?</span></div>
+      <div class="q"><b>2</b><span>Een tijdschuif door de jaren, of alleen de eerstvolgende voorspelde oever?</span></div>
+      <div class="q"><b>3</b><span>Waar wilt u dit bekijken: in een GIS-viewer, een Power BI-dashboard of een webpagina?</span></div>
+    </div>
+  </div>
+</section>
+
+</div></div>
+
+<nav class="nav" aria-label="Dia's">
+  <button type="button" id="prev" aria-label="Vorige dia">‹ Vorige</button>
+  <span class="count" id="count">1 / 10</span>
+  <button type="button" id="next" aria-label="Volgende dia">Volgende ›</button>
+  <button type="button" id="full">Volledig scherm</button>
+  <span class="hint">pijltjestoetsen · F volledig scherm</span>
+</nav>
+
+<script>
+const DATA = /*REGIONS*/null;
+const slides = [...document.querySelectorAll(".slide")];
+const deck = document.getElementById("deck");
+let cur = 0;
+function fit() {
+  const vp = document.querySelector(".viewport");
+  const s = Math.min(vp.clientWidth / 1920, vp.clientHeight / 1080);
+  deck.style.transform = `scale(${s})`;
+}
+function show(i) {
+  cur = Math.max(0, Math.min(slides.length - 1, i));
+  slides.forEach((s, k) => s.classList.toggle("active", k === cur));
+  document.getElementById("count").textContent = `${cur + 1} / ${slides.length}`;
+  try { history.replaceState(null, "", `#s${cur + 1}`); } catch (e) {}
+}
+document.getElementById("prev").onclick = () => show(cur - 1);
+document.getElementById("next").onclick = () => show(cur + 1);
+document.getElementById("full").onclick = () => { const d = document.documentElement; (document.fullscreenElement ? document.exitFullscreen() : d.requestFullscreen?.())?.catch?.(() => {}); };
+document.addEventListener("keydown", e => {
+  if (["INPUT", "SELECT"].includes(document.activeElement?.tagName) && !["PageDown", "PageUp"].includes(e.key)) return;
+  if (["ArrowRight", "PageDown", " "].includes(e.key)) { e.preventDefault(); show(cur + 1); }
+  else if (["ArrowLeft", "PageUp"].includes(e.key)) { e.preventDefault(); show(cur - 1); }
+  else if (e.key === "Home") show(0);
+  else if (e.key === "End") show(slides.length - 1);
+  else if (e.key === "f" || e.key === "F") document.getElementById("full").click();
+});
+window.addEventListener("resize", fit);
+
+/* ── live region explorer (slide 9) ─────────────────────────────────── */
+const SVGNS = "http://www.w3.org/2000/svg";
+const el = (t, a, p) => { const e = document.createElementNS(SVGNS, t); for (const k in a) e.setAttribute(k, a[k]); p && p.appendChild(e); return e; };
+function polyline(pts) {
+  const cum = [0]; for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+  const L = cum[cum.length - 1];
+  return { L, at(s) {
+    const d = Math.max(0, Math.min(1, s)) * L; let i = 1; while (i < cum.length - 1 && cum[i] < d) i++;
+    const t = (d - cum[i - 1]) / ((cum[i] - cum[i - 1]) || 1);
+    const p = [pts[i - 1][0] + t * (pts[i][0] - pts[i - 1][0]), pts[i - 1][1] + t * (pts[i][1] - pts[i - 1][1])];
+    const tx = pts[i][0] - pts[i - 1][0], ty = pts[i][1] - pts[i - 1][1], n = Math.hypot(tx, ty) || 1;
+    return { p, nrm: [-ty / n, tx / n] };
+  } };
+}
+function bankSide(reg, cl) {
+  let s = 0; const m = cl.at(0.5);
+  for (const ln of reg.lines) if (ln.kept) for (const part of ln.xy) for (const v of part) s += Math.sign((v[0] - m.p[0]) * m.nrm[0] + (v[1] - m.p[1]) * m.nrm[1]);
+  return s >= 0 ? 1 : -1;
+}
+function pieces(reg, cl, side, year) {
+  const R = DATA.R, segs = reg.segments.map(s => ({ seg: s[0], d: s[2] + s[3] * (year - s[1]) })).sort((a, b) => a.seg - b.seg);
+  const runs = []; let c = [];
+  for (const s of segs) { if (c.length && s.seg !== c[c.length - 1].seg + 1) { runs.push(c); c = []; } c.push(s); }
+  if (c.length) runs.push(c);
+  return runs.map(run => {
+    const st = [run[0].seg / R, ...run.map(r => (r.seg + .5) / R), (run[run.length - 1].seg + 1) / R];
+    const ds = [run[0].d, ...run.map(r => r.d), run[run.length - 1].d];
+    return st.map((s, i) => { const g = cl.at(s); return [g.p[0] + g.nrm[0] * side * ds[i], g.p[1] + g.nrm[1] * side * ds[i]]; });
+  });
+}
+const SHOW = ["maas3_r_16860_16870", "maas3_l_18300_18310", "maas3_r_16320_16330"];
+const LABEL = { "maas3_r_16860_16870": "Erodeert: bereikt de VVR in 2032–2035", "maas3_l_18300_18310": "Al voorbij de signaleringslijn", "maas3_r_16320_16330": "Stabiele oever" };
+const CROSS = { "reeds gekruist (2026)": ["al gekruist", "#d0442a"], "2027": ["2027", "#d0442a"], "2028-2029": ["2028–2029", "#e8b03a"], "2030-2031": ["2030–2031", "#e8b03a"], "2032-2035": ["2032–2035", "#e8b03a"], "2036-2040": ["2036–2040", "#5bae6a"], "2041-2050": ["2041–2050", "#5bae6a"], "geen kruising voor 2050": ["niet vóór 2050", "#5bae6a"] };
+let regs = [], ri = 0;
+function drawEx() {
+  const reg = regs[ri], year = +document.getElementById("ex-year").value;
+  document.getElementById("ex-year-out").textContent = year;
+  const cl = polyline(reg.centreline[0]), side = bankSide(reg, cl), [W, H] = reg.size;
+  const box = document.getElementById("ex-map"); box.innerHTML = "";
+  const scale = Math.min(1100 / W, 640 / H); box.style.width = `${W * scale}px`; box.style.height = `${H * scale}px`;
+  if (reg.basemap) { const img = document.createElement("img"); img.src = reg.basemap; img.alt = ""; box.appendChild(img); }
+  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, preserveAspectRatio: "none" }, box);
+  const P = c => c.map(([x, y]) => `${x},${H - y}`).join(" "), sw = Math.max(W, H) / 230;
+  for (const part of reg.vvr) el("polygon", { points: P(part), fill: "#7a4c9e", "fill-opacity": .3, stroke: "#7a4c9e", "stroke-width": sw }, svg);
+  for (const part of reg.scope) el("polygon", { points: P(part), fill: "none", stroke: "#18252b", "stroke-width": sw, "stroke-dasharray": `${sw * 4} ${sw * 3}`, "stroke-opacity": .6 }, svg);
+  for (const part of reg.signal) el("polyline", { points: P(part), fill: "none", stroke: "#18252b", "stroke-width": sw * 1.6 }, svg);
+  const dates = [...new Set(reg.lines.filter(l => l.kept).map(l => l.date))].sort();
+  for (const ln of reg.lines.filter(l => l.kept).sort((a, b) => a.date.localeCompare(b.date))) {
+    const k = dates.indexOf(ln.date) / Math.max(1, dates.length - 1);
+    const col = ln.model === "segmentation" ? `rgba(46,125,91,${0.35 + 0.65 * k})` : `rgba(73,106,142,${0.35 + 0.65 * k})`;
+    for (const part of ln.xy) el("polyline", { points: P(part), fill: "none", stroke: col, "stroke-width": sw * 1.4 }, svg);
+  }
+  for (const pc of pieces(reg, cl, side, year)) el("polyline", { points: P(pc), fill: "none", stroke: "#d97a2b", "stroke-width": sw * 2.6, "stroke-linecap": "round" }, svg);
+  const f = reg.facts, cr = CROSS[f.crossing] || ["geen VVR", "#7d8688"];
+  const v = reg.segments.map(s => s[3]), vm = v.reduce((a, b) => a + b, 0) / (v.length || 1);
+  document.getElementById("ex-facts").innerHTML =
+    `<span>${LABEL[reg.id] || reg.title}</span>` +
+    `<span>VVR bereikt: <span class="pill" style="background:${cr[1]}">${cr[0]}</span></span>` +
+    `<span>Gemiddelde voorspelde snelheid: <b>${vm.toFixed(1).replace(".", ",")} m/jr</b> ${vm >= 0 ? "landinwaarts" : "rivierwaarts"}</span>` +
+    `<span class="small">${dates.length} metingen ${dates[0].slice(0, 4)}–${dates[dates.length - 1].slice(0, 4)} · ${reg.id}</span>`;
+}
+function initEx() {
+  if (!DATA) return;
+  regs = SHOW.map(id => DATA.regions.find(r => r.id === id)).filter(Boolean);
+  const sel = document.getElementById("ex-region");
+  sel.innerHTML = regs.map((r, i) => `<option value="${i}">${LABEL[r.id] || r.title}</option>`).join("");
+  sel.onchange = e => { ri = +e.target.value; drawEx(); };
+  document.getElementById("ex-year").oninput = drawEx;
+  drawEx();
+}
+initEx();
+const start = parseInt((location.hash.match(/^#s(\d+)$/) || [])[1] || "1", 10) - 1;
+show(Number.isFinite(start) ? start : 0);
+fit();
+</script>
