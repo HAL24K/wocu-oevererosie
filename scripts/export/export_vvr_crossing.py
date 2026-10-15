@@ -119,6 +119,12 @@ for loc, g in segp.groupby(LOCATION_ID, sort=False):
     d0 = forecast_dist(g, args.start)
     span = np.where(far - near > 0, far - near, np.nan)
     consumed = np.clip((d0 - near) / span, 0, 1)
+    # How much of the scope area is past the back line of the VVR now, and how far
+    # (asked for on 15 Oct: a 5 m strip just touching is not the full 100 m behind it).
+    past = has_vvr & (d0 >= far)
+    beyond = (d0 - far)[past]
+    room = (far - d0)[has_vvr & ~past]
+    strip_m = 100.0 / cfg.segment_R
     rows.append({
         LOCATION_ID: loc,
         "kruisingsjaar": kruising,
@@ -127,6 +133,12 @@ for loc, g in segp.groupby(LOCATION_ID, sort=False):
         "v_mean_m_per_yr": round(float(vpred.mean()), 2),
         "v_max_m_per_yr": round(float(vpred.max()), 2),
         "n_seg_vvr": int(has_vvr.sum()),
+        "voorbij_lengte_m": round(float(past.sum() * strip_m), 1),
+        # share of the whole scope area (all strips), not of the strips with a VVR
+        "voorbij_aandeel_pct": round(float(past.sum() / cfg.segment_R * 100), 1),
+        "voorbij_afstand_med_m": round(float(np.median(beyond)), 1) if len(beyond) else None,
+        "voorbij_afstand_max_m": round(float(beyond.max()), 1) if len(beyond) else None,
+        "ruimte_tot_lijn_min_m": round(float(room.min()), 1) if len(room) else None,
         "model_preference": pref.get(loc, "onbekend"),
         "geometry": scope.get(loc),
     })
@@ -140,8 +152,9 @@ def klasse(y):
     if y <= 2029: return "2028-2029"
     if y <= 2031: return "2030-2031"
     if y <= 2035: return "2032-2035"
-    if y <= 2040: return "2036-2040"
-    return f"2041-{YEARS[-1]}"
+    # RWS works with a programmeerlijn to 2042 (Maas session, 15 Oct)
+    if y <= 2042: return "2036-2042"
+    return f"2043-{YEARS[-1]}"
 
 out["kruising_klasse"] = out["kruisingsjaar"].map(klasse)
 cfg.exports_dir.mkdir(parents=True, exist_ok=True)
@@ -150,6 +163,6 @@ out.to_file(path, layer="vvr_kruising_vlakken", driver="GPKG")
 print(f"\nregions scored: {len(out):,}")
 print(out["kruising_klasse"].value_counts().reindex(
     [f"reeds gekruist ({args.start})", "2027", "2028-2029", "2030-2031", "2032-2035",
-     "2036-2040", f"2041-{YEARS[-1]}", f"geen kruising voor {YEARS[-1]}"]).dropna().to_string())
+     "2036-2042", f"2043-{YEARS[-1]}", f"geen kruising voor {YEARS[-1]}"]).dropna().to_string())
 print("\nmodel preference:", out["model_preference"].value_counts().to_dict())
 print("→", path)

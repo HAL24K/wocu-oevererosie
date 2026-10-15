@@ -50,6 +50,7 @@ from qgis.core import (  # noqa: E402
     QgsReferencedRectangle,
     QgsRendererCategory,
     QgsSingleSymbolRenderer,
+    QgsVectorLayer,
 )
 from qgis.PyQt.QtCore import QSize  # noqa: E402
 from qgis.PyQt.QtGui import QColor  # noqa: E402
@@ -67,6 +68,18 @@ ap.add_argument(
 ap.add_argument(
     "--data",
     help="GeoPackage in the same folder to read instead of wocu_sessies_14_15okt.gpkg",
+)
+ap.add_argument(
+    "--order",
+    nargs="*",
+    default=[],
+    help="stretch names in presenting order; their bookmarks get a number",
+)
+ap.add_argument(
+    "--aerial",
+    choices=["actueel", "2024"],
+    default="actueel",
+    help="aerial photo on at start (the current one shows high water on the Maas)",
 )
 args = ap.parse_args()
 
@@ -100,8 +113,8 @@ CLASSES = [
     ("2028-2029", "239,101,72"),
     ("2030-2031", "253,187,71"),
     ("2032-2035", "254,224,139"),
-    ("2036-2040", "166,217,106"),
-    ("2041-2050", "77,175,74"),
+    ("2036-2042", "166,217,106"),
+    ("2043-2050", "77,175,74"),
     ("geen kruising voor 2050", "26,120,55"),
 ]
 
@@ -117,9 +130,20 @@ def fill(rgb: str) -> QgsFillSymbol:
 
 
 cats = [QgsRendererCategory(v, fill(c), v) for v, c in CLASSES]
+# No fill for "VVR, no prediction" either: grey regions drew too much attention in
+# the first session (14 Oct); they stay recognisable by their outline.
 cats.append(
     QgsRendererCategory(
-        "VVR, geen voorspelling", fill("170,170,170"), "VVR, geen voorspelling"
+        "VVR, geen voorspelling",
+        QgsFillSymbol.createSimple(
+            {
+                "color": "0,0,0,0",
+                "outline_color": "170,170,170,255",
+                "outline_width": "0.3",
+                "outline_style": "dash",
+            }
+        ),
+        "VVR, geen voorspelling",
     )
 )
 cats.append(
@@ -138,6 +162,61 @@ cats.append(
 regions = layer["scoperegios_kruisingsjaar"]
 regions.setRenderer(QgsCategorizedSymbolRenderer("kruising_klasse", cats))
 regions.setOpacity(0.6)
+
+# Readable field names when a scope area is clicked (Identify).
+ALIASES = {
+    "kruising_klasse": "kruisingsklasse",
+    "kruisingsjaar": "jaar oever bij signaleringslijn",
+    "gekozen_bron": "gekozen bron",
+    "voorbij_lengte_m": "lengte voorbij de lijn (m)",
+    "voorbij_aandeel_pct": "deel van het scopevlak voorbij de lijn (%)",
+    "voorbij_afstand_med_m": "afstand voorbij de lijn, mediaan (m)",
+    "voorbij_afstand_max_m": "afstand voorbij de lijn, grootste (m)",
+    "ruimte_tot_lijn_min_m": "ruimte tot de lijn, kleinste (m)",
+    "v_mean_m_per_yr": "voorspelde verplaatsing (m/jaar)",
+    "vvr_breedte_m": "breedte VVR (m)",
+    "pct_vvr_op_2026": "deel van de VVR al ingenomen (%)",
+}
+
+
+def alias(lyr):
+    for field, label in ALIASES.items():
+        i = lyr.fields().indexOf(field)
+        if i >= 0:
+            lyr.setFieldAlias(i, label)
+
+
+alias(regions)
+
+# Second view (15 Oct): only the coloured outline, so the base map and lines stay
+# visible when inspecting a red scope area.
+OUTLINE = "scopevlakken, alleen rand"
+outline = regions.clone()
+outline.setName(OUTLINE)
+outline.setOpacity(1.0)
+outline.setRenderer(
+    QgsCategorizedSymbolRenderer(
+        "kruising_klasse",
+        [
+            QgsRendererCategory(
+                v,
+                QgsFillSymbol.createSimple(
+                    {
+                        "color": "0,0,0,0",
+                        "outline_color": f"{c},255",
+                        "outline_width": "1.2",
+                    }
+                ),
+                v,
+            )
+            for v, c in CLASSES
+        ],
+    )
+)
+alias(outline)
+project.addMapLayer(outline, False)
+root.addLayer(outline)
+layer[OUTLINE] = outline
 
 # Measured lines: warm colours only (purple is the signal line, blue the predictions),
 # height-model years darker, newest SAM year brightest.
@@ -185,6 +264,26 @@ if args.data:
     measured.setSubsetString('"gebruikt" = 1')
     measured.setName("gemeten oeverlijnen (gebruikt)")
     layer[measured.name()] = measured
+EARLIER = "eerdere gemeten oeverlijnen"
+if args.data and measured.fields().indexOf("laatste") >= 0:
+    # Default view since 15 Oct: only the latest survey, thick and yellow; the
+    # earlier ones (by year) one click away.
+    earlier = measured.clone()
+    earlier.setName(EARLIER)
+    earlier.setSubsetString('"gebruikt" = 1 AND "laatste" = 0')
+    project.addMapLayer(earlier, False)
+    root.addLayer(earlier)
+    layer[EARLIER] = earlier
+    measured.setSubsetString('"gebruikt" = 1 AND "laatste" = 1')
+    measured.setName("laatst gemeten oeverlijn")
+    measured.setRenderer(
+        QgsSingleSymbolRenderer(
+            QgsLineSymbol.createSimple(
+                {"line_color": "255,255,60,255", "line_width": "1.0"}
+            )
+        )
+    )
+    layer[measured.name()] = measured
 
 # Predicted lines: dashed, light cyan (2026) to dark blue (2031).
 PREDICTED = {
@@ -215,6 +314,50 @@ predicted.setRenderer(
         ],
     )
 )
+
+OTHER = "andere bron (niet gekozen)"
+if args.data:
+    other = QgsVectorLayer(
+        f"{args.folder / args.data}|layername=andere_bron_oeverlijnen", OTHER, "ogr"
+    )
+    if other.isValid():
+        other.setRenderer(
+            QgsSingleSymbolRenderer(
+                QgsLineSymbol.createSimple(
+                    {
+                        "line_color": "120,215,255,255",
+                        "line_width": "0.5",
+                        "line_style": "dot",
+                    }
+                )
+            )
+        )
+        project.addMapLayer(other, False)
+        root.addLayer(other)
+        layer[OTHER] = other
+
+ALL_YEARS = "voorspelde oeverlijnen per jaar"
+if predicted.fields().indexOf("eerste") >= 0:
+    # Default view since 15 Oct: only the first predicted year after the last survey.
+    all_years = predicted.clone()
+    all_years.setName(ALL_YEARS)
+    project.addMapLayer(all_years, False)
+    root.addLayer(all_years)
+    layer[ALL_YEARS] = all_years
+    predicted.setSubsetString('"eerste" = 1')
+    predicted.setName("eerste voorspelde oeverlijn")
+    predicted.setRenderer(
+        QgsSingleSymbolRenderer(
+            QgsLineSymbol.createSimple(
+                {
+                    "line_color": "31,111,224,255",
+                    "line_width": "0.9",
+                    "line_style": "dash",
+                }
+            )
+        )
+    )
+    layer[predicted.name()] = predicted
 
 signal = layer["signaleringslijn"]
 signal.setRenderer(
@@ -285,15 +428,19 @@ layer["OSM Standard"].renderer().setOpacity(0.5)
 # Layer order (top first) and what is on at start.
 ORDER = {
     "signaleringslijn": True,
-    "voorspelde_oeverlijnen": True,
+    predicted.name(): True,
+    **({ALL_YEARS: False} if ALL_YEARS in layer else {}),
     measured.name(): True,
+    **({EARLIER: False} if EARLIER in layer else {}),
     **({REMOVED: False} if args.data else {}),
+    **({OTHER: False} if OTHER in layer else {}),
     "vvr_vlak": False,
     "locaties": True,
+    OUTLINE: False,
     "scoperegios_kruisingsjaar": True,
     "OSM Standard": True,
-    ACTUEEL: True,
-    "Luchtfoto 2024 Ortho 8cm RGB": False,
+    ACTUEEL: args.aerial == "actueel",
+    "Luchtfoto 2024 Ortho 8cm RGB": args.aerial == "2024",
     "Luchtfoto 2023 Ortho 8cm RGB": False,
     "Luchtfoto 2022 Ortho 8cm RGB": False,
     "Luchtfoto 2021 Ortho 8cm RGB": False,
@@ -305,6 +452,8 @@ for i, (name, on) in enumerate(ORDER.items()):
     root.insertChildNode(i, clone)
     node.parent().removeChildNode(node)
 
+regions.setName("scopevlakken")  # "regio" clashes with RWS's own regions (15 Oct)
+
 # One bookmark per stretch.
 manager = project.bookmarkManager()
 for b in list(manager.bookmarks()):
@@ -313,14 +462,18 @@ stretches: dict[str, list] = {}
 for f in locs.getFeatures():
     stretches.setdefault((f["sessie"], f["locatie"]), []).append(f.geometry())
 extents = {}
-for (sessie, name), geoms in sorted(stretches.items()):
+ORDER_OF = {n: i for i, n in enumerate(args.order)}
+for (sessie, name), geoms in sorted(
+    stretches.items(), key=lambda kv: (kv[0][0], ORDER_OF.get(kv[0][1], 99), kv[0][1])
+):
     ext = geoms[0].boundingBox()
     for g in geoms[1:]:
         ext.combineExtentWith(g.boundingBox())
     ext = ext.buffered(max(ext.width(), ext.height()) * 0.08)
     extents[(sessie, name)] = ext
     bm = QgsBookmark()
-    bm.setName(f"{sessie[:6]} · {name}")
+    nr = f"{ORDER_OF[name] + 1}. " if name in ORDER_OF else ""
+    bm.setName(f"{sessie[:6]} · {nr}{name}")
     bm.setGroup(sessie)
     bm.setExtent(QgsReferencedRectangle(ext, locs.crs()))
     manager.addBookmark(bm)

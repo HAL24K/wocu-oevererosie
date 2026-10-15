@@ -10,9 +10,15 @@ with the run's own data:
   that overlap a VVR but have no prediction, and no class for regions without a VVR (worked
   out here once, so QGIS does not have to test the overlap on every redraw);
 - ``voorspelde_oeverlijnen``: the run's predicted lines per year, broken where a strip has
-  no data (``exports/voorspelde_oeverlijnen_2026_2031_<run>.gpkg``), one row per piece;
+  no data (``exports/voorspelde_oeverlijnen_2026_2031_<run>.gpkg``), one row per piece,
+  with ``eerste`` = 1 on the region's first year after its last measurement;
 - ``gemeten_oeverlijnen``: every line of the run's hybrid in those regions, with
-  ``gebruikt`` = 1 when the model kept it after cleaning and 0 when cleaning removed it.
+  ``gebruikt`` = 1 when the model kept it after cleaning and 0 when cleaning removed it,
+  and ``laatste`` = 1 on the used lines of the region's latest survey date;
+- ``andere_bron_oeverlijnen``: the lines of the source the hybrid did *not* choose for the
+  scope area (from the hybrid's ``lines_all``), to compare with (asked for on 15 Oct).
+
+Scope areas also get ``gekozen_bron`` (hoogtemodel / satelliet (SAM)).
 
 Needs both exports of the run first (``export_vvr_crossing.py``, ``export_predicted_banklines.py``).
 
@@ -65,6 +71,9 @@ vvr_union = T("vvr_vlak").to_crs(regions.crs).union_all()
 regions.loc[~predicted & regions.intersects(vvr_union), "kruising_klasse"] = (
     "VVR, geen voorspelling"
 )
+regions["gekozen_bron"] = regions["model_preference"].map(
+    {"height": "hoogtemodel", "segmentation": "satelliet (SAM)"}
+)
 print(regions["kruising_klasse"].fillna("(geen VVR)").value_counts().to_string())
 write(regions, "scoperegios_kruisingsjaar")
 ids = set(regions[LOCATION_ID])
@@ -75,6 +84,18 @@ pred = gpd.read_file(
 )
 pred = pred[pred[LOCATION_ID].isin(ids)].explode(index_parts=False)
 pred = pred[~pred.geometry.is_empty]
+last_year = (
+    pd.read_parquet(cfg.model_out_dir / "segment_predictions.parquet")
+    .groupby(LOCATION_ID)["last_year"]
+    .max()
+)
+first = (
+    pred.assign(after=pred["year"] > pred[LOCATION_ID].map(last_year))
+    .query("after")
+    .groupby(LOCATION_ID)["year"]
+    .min()
+)
+pred["eerste"] = (pred["year"] == pred[LOCATION_ID].map(first)).astype("int32")
 write(
     pred[
         [
@@ -84,6 +105,7 @@ write(
             "v_mean_m_per_yr",
             "dist_mean_m",
             "verplaatsing_tov_2026_m",
+            "eerste",
             "geometry",
         ]
     ].reset_index(drop=True),
@@ -110,7 +132,26 @@ measured = gpd.GeoDataFrame(
     geometry=lines.geometry.values,
     crs=lines.crs,
 ).explode(index_parts=False)
+latest = measured[measured["gebruikt"] == 1].groupby(LOCATION_ID)["date"].max()
+measured["laatste"] = (
+    (measured["gebruikt"] == 1)
+    & (measured["date"] == measured[LOCATION_ID].map(latest))
+).astype("int32")
 write(measured.reset_index(drop=True), "gemeten_oeverlijnen")
+
+# The other source: the hybrid's lines of the model it did not choose for the area.
+chosen = gpd.read_file(cfg.hybrid_gpkg, layer="model_preference", ignore_geometry=True)
+chosen = chosen.set_index(LOCATION_ID)["model_preference"]
+chosen = chosen.map({"height": "hoogtemodel", "segmentation": "segmentation"})
+other = gpd.read_file(cfg.hybrid_gpkg, layer="lines_all")
+other = other[other[LOCATION_ID].isin(measured_ids)]
+other = other[other["model"] != other[LOCATION_ID].map(chosen)]
+other["date"] = pd.to_datetime(other["date"]).dt.normalize()
+other["jaar"] = other["date"].dt.year.astype("int32")
+write(
+    other[["date", "model", LOCATION_ID, "jaar", "geometry"]].reset_index(drop=True),
+    "andere_bron_oeverlijnen",
+)
 print(
     f"  used by the model: {measured['gebruikt'].sum():,}, "
     f"removed by cleaning: {(measured['gebruikt'] == 0).sum():,}"

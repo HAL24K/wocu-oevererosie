@@ -6,7 +6,8 @@ downloads). Used by ``forecast_render.py`` to check forecasts by eye.
 
 Run: ``PYTHONDONTWRITEBYTECODE=1 QT_QPA_PLATFORM=offscreen
 /Applications/QGIS-final-4_2_3.app/Contents/MacOS/python scripts/evaluate/qgis_render_regions.py
-<project.qgz> <out dir> zuilichem_oost=rijn_l_8360_8370,rijn_l_8370_8380``
+<project.qgz> <out dir> [--aerial="Luchtfoto 2024 Ortho 8cm RGB"]
+zuilichem_oost=rijn_l_8360_8370,rijn_l_8370_8380``
 """
 
 from __future__ import annotations
@@ -27,7 +28,9 @@ from qgis.core import (  # noqa: E402
 from qgis.PyQt.QtCore import QSize  # noqa: E402
 from qgis.PyQt.QtGui import QColor  # noqa: E402
 
-project_path, out_dir, *groups = sys.argv[1:]
+args = sys.argv[1:]
+aerial = next((a.split("=", 1)[1] for a in args if a.startswith("--aerial=")), None)
+project_path, out_dir, *groups = [a for a in args if not a.startswith("--aerial=")]
 out = Path(out_dir)
 out.mkdir(parents=True, exist_ok=True)
 app = QgsApplication([], False)
@@ -40,6 +43,9 @@ layers = [
     for n in project.layerTreeRoot().findLayers()
     if n.isVisible() and n.layer().name() != "OSM Standard"
 ]
+if aerial:  # swap the visible aerial photo for another year
+    layers = [lyr for lyr in layers if not lyr.name().startswith("Luchtfoto")]
+    layers.append(project.mapLayersByName(aerial)[0])
 for group in groups:
     name, ids = group.split("=")
     ids = ids.split(",")
