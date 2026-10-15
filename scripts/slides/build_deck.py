@@ -79,12 +79,18 @@ assets = cfg.figures_dir / "deck_assets"
 RENDERS = args.renders
 # Map slide per session: (render, crop box in pixels of the 1400×1000 render, caption)
 KAART = {
+    # Wageningen shows every class at once; drawn on the 2024 photo (the current one
+    # was taken at high water) with qgis_render_regions.py --aerial
     "rijntakken": (
-        "Onder_Elst_Elster_Buitenwaard.png",
-        (250, 60, 1250, 960),
-        "Elster Buitenwaard, Neder-Rijn",
+        "wageningen_beide.png",
+        (50, 0, 1310, 1000),
+        "Wageningen, Neder-Rijn (beide oevers) · luchtfoto PDOK 2024",
     ),
-    "maas": ("Broekhuizerweerd.png", (200, 0, 1200, 900), "Broekhuizerweerd, Maas"),
+    "maas": (
+        "Broekhuizerweerd.png",
+        (200, 0, 1200, 900),
+        "Broekhuizerweerd, Maas · luchtfoto PDOK actueel",
+    ),
 }
 
 
@@ -131,8 +137,8 @@ def results_chart() -> str:
     t = pd.read_csv(cfg.compare_dir / "source_report.csv")
     t = t[t["run"] == cfg.experiment].set_index("group")
     rows = [
-        ("all test strips", "Alle regio's"),
-        ("VVR regions", "VVR-regio's"),
+        ("all test strips", "Alle vlakken"),
+        ("VVR regions", "VVR-vlakken"),
         ("height-model regions", "Hoogtemodel"),
         ("SAM regions", "SAM"),
     ]
@@ -179,7 +185,7 @@ def results_chart() -> str:
 def progress_chart() -> str:
     """Skill against the historical average, March → October."""
     steps = [
-        ("Maart", -20, "hoogtemodel, één snelheid per regio"),
+        ("Maart", -20, "hoogtemodel, één snelheid per scopevlak"),
         ("September", 35, "SAM + hoogtemodel"),
         ("Oktober", round(skill_all * 100), "opschonen vóór hybride"),
     ]

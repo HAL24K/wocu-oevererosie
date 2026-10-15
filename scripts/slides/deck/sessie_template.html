@@ -1,0 +1,347 @@
+<title>WOCU Sessie {{SESSIE}}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,400;0,600;0,700;1,400&display=swap">
+<style>
+/* Session deck for asset managers (since 15 Oct 2026): the approach (the loop), what a
+   scope region is, how the warning light works step by step, how to read the map, demo.
+   16:9, WOCU house style, scaled to the window. */
+:root {
+  --teal: #2ab4a8;
+  --teal-dark: #1d8c83;
+  --ink: #333332;
+  --muted: #7d8688;
+  --light: #eef1f0;
+  --stage: #1d2527;
+  --font: "Noto Sans", "Ebrima", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--stage); color: var(--ink); font-family: var(--font); overflow: hidden; }
+.viewport { position: fixed; inset: 0 0 56px 0; display: grid; place-items: center; }
+.deck { width: 1920px; height: 1080px; position: relative; transform-origin: center center; }
+.slide { position: absolute; inset: 0; background: #ffffff; overflow: hidden; display: none; }
+.slide.active { display: block; }
+.hdr { position: absolute; left: 140px; top: 0; width: 330px; height: 204px; }
+.hdr img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.hdr-word { position: absolute; left: 620px; top: 70px; font-size: 76px; font-weight: 700; color: var(--teal); }
+.title { position: absolute; left: 200px; top: 256px; right: 140px; font-size: 52px; font-weight: 700; color: var(--teal); line-height: 1.15; }
+.body { position: absolute; left: 200px; right: 140px; top: 360px; bottom: 96px; }
+.foot { position: absolute; left: 200px; bottom: 34px; font-size: 22px; color: var(--muted); }
+.small { font-size: 22px; color: var(--muted); line-height: 1.4; }
+
+/* cover */
+.cover .band { position: absolute; left: 0; top: 0; bottom: 0; width: 760px; background: var(--teal); }
+.cover .band img { position: absolute; left: 150px; top: 330px; width: 460px; }
+.cover .text { position: absolute; left: 880px; right: 140px; top: 300px; display: grid; gap: 28px; }
+.cover h1 { margin: 0; font-size: 84px; line-height: 1.05; color: var(--teal); font-weight: 700; }
+.cover .sub { font-size: 38px; line-height: 1.3; }
+.cover .meta { font-size: 28px; color: var(--muted); line-height: 1.5; margin-top: 30px; }
+
+/* scope region */
+.two { display: grid; grid-template-columns: 620px 1fr; gap: 64px; height: 100%; }
+.two > img { width: 100%; height: 100%; object-fit: cover; border-radius: 12px; min-height: 0; }
+.facts { display: grid; align-content: start; gap: 34px; }
+.fact { display: grid; grid-template-columns: 70px 1fr; gap: 22px; align-items: start; font-size: 32px; line-height: 1.3; }
+.fact b.n { font-size: 52px; color: var(--teal); line-height: 1; }
+
+/* warning light, step by step */
+.stepcap { font-size: 34px; font-weight: 700; color: var(--ink); height: 56px; }
+.stepcap .nr { color: var(--teal); margin-right: 14px; }
+.stepcap .all { display: none; }
+.steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; margin-top: 18px; }
+.panel { display: grid; gap: 16px; }
+.imgs { position: relative; width: 100%; aspect-ratio: 1 / 1; border-radius: 12px; overflow: hidden; background: var(--light); max-height: 470px; }
+.imgs img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .35s; }
+.imgs img.on { opacity: 1; }
+.verdict { font-size: 28px; font-weight: 700; opacity: 0; transition: opacity .35s; display: flex; align-items: center; gap: 14px; }
+.verdict .dot { width: 30px; height: 30px; border-radius: 50%; flex: none; }
+.panel.done .verdict { opacity: 1; }
+
+/* map key */
+.map-wrap { display: grid; grid-template-columns: 820px 1fr; grid-template-rows: minmax(0, 1fr); gap: 56px; height: 100%; }
+.map-wrap > img { width: 100%; height: 100%; object-fit: cover; border-radius: 12px; min-height: 0; }
+.key { display: grid; align-content: start; gap: 24px; min-width: 0; }
+.key h3 { font-size: 28px; margin: 0 0 8px; }
+.key p { margin: 0; font-size: 24px; line-height: 1.35; }
+.classes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.classes span { font-size: 19px; padding: 6px 8px; border-radius: 6px; color: #ffffff; text-align: center; }
+.ln { display: inline-block; width: 64px; height: 8px; border-radius: 4px; vertical-align: middle; margin-right: 14px; }
+
+/* navigation */
+.nav { position: fixed; left: 0; right: 0; bottom: 0; height: 56px; display: flex; align-items: center; justify-content: center; gap: 14px; background: var(--stage); color: #dfe6e6; font: 15px var(--font); }
+.nav button { font: 15px var(--font); color: #dfe6e6; background: #2c3739; border: 1px solid #3e4b4e; border-radius: 6px; padding: 6px 14px; cursor: pointer; }
+.nav button:hover { background: #374447; }
+.nav button:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; }
+.nav .count { min-width: 90px; text-align: center; font-variant-numeric: tabular-nums; }
+.nav .hint { color: #8b9799; font-size: 13px; }
+@media (max-width: 600px) { .nav .hint { display: none; } }
+
+/* print: one slide per page, the step slide in its final state */
+@media print {
+  @page { size: 1920px 1080px; margin: 0; }
+  html, body { height: auto; overflow: visible; background: #ffffff; }
+  .viewport { position: static; display: block; }
+  .deck { transform: none !important; width: 1920px; height: auto; }
+  .slide { position: relative; display: block !important; width: 1920px; height: 1080px; page-break-after: always; break-after: page; }
+  .imgs img { opacity: 0 !important; }
+  .imgs img:last-child { opacity: 1 !important; }
+  .verdict { opacity: 1 !important; }
+  .stepcap .live { display: none; }
+  .stepcap .all { display: inline; }
+  .nav { display: none; }
+}
+</style>
+
+<div class="viewport"><div class="deck" id="deck">
+
+<!-- 1 · cover -->
+<section class="slide cover" data-title="Titel">
+  <div class="band"><img src="{{DRONE}}" alt=""></div>
+  <div class="text">
+    <h1>Een waarschuwingslicht voor oevererosie</h1>
+    <div class="sub">Hoe de oevererosietool werkt</div>
+    <div class="meta">Asset-management sessie {{SESSIE}} · {{DATUM}}<br>Alexander Bakker · Moraine Water</div>
+  </div>
+</section>
+
+<!-- 2 · the loop (from the full deck) -->
+<section class="slide" data-title="Aanpak">
+  <div class="hdr"><img src="{{HEADER}}" alt=""></div><div class="hdr-word">Aanpak</div>
+  <div class="title">Van meting naar voorspelling</div>
+  <svg style="position:absolute;left:0;top:340px" width="1920" height="700" viewBox="0 0 1920 700" role="img" aria-label="Werkwijze: invoer, de lus van voorbereiden tot evalueren, en de uitvoer">
+    <defs>
+      <marker id="a-teal" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#2ab4a8"/></marker>
+      <marker id="a-grey" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#c9cecd"/></marker>
+      <marker id="a-orange" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#d97a2b"/></marker>
+    </defs>
+    <!-- input -->
+    <text x="80" y="20" font-size="24" font-weight="700" fill="#8a9193" letter-spacing="2">INVOER</text>
+    <g>
+      <rect x="80" y="45" width="200" height="130" rx="14" fill="#eef1f0"/><rect x="80" y="45" width="56" height="130" fill="#cfe3ec"/>
+      <rect x="120" y="60" width="145" height="100" fill="none" stroke="#8a9193" stroke-dasharray="6 5"/>
+      <path d="M170,62 C188,85 158,105 176,125 C192,142 164,152 172,160" fill="none" stroke="#496a8e" stroke-width="5" stroke-linecap="round"/>
+      <text x="300" y="98" font-size="28" font-weight="700" fill="#333332">Hoogtemodel</text>
+      <text x="300" y="132" font-size="22" fill="#8a9193">2015–2025 · Luke</text>
+    </g>
+    <g>
+      <rect x="80" y="205" width="200" height="130" rx="14" fill="#eef1f0"/><rect x="80" y="205" width="56" height="130" fill="#cfe3ec"/>
+      <rect x="120" y="220" width="145" height="100" fill="none" stroke="#8a9193" stroke-dasharray="6 5"/>
+      <path d="M160,222 C178,245 150,265 168,285 C182,302 156,312 164,320" fill="none" stroke="#2e7d5b" stroke-width="3.5" stroke-linecap="round"/>
+      <path d="M176,222 C194,245 166,265 184,285 C198,302 172,312 180,320" fill="none" stroke="#2e7d5b" stroke-width="3.5" stroke-linecap="round" opacity=".75"/>
+      <path d="M196,222 C214,245 186,265 204,285 C218,302 192,312 200,320" fill="none" stroke="#2e7d5b" stroke-width="3.5" stroke-linecap="round" opacity=".5"/>
+      <text x="300" y="258" font-size="28" font-weight="700" fill="#333332">SAM-satelliet-</text>
+      <text x="300" y="292" font-size="28" font-weight="700" fill="#333332">lijnen</text>
+      <text x="300" y="324" font-size="22" fill="#8a9193">2023–2026 · Lars</text>
+    </g>
+    <line x1="180" y1="345" x2="180" y2="392" stroke="#2ab4a8" stroke-width="4" marker-end="url(#a-teal)"/>
+    <rect x="80" y="400" width="400" height="180" rx="16" fill="#e3f4f2" stroke="#2ab4a8" stroke-width="3"/>
+    <rect x="80" y="400" width="12" height="180" rx="6" fill="#2ab4a8"/>
+    <text x="112" y="448" font-size="30" font-weight="700" fill="#1d8c83">Hybride model</text>
+    <text x="112" y="490" font-size="24" fill="#333332">Per scopevlak de beste bron:</text>
+    <text x="112" y="522" font-size="24" fill="#333332">hoogtemodel of</text>
+    <text x="112" y="554" font-size="24" fill="#333332">SAM-satellietlijnen</text>
+    <path d="M486,490 L520,490 L520,140 L548,140" fill="none" stroke="#2ab4a8" stroke-width="5" marker-end="url(#a-teal)"/>
+    <!-- loop -->
+    <g>
+      <rect x="560" y="20" width="430" height="260" rx="22" fill="#ffffff" stroke="#2ab4a8" stroke-width="3"/>
+      <rect x="590" y="50" width="120" height="86" rx="10" fill="#eef1f0"/><rect x="590" y="50" width="34" height="86" fill="#cfe3ec"/>
+      <rect x="626" y="60" width="9" height="66" fill="#2ab4a8"/><rect x="643" y="60" width="9" height="66" fill="#2ab4a8"/><rect x="660" y="60" width="9" height="66" fill="#2ab4a8"/><rect x="677" y="60" width="9" height="66" fill="#2ab4a8"/><rect x="694" y="60" width="9" height="66" fill="#2ab4a8"/>
+      <text x="732" y="104" font-size="32" font-weight="700" fill="#333332">1  Voorbereiden</text>
+      <text x="590" y="190" font-size="26" fill="#333332">Opschonen en per scopevlak</text>
+      <text x="590" y="226" font-size="26" fill="#333332">20 strookjes van ±5 m</text>
+    </g>
+    <g>
+      <rect x="1100" y="20" width="430" height="260" rx="22" fill="#ffffff" stroke="#2ab4a8" stroke-width="3"/>
+      <rect x="1130" y="58" width="100" height="14" fill="#2ab4a8"/><rect x="1130" y="82" width="76" height="14" fill="#2ab4a8"/><rect x="1130" y="106" width="52" height="14" fill="#c9cecd"/><rect x="1130" y="130" width="34" height="14" fill="#c9cecd"/>
+      <text x="1272" y="104" font-size="32" font-weight="700" fill="#333332">2  Kenmerken</text>
+      <text x="1272" y="140" font-size="32" font-weight="700" fill="#333332">kiezen</text>
+      <text x="1130" y="190" font-size="26" fill="#333332">Geschiedenis, positie en</text>
+      <text x="1130" y="226" font-size="26" fill="#333332">context per strookje</text>
+    </g>
+    <g>
+      <rect x="1100" y="400" width="430" height="260" rx="22" fill="#ffffff" stroke="#2ab4a8" stroke-width="3"/>
+      <rect x="1130" y="430" width="56" height="74" rx="8" fill="#eef1f0" stroke="#2ab4a8" stroke-width="2.5"/><rect x="1144" y="444" width="56" height="74" rx="8" fill="#eef1f0" stroke="#2ab4a8" stroke-width="2.5"/>
+      <rect x="1214" y="430" width="56" height="74" rx="8" fill="#eef1f0" stroke="#d97a2b" stroke-width="2.5"/>
+      <text x="1290" y="476" font-size="32" font-weight="700" fill="#333332">3  Trainen</text>
+      <text x="1290" y="512" font-size="32" font-weight="700" fill="#333332">en testen</text>
+      <text x="1130" y="570" font-size="26" fill="#333332">Leren op bekende vlakken,</text>
+      <text x="1130" y="606" font-size="26" fill="#333332">toetsen op onbekende</text>
+    </g>
+    <g>
+      <rect x="560" y="400" width="430" height="260" rx="22" fill="#ffffff" stroke="#2ab4a8" stroke-width="3"/>
+      <rect x="590" y="430" width="120" height="86" rx="10" fill="#eef1f0"/><rect x="590" y="430" width="34" height="86" fill="#cfe3ec"/>
+      <rect x="626" y="442" width="74" height="62" fill="none" stroke="#8a9193" stroke-dasharray="5 4"/>
+      <circle cx="668" cy="468" r="24" fill="none" stroke="#333332" stroke-width="5"/><line x1="686" y1="486" x2="706" y2="508" stroke="#333332" stroke-width="7" stroke-linecap="round"/>
+      <text x="732" y="484" font-size="32" font-weight="700" fill="#333332">4  Evalueren</text>
+      <text x="590" y="570" font-size="26" fill="#333332">Slechtst voorspelde vlakken</text>
+      <text x="590" y="606" font-size="26" fill="#333332">bekijken: wat ging er mis?</text>
+    </g>
+    <line x1="996" y1="150" x2="1092" y2="150" stroke="#2ab4a8" stroke-width="5" marker-end="url(#a-teal)"/>
+    <line x1="1315" y1="286" x2="1315" y2="392" stroke="#2ab4a8" stroke-width="5" marker-end="url(#a-teal)"/>
+    <line x1="1094" y1="530" x2="998" y2="530" stroke="#2ab4a8" stroke-width="5" marker-end="url(#a-teal)"/>
+    <line x1="775" y1="394" x2="775" y2="288" stroke="#2ab4a8" stroke-width="5" marker-end="url(#a-teal)"/>
+    <line x1="980" y1="410" x2="1112" y2="272" stroke="#d97a2b" stroke-width="4" stroke-dasharray="12 9" marker-end="url(#a-orange)"/>
+    <text x="1060" y="352" font-size="22" fill="#d97a2b">nieuwe regels,</text>
+    <text x="1060" y="380" font-size="22" fill="#d97a2b">andere kenmerken</text>
+    <text x="1045" y="700" font-size="24" font-weight="700" fill="#8a9193" text-anchor="middle">Herhalen zolang de slechtste scopevlakken iets leren over de data</text>
+    <!-- output -->
+    <line x1="1540" y1="340" x2="1606" y2="340" stroke="#2ab4a8" stroke-width="6" marker-end="url(#a-teal)"/>
+    <text x="1620" y="20" font-size="24" font-weight="700" fill="#8a9193" letter-spacing="2">UITVOER (SCHETS)</text>
+    <rect x="1620" y="45" width="250" height="390" rx="16" fill="#eef1f0" stroke="#c9cecd" stroke-width="2"/>
+    <path d="M1650,45 C1680,140 1660,240 1690,330 C1700,380 1690,410 1694,435" fill="none" stroke="#cfe3ec" stroke-width="40"/>
+    <rect x="1750" y="70" width="96" height="44" fill="#5bae6a"/><rect x="1750" y="124" width="96" height="44" fill="#5bae6a"/><rect x="1750" y="178" width="96" height="44" fill="#e8b03a"/><rect x="1750" y="232" width="96" height="44" fill="#d0442a"/><rect x="1750" y="286" width="96" height="44" fill="#e8b03a"/><rect x="1750" y="340" width="96" height="44" fill="#5bae6a"/>
+    <path d="M1735,60 C1730,150 1742,250 1734,410" fill="none" stroke="#d97a2b" stroke-width="4" stroke-dasharray="10 8"/>
+    <line x1="1635" y1="478" x2="1855" y2="478" stroke="#8a9193" stroke-width="3"/><circle cx="1745" cy="478" r="13" fill="#2ab4a8"/>
+    <text x="1640" y="514" font-size="18" fill="#8a9193">2026</text><text x="1724" y="514" font-size="18" fill="#8a9193">2031</text><text x="1812" y="514" font-size="18" fill="#8a9193">2040</text>
+    <text x="1620" y="566" font-size="26" font-weight="700" fill="#333332">Voor de gebruiker</text>
+    <text x="1620" y="600" font-size="22" fill="#333332">Per scopevlak het jaar waarin de</text>
+    <text x="1620" y="628" font-size="22" fill="#333332">oever de VVR bereikt, en de</text>
+    <text x="1620" y="656" font-size="22" fill="#333332">voorspelde oeverlijn per jaar</text>
+  </svg>
+</section>
+
+<!-- 3 · the scope region -->
+<section class="slide" data-title="Het scopevlak">
+  <div class="hdr"><img src="{{HEADER}}" alt=""></div><div class="hdr-word">Het scopevlak</div>
+  <div class="title">De eenheid van de kaart: het scopevlak</div>
+  <div class="body" style="top:350px">
+    <div class="two">
+      <img src="{{SCOPE}}" alt="Scopevlakken bij {{SCOPE_NAAM}} op de luchtfoto, één vlak gemarkeerd met zijn afmetingen">
+      <div class="facts">
+        <div class="fact"><b class="n">1</b><span>Elk vlak is <b>100 m langs de oever</b> en reikt <b>±175 m</b> van de rivier landinwaarts (±2 ha).</span></div>
+        <div class="fact"><b class="n">2</b><span>Langs Rijntakken, IJssel en Maas: <b>ruim 12.000 vlakken</b>.</span></div>
+        <div class="fact"><b class="n">3</b><span>Per vlak volgen we de oever door de jaren: <b>hoogtemodel</b> (2015–2025) en <b>satellietbeelden</b> (2023–2026).</span></div>
+        <div class="fact"><b class="n">4</b><span>Elk vlak krijgt <b>één kleur</b>: wanneer bereikt de oever de signaleringslijn van de VVR?</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="foot">{{SCOPE_NAAM}} · luchtfoto PDOK 2024</div>
+</section>
+
+<!-- 4 · the warning light, step by step -->
+<section class="slide" data-title="Het waarschuwingslicht" data-steps="15">
+  <div class="hdr"><img src="{{HEADER}}" alt=""></div><div class="hdr-word">Waarschuwing</div>
+  <div class="title">Zo werkt het waarschuwingslicht</div>
+  <div class="body" style="top:340px">
+    <div class="stepcap"><span class="live"><span class="nr" id="step-nr">1/5</span><span id="step-text"></span></span><span class="all">Scopevlak · VVR met signaleringslijn · gemeten oever · voorspelde oever · kleur</span></div>
+    <div class="steps" id="steps">
+      <div class="panel">
+        <div class="imgs">{{STEPS_KRUIST}}</div>
+        <div class="verdict"><span class="dot" style="background:{{KLEUR_KRUIST}}"></span>Bereikt de lijn in {{JAAR_KRUIST}}</div>
+      </div>
+      <div class="panel">
+        <div class="imgs">{{STEPS_BINNEN}}</div>
+        <div class="verdict"><span class="dot" style="background:#1a7837"></span>Ruim binnen de lijn</div>
+      </div>
+      <div class="panel">
+        <div class="imgs">{{STEPS_VOORBIJ}}</div>
+        <div class="verdict"><span class="dot" style="background:#8b0000"></span>Al voorbij de lijn (gemeten)</div>
+      </div>
+    </div>
+  </div>
+  <div class="foot">{{SESSIE}} · luchtfoto PDOK 2024 · ingezoomd op de oever</div>
+</section>
+
+<!-- 5 · reading the map -->
+<section class="slide" data-title="De kaart lezen">
+  <div class="hdr"><img src="{{HEADER}}" alt=""></div><div class="hdr-word">De kaart</div>
+  <div class="title">Zo leest u de kaart</div>
+  <div class="body" style="top:340px">
+    <div class="map-wrap">
+      <img src="{{KAART}}" alt="De kaart bij {{KAART_NAAM}}: vlakken in kleur, laatst gemeten en voorspelde oever">
+      <div class="key">
+        <div>
+          <h3>Kleur van het vlak: wanneer bereikt de oever de signaleringslijn?</h3>
+          <div class="classes">
+            <span style="background:#8b0000">al gekruist</span><span style="background:#d7301f">2027</span><span style="background:#ef6548">2028–29</span><span style="background:#fdbb47;color:#333332">2030–31</span>
+            <span style="background:#fee08b;color:#333332">2032–35</span><span style="background:#a6d96a;color:#333332">2036–42</span><span style="background:#4daf4a">2043–50</span><span style="background:#1a7837">niet vóór 2050</span>
+          </div>
+        </div>
+        <p><b>Al gekruist</b> is gemeten. Latere jaren: de gemeten beweging, voorzichtig doorgetrokken.</p>
+        <p><span class="ln" style="background:#ffff3c;box-shadow:0 0 0 1px #c8c800"></span><b>Laatst gemeten oever</b> (satelliet of hoogtemodel)</p>
+        <p><span class="ln" style="background:repeating-linear-gradient(90deg,#1f6fe0 0 14px,transparent 14px 22px)"></span><b>Voorspelde oever</b>, het eerstvolgende jaar</p>
+        <p><span class="ln" style="background:repeating-linear-gradient(90deg,#8c0fd5 0 16px,transparent 16px 22px,#8c0fd5 22px 26px,transparent 26px 32px)"></span><b>Signaleringslijn</b>: achterkant van de VVR</p>
+        <p class="small">Klik op een scopevlak voorbij de lijn: hoeveel meter van het vlak voorbij de lijn ligt, en hoe ver. Vlak zonder kleur: geen VVR, of te weinig metingen. Eerdere metingen, latere jaren en de niet-gekozen bron staan in de kaart, één klik verder.</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot">{{KAART_NAAM}}</div>
+</section>
+
+<!-- 6 · demo -->
+<section class="slide" data-title="Demo">
+  <div class="hdr"><img src="{{HEADER}}" alt=""></div>
+  <div style="position:absolute;inset:0;display:grid;place-items:center;font-size:180px;font-weight:700;color:var(--teal);">Demo</div>
+</section>
+
+</div></div>
+
+<nav class="nav" aria-label="Dia's">
+  <button type="button" id="prev" aria-label="Vorige">‹ Vorige</button>
+  <span class="count" id="count"></span>
+  <button type="button" id="next" aria-label="Volgende">Volgende ›</button>
+  <button type="button" id="full">Volledig scherm</button>
+  <span class="hint">pijltjestoetsen of klik · F volledig scherm</span>
+</nav>
+
+<script>
+const STEP_TEXT = [
+  "Het scopevlak op de luchtfoto",
+  "De VVR (paars), met achteraan de signaleringslijn",
+  "De gemeten oever: geel = laatste meting, vaag = eerdere jaren",
+  "De voorspelde oever (blauw, gestreept)",
+  "De kleur: wanneer bereikt de oever de signaleringslijn?",
+];
+const slides = [...document.querySelectorAll(".slide")];
+const deck = document.getElementById("deck");
+let cur = 0, step = 1;
+function fit() {
+  const vp = document.querySelector(".viewport");
+  deck.style.transform = `scale(${Math.min(vp.clientWidth / 1920, vp.clientHeight / 1080)})`;
+}
+function steps(s) { return +(slides[s].dataset.steps || 0); }
+function render() {
+  slides.forEach((s, k) => s.classList.toggle("active", k === cur));
+  const n = steps(cur);
+  if (n) {
+    // The panels fill one after the other, five steps each; earlier panels keep
+    // their final picture, later ones stay empty.
+    const per = STEP_TEXT.length, active = Math.floor((step - 1) / per), sub = (step - 1) % per + 1;
+    slides[cur].querySelectorAll(".panel").forEach((panel, i) => {
+      const shown = i < active ? per : i === active ? sub : 0;
+      [...panel.querySelector(".imgs").children].forEach((img, k) => img.classList.toggle("on", k === shown - 1));
+      panel.classList.toggle("done", shown === per);
+    });
+    document.getElementById("step-nr").textContent = `${sub}/${per}`;
+    document.getElementById("step-text").textContent = STEP_TEXT[sub - 1];
+  }
+  document.getElementById("count").textContent = `${cur + 1} / ${slides.length}` + (n ? ` · stap ${step}` : "");
+  try { history.replaceState(null, "", `#s${cur + 1}`); } catch (e) {}
+}
+function next() {
+  if (steps(cur) && step < steps(cur)) step++;
+  else if (cur < slides.length - 1) { cur++; step = 1; }
+  render();
+}
+function prev() {
+  if (steps(cur) && step > 1) step--;
+  else if (cur > 0) { cur--; step = steps(cur) || 1; }
+  render();
+}
+document.getElementById("next").onclick = next;
+document.getElementById("prev").onclick = prev;
+deck.addEventListener("click", next);
+document.getElementById("full").onclick = () => { const d = document.documentElement; (document.fullscreenElement ? document.exitFullscreen() : d.requestFullscreen?.())?.catch?.(() => {}); };
+document.addEventListener("keydown", e => {
+  if (["ArrowRight", "PageDown", " "].includes(e.key)) { e.preventDefault(); next(); }
+  else if (["ArrowLeft", "PageUp"].includes(e.key)) { e.preventDefault(); prev(); }
+  else if (e.key === "f" || e.key === "F") document.getElementById("full").click();
+});
+window.addEventListener("resize", fit);
+const start = parseInt((location.hash.match(/^#s(\d+)$/) || [])[1] || "1", 10) - 1;
+cur = Number.isFinite(start) ? Math.max(0, Math.min(slides.length - 1, start)) : 0;
+render();
+fit();
+</script>
