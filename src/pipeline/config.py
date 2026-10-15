@@ -101,6 +101,11 @@ class ExperimentConfig:
     # CSV with a location_id column: regions left out of training and testing
     # (experiments such as "without the 100 worst SAM regions").
     exclude_regions: Path | None = None
+    # Drop SAM surveys taken when the river's discharge was at or above this
+    # percentile (per gauging station, data/02_context/discharge_daily): SAM
+    # draws the waterline of the day, which lies inland at high water
+    # (scripts/evaluate/high_water_test.py). None → keep all surveys.
+    high_water_pct: float | None = None
     test_size: float = 0.20
     seed: int = 42
     start_year: int = 2026
