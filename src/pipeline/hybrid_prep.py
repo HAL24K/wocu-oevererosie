@@ -29,6 +29,47 @@ from src.sources.observations import BankObservations
 
 logger = logging.getLogger(__name__)
 
+DISCHARGE_DAILY = "02_context/discharge_daily"
+# river part of the region id → gauging station for the high-water filter
+DISCHARGE_STATION = {
+    "rijn": "lobith.bovenrijn.tolkamer",
+    "nederrijn": "pannerden.pannerdenschkanaal",
+    "ijssel1": "olst",
+    "ijssel2": "olst",
+    "maas1": "venlo",
+    "maas2": "venlo",
+    "maas3": "megen.maas",
+}
+
+
+def drop_high_water_surveys(kept: pd.DataFrame, cfg: ExperimentConfig) -> pd.DataFrame:
+    """Drop SAM samples from days with discharge >= ``cfg.high_water_pct``.
+
+    The percentile is per station over all its days in the discharge files.
+    Height-model lines and regions without a station are kept.
+    """
+    pct = {}
+    for station in set(DISCHARGE_STATION.values()):
+        d = pd.read_parquet(cfg.data_dir / DISCHARGE_DAILY / f"{station}.parquet")
+        pct[station] = d.set_index("date")["discharge_m3s"].rank(pct=True) * 100
+    station = kept[LOCATION_ID].str.split("_").str[0].map(DISCHARGE_STATION)
+    day = pd.to_datetime(kept["date"]).dt.normalize()
+    q = pd.Series(np.nan, index=kept.index)
+    for st, s in pct.items():
+        m = station == st
+        q[m] = day[m].map(s).to_numpy()
+    high = (kept["model"] == "segmentation") & (q >= cfg.high_water_pct)
+    no_q = (kept["model"] == "segmentation") & station.notna() & q.isna()
+    logger.info(
+        "   high-water filter (discharge >= p%.0f): -%d samples, -%d surveys"
+        " (%d SAM samples without discharge kept)",
+        cfg.high_water_pct,
+        int(high.sum()),
+        kept.loc[high, [LOCATION_ID, "date"]].drop_duplicates().shape[0],
+        int(no_q.sum()),
+    )
+    return kept[~high]
+
 
 def cleaning_rules(cfg: ExperimentConfig) -> list[tuple[str, dict]]:
     """The graduated e8 stack, parameterized from the config."""
@@ -235,6 +276,8 @@ def build_observations(
         structures=build_structures_geom(cfg, geometry.centrelines),
     )
     kept = apply_rules(samples, ctx, cleaning_rules(cfg))
+    if cfg.high_water_pct is not None:
+        kept = drop_high_water_surveys(kept, cfg)
     for st in ctx.stats:
         logger.info(
             "   %s: -%d samples, -%d lines, -%d surveys, -%d regions",

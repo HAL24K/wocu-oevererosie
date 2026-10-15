@@ -101,6 +101,11 @@ class ExperimentConfig:
     # CSV with a location_id column: regions left out of training and testing
     # (experiments such as "without the 100 worst SAM regions").
     exclude_regions: Path | None = None
+    # Drop SAM surveys taken when the river's discharge was at or above this
+    # percentile (per gauging station, data/02_context/discharge_daily): SAM
+    # draws the waterline of the day, which lies inland at high water
+    # (scripts/evaluate/high_water_test.py). None → keep all surveys.
+    high_water_pct: float | None = None
     test_size: float = 0.20
     seed: int = 42
     start_year: int = 2026
@@ -129,6 +134,15 @@ class ExperimentConfig:
     segment_n_samples: int = 60  # dense sampling for segment scalars
     horizon_min_years: int = 2  # forecast horizon of the segment artifact
     build_segments: bool = True  # produce the segment-horizon artifact (hybrid)
+    # forecast from the strip model (src/pipeline/forecast.py, chosen 2026-10-14):
+    # "stable" = model correction for SAM strips for at most H years + damped
+    # regional drift, smoothed over neighbouring strips; "linear" = the model's
+    # speed as a constant speed (before 2026-10-14)
+    forecast_mode: str = "stable"
+    forecast_drift_alpha: float = 0.1
+    forecast_smooth_v: int = 5
+    forecast_smooth_start: int = 3
+    forecast_jump_k_m: float = 10.0
 
     # ── behaviour ─────────────────────────────────────────────────────────────
     export_gpkg: bool = True  # write the (large) output GeoPackage

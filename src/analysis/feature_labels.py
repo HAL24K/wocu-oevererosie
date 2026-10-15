@@ -9,8 +9,8 @@ from __future__ import annotations
 
 GROUPS = {
     "geschiedenis": "Geschiedenis van het strookje",
-    "positie": "Positie in de regio",
-    "context": "Context van de regio",
+    "positie": "Positie in het scopevlak",
+    "context": "Context van het scopevlak",
 }
 
 # feature: (short label, meaning, data source, group)
@@ -115,13 +115,13 @@ FEATURES: dict[str, tuple[str, str, str, str]] = {
     # where the strip sits
     "seg_center": (
         "Positie langs de oever",
-        "Plaats van het strookje in de regio (0–1)",
+        "Plaats van het strookje in het scopevlak (0–1)",
         "Afgeleid",
         "positie",
     ),
     "seg_edge": (
-        "Afstand tot rand regio",
-        "Hoe dicht het strookje bij de rand van de regio ligt",
+        "Afstand tot rand scopevlak",
+        "Hoe dicht het strookje bij de rand van het scopevlak ligt",
         "Afgeleid",
         "positie",
     ),

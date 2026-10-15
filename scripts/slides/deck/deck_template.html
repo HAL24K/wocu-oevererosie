@@ -84,6 +84,17 @@ svg text { font-family: var(--font); }
 .sw { display: inline-block; width: 40px; height: 6px; border-radius: 3px; vertical-align: middle; margin-right: 12px; }
 .pill { display: inline-block; font-size: 24px; font-weight: 700; padding: 6px 16px; border-radius: 99px; color: #ffffff; }
 
+/* map legend */
+.map-wrap { display: grid; grid-template-columns: 820px 1fr; grid-template-rows: minmax(0, 1fr); gap: 56px; height: 100%; }
+.map-wrap > img { width: 100%; height: 100%; object-fit: cover; border-radius: 12px; min-height: 0; }
+.key { display: grid; align-content: start; gap: 18px; min-width: 0; }
+.key h3 { font-size: 26px; margin: 0 0 6px; }
+.key p { margin: 0; font-size: 22px; line-height: 1.3; }
+.classes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.classes span { font-size: 19px; padding: 6px 8px; border-radius: 6px; color: #ffffff; text-align: center; }
+.ramp { height: 14px; border-radius: 7px; margin: 6px 0 4px; }
+.ramp-l { display: flex; justify-content: space-between; font-size: 20px; color: var(--muted); }
+
 /* questions */
 .qs { display: grid; gap: 34px; }
 .q { display: grid; grid-template-columns: 90px 1fr; align-items: start; gap: 24px; font-size: 38px; line-height: 1.3; }
@@ -154,7 +165,7 @@ svg text { font-family: var(--font); }
     <rect x="80" y="400" width="400" height="160" rx="16" fill="none" stroke="#c9cecd" stroke-width="2.5" stroke-dasharray="10 7"/>
     <text x="104" y="444" font-size="24" font-weight="700" fill="#8a9193">Vooraf, door partners</text>
     <text x="104" y="484" font-size="24" fill="#8a9193">SAM-lijnen opschonen</text>
-    <text x="104" y="520" font-size="24" fill="#8a9193">Hybride model: per regio</text>
+    <text x="104" y="520" font-size="24" fill="#8a9193">Hybride model: per scopevlak</text>
     <text x="104" y="548" font-size="24" fill="#8a9193">de beste bron</text>
     <path d="M486,480 L520,480 L520,140 L548,140" fill="none" stroke="#c9cecd" stroke-width="5" marker-end="url(#a-grey)"/>
     <!-- loop -->
@@ -163,7 +174,7 @@ svg text { font-family: var(--font); }
       <rect x="590" y="50" width="120" height="86" rx="10" fill="#eef1f0"/><rect x="590" y="50" width="34" height="86" fill="#cfe3ec"/>
       <rect x="626" y="60" width="9" height="66" fill="#2ab4a8"/><rect x="643" y="60" width="9" height="66" fill="#2ab4a8"/><rect x="660" y="60" width="9" height="66" fill="#2ab4a8"/><rect x="677" y="60" width="9" height="66" fill="#2ab4a8"/><rect x="694" y="60" width="9" height="66" fill="#2ab4a8"/>
       <text x="732" y="104" font-size="32" font-weight="700" fill="#333332">1  Voorbereiden</text>
-      <text x="590" y="190" font-size="26" fill="#333332">Opschonen en per regio</text>
+      <text x="590" y="190" font-size="26" fill="#333332">Opschonen en per scopevlak</text>
       <text x="590" y="226" font-size="26" fill="#333332">20 strookjes van ±5 m</text>
     </g>
     <g>
@@ -180,7 +191,7 @@ svg text { font-family: var(--font); }
       <rect x="1214" y="430" width="56" height="74" rx="8" fill="#eef1f0" stroke="#d97a2b" stroke-width="2.5"/>
       <text x="1290" y="476" font-size="32" font-weight="700" fill="#333332">3  Trainen</text>
       <text x="1290" y="512" font-size="32" font-weight="700" fill="#333332">en testen</text>
-      <text x="1130" y="570" font-size="26" fill="#333332">Leren op bekende regio's,</text>
+      <text x="1130" y="570" font-size="26" fill="#333332">Leren op bekende scopevlakken,</text>
       <text x="1130" y="606" font-size="26" fill="#333332">toetsen op onbekende</text>
     </g>
     <g>
@@ -189,7 +200,7 @@ svg text { font-family: var(--font); }
       <rect x="626" y="442" width="74" height="62" fill="none" stroke="#8a9193" stroke-dasharray="5 4"/>
       <circle cx="668" cy="468" r="24" fill="none" stroke="#333332" stroke-width="5"/><line x1="686" y1="486" x2="706" y2="508" stroke="#333332" stroke-width="7" stroke-linecap="round"/>
       <text x="732" y="484" font-size="32" font-weight="700" fill="#333332">4  Evalueren</text>
-      <text x="590" y="570" font-size="26" fill="#333332">Slechtst voorspelde regio's</text>
+      <text x="590" y="570" font-size="26" fill="#333332">Slechtst voorspelde scopevlakken</text>
       <text x="590" y="606" font-size="26" fill="#333332">bekijken: wat ging er mis?</text>
     </g>
     <line x1="996" y1="150" x2="1092" y2="150" stroke="#2ab4a8" stroke-width="5" marker-end="url(#a-teal)"/>
@@ -199,7 +210,7 @@ svg text { font-family: var(--font); }
     <line x1="980" y1="410" x2="1112" y2="272" stroke="#d97a2b" stroke-width="4" stroke-dasharray="12 9" marker-end="url(#a-orange)"/>
     <text x="1060" y="352" font-size="22" fill="#d97a2b">nieuwe regels,</text>
     <text x="1060" y="380" font-size="22" fill="#d97a2b">andere kenmerken</text>
-    <text x="1045" y="700" font-size="24" font-weight="700" fill="#8a9193" text-anchor="middle">Herhalen zolang de slechtste regio's iets leren over de data</text>
+    <text x="1045" y="700" font-size="24" font-weight="700" fill="#8a9193" text-anchor="middle">Herhalen zolang de slechtste scopevlakken iets leren over de data</text>
     <!-- output -->
     <line x1="1540" y1="340" x2="1606" y2="340" stroke="#2ab4a8" stroke-width="6" marker-end="url(#a-teal)"/>
     <text x="1620" y="20" font-size="24" font-weight="700" fill="#8a9193" letter-spacing="2">UITVOER (SCHETS)</text>
@@ -210,7 +221,7 @@ svg text { font-family: var(--font); }
     <line x1="1635" y1="478" x2="1855" y2="478" stroke="#8a9193" stroke-width="3"/><circle cx="1745" cy="478" r="13" fill="#2ab4a8"/>
     <text x="1640" y="514" font-size="18" fill="#8a9193">2026</text><text x="1724" y="514" font-size="18" fill="#8a9193">2031</text><text x="1812" y="514" font-size="18" fill="#8a9193">2040</text>
     <text x="1620" y="566" font-size="26" font-weight="700" fill="#333332">Voor de gebruiker</text>
-    <text x="1620" y="600" font-size="22" fill="#333332">Per regio het jaar waarin de</text>
+    <text x="1620" y="600" font-size="22" fill="#333332">Per scopevlak het jaar waarin de</text>
     <text x="1620" y="628" font-size="22" fill="#333332">oever de VVR bereikt, en de</text>
     <text x="1620" y="656" font-size="22" fill="#333332">voorspelde oeverlijn per jaar</text>
   </svg>
@@ -221,7 +232,7 @@ svg text { font-family: var(--font); }
   <div class="hdr"><img src="{{HEADER}}" alt=""></div><div class="hdr-word">Voorbereiden</div>
   <div class="title">Van alle lijnen naar één positie per strookje</div>
   <div class="body" style="top:360px;display:grid;grid-template-rows:1fr auto;gap:22px">
-    <img src="{{REGION}}" alt="Een scoperegio voor en na het verwerken" style="width:100%;height:100%;object-fit:contain;min-height:0">
+    <img src="{{REGION}}" alt="Een scopevlak voor en na het verwerken" style="width:100%;height:100%;object-fit:contain;min-height:0">
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:36px">
       <p style="margin:0;font-size:26px"><span class="k">Alle metingen.</span> Hoogtemodel en SAM, zoals het hybride model ze aanlevert.</p>
       <p style="margin:0;font-size:26px"><span class="k">Opschonen.</span> Lijnen die geen oever kunnen zijn gaan eruit: kribben, kronkels, uitschieters in de tijd.</p>
@@ -232,7 +243,7 @@ svg text { font-family: var(--font); }
 </section>
 
 <!-- 3 · features -->
-<section class="slide" data-title="Kenmerken">
+<section class="slide" data-title="Kenmerken" data-skip-short>
   <div class="hdr"><img src="{{HEADER}}" alt=""></div><div class="hdr-word">Kenmerken</div>
   <div class="title">Wat het model per strookje meeneemt</div>
   <div class="body" style="top:360px">
@@ -243,12 +254,12 @@ svg text { font-family: var(--font); }
         <div class="src">Bron: oeverlijnen uit het hybride model</div>
       </div>
       <div class="card">
-        <div class="tag">Positie in de regio</div>
+        <div class="tag">Positie in het scopevlak</div>
         <div class="feat" style="grid-template-columns:1fr">{{FEAT_positie}}</div>
         <div class="src">Afgeleid</div>
       </div>
       <div class="card">
-        <div class="tag">Context van de regio</div>
+        <div class="tag">Context van het scopevlak</div>
         <div class="feat">{{FEAT_context}}</div>
         <div class="src">Bronnen: RWS, BRO, BRP, afvoer RWS, hoogtemodel</div>
       </div>
@@ -257,9 +268,9 @@ svg text { font-family: var(--font); }
 </section>
 
 <!-- 4 · train and test -->
-<section class="slide" data-title="Trainen en testen">
+<section class="slide" data-title="Trainen en testen" data-skip-short>
   <div class="hdr"><img src="{{HEADER}}" alt=""></div><div class="hdr-word">Model</div>
-  <div class="title">Leren op bekende regio's, toetsen op onbekende</div>
+  <div class="title">Leren op bekende scopevlakken, toetsen op onbekende</div>
   <svg style="position:absolute;left:0;top:350px" width="1920" height="690" viewBox="0 0 1920 690" role="img" aria-label="Regio's verdeeld in een trainset en een testset, met hoe trainen en testen werken">
     <defs>
       <marker id="b-teal" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#2ab4a8"/></marker>
@@ -273,9 +284,9 @@ svg text { font-family: var(--font); }
       <rect x="100" y="272" width="54" height="230" fill="#cfe3ec"/>
       <rect x="140" y="298" width="130" height="178" fill="none" stroke="#8a9193" stroke-dasharray="7 6"/>
       <path d="M190,300 C212,340 176,380 198,420 C214,450 186,466 194,476" fill="none" stroke="#2e7d5b" stroke-width="4"/>
-      <text x="196" y="550" font-size="28" font-weight="700" fill="#333332" text-anchor="middle">Alle regio's</text>
+      <text x="196" y="550" font-size="28" font-weight="700" fill="#333332" text-anchor="middle">Alle scopevlakken</text>
       <text x="196" y="584" font-size="22" fill="#8a9193" text-anchor="middle">met ≥ 3 meetjaren</text>
-      <text x="196" y="614" font-size="22" fill="#8a9193" text-anchor="middle">6.754</text>
+      <text x="196" y="614" font-size="22" fill="#8a9193" text-anchor="middle">{{N_REGIONS}}</text>
     </g>
     <path d="M330,330 C380,240 400,170 460,150" fill="none" stroke="#2ab4a8" stroke-width="5" marker-end="url(#b-teal)"/>
     <path d="M330,450 C380,540 400,560 460,560" fill="none" stroke="#d97a2b" stroke-width="5" marker-end="url(#b-orange)"/>
@@ -286,14 +297,14 @@ svg text { font-family: var(--font); }
       <rect x="490" y="40" width="300" height="220" rx="18" fill="#ffffff" stroke="#2ab4a8" stroke-width="3"/>
       <rect x="520" y="72" width="50" height="62" rx="6" fill="#eef1f0" stroke="#2ab4a8" stroke-width="2"/><rect x="580" y="72" width="50" height="62" rx="6" fill="#eef1f0" stroke="#2ab4a8" stroke-width="2"/><rect x="640" y="72" width="50" height="62" rx="6" fill="#eef1f0" stroke="#2ab4a8" stroke-width="2"/><rect x="700" y="72" width="50" height="62" rx="6" fill="#eef1f0" stroke="#2ab4a8" stroke-width="2"/>
       <text x="520" y="180" font-size="30" font-weight="700" fill="#333332">Trainset</text>
-      <text x="520" y="218" font-size="24" fill="#333332">5.406 regio's</text>
+      <text x="520" y="218" font-size="24" fill="#333332">{{N_TRAIN}} scopevlakken</text>
     </g>
     <!-- test set -->
     <g>
       <rect x="490" y="450" width="300" height="220" rx="18" fill="#ffffff" stroke="#d97a2b" stroke-width="3"/>
       <rect x="520" y="482" width="50" height="62" rx="6" fill="#eef1f0" stroke="#d97a2b" stroke-width="2"/><rect x="580" y="482" width="50" height="62" rx="6" fill="#eef1f0" stroke="#d97a2b" stroke-width="2"/>
       <text x="520" y="590" font-size="30" font-weight="700" fill="#333332">Testset</text>
-      <text x="520" y="628" font-size="24" fill="#333332">1.348 regio's</text>
+      <text x="520" y="628" font-size="24" fill="#333332">{{N_TEST}} scopevlakken</text>
     </g>
     <line x1="800" y1="150" x2="900" y2="150" stroke="#2ab4a8" stroke-width="5" marker-end="url(#b-teal)"/>
     <line x1="800" y1="560" x2="900" y2="560" stroke="#d97a2b" stroke-width="5" marker-end="url(#b-orange)"/>
@@ -310,7 +321,7 @@ svg text { font-family: var(--font); }
       <path d="M980,200 C1080,150 1440,150 1520,165" fill="none" stroke="#2ab4a8" stroke-width="3" marker-end="url(#b-teal)"/>
       <path d="M1120,196 C1250,138 1560,138 1660,150" fill="none" stroke="#2ab4a8" stroke-width="3" marker-end="url(#b-teal)"/>
       <path d="M1250,182 C1380,128 1680,128 1760,140" fill="none" stroke="#2ab4a8" stroke-width="3" marker-end="url(#b-teal)"/>
-      <text x="1600" y="230" font-size="22" fill="#2ab4a8" font-weight="700">49.463 voorbeelden</text>
+      <text x="1600" y="230" font-size="22" fill="#2ab4a8" font-weight="700">{{N_EXAMPLES}} voorbeelden</text>
     </g>
     <!-- testing panel -->
     <g>
@@ -328,19 +339,19 @@ svg text { font-family: var(--font); }
       <text x="1680" y="628" font-size="22" fill="#d97a2b" text-anchor="end">voorspeld</text>
       <text x="1680" y="540" font-size="22" fill="#2e7d5b" text-anchor="end">gemeten</text>
       <text x="1744" y="580" font-size="22" font-weight="700" fill="#333332">fout</text>
-      <text x="960" y="680" font-size="20" fill="#8a9193">12.532 teststrookjes in 844 regio's met een toetsbaar meetpaar</text>
+      <text x="960" y="680" font-size="20" fill="#8a9193">{{N_TEST_STRIPS}} teststrookjes in {{N_TEST_REGIONS}} scopevlakken met een toetsbaar meetpaar</text>
     </g>
   </svg>
 </section>
 
 <!-- 5 · cleaning -->
-<section class="slide" data-title="Opschonen">
+<section class="slide" data-title="Opschonen" data-skip-short>
   <div class="hdr"><img src="{{HEADER}}" alt=""></div><div class="hdr-word">Opschonen</div>
-  <div class="title">Wat we tegenkwamen in de slechtst voorspelde regio's</div>
+  <div class="title">Wat we tegenkwamen in de slechtst voorspelde scopevlakken</div>
   <div class="body" style="top:350px;display:grid;grid-template-columns:1fr 420px;gap:40px">
     <img src="{{FAILURES}}" alt="Zeven oorzaken van een slechte voorspelling, met een voorbeeld elk" style="width:100%;height:100%;object-fit:contain;min-height:0">
     <div style="display:grid;align-content:start;gap:22px">
-      <p style="margin:0;font-size:28px">Steeds opnieuw: de <span class="k">slechtste regio's</span> bekijken op de satellietbeelden.</p>
+      <p style="margin:0;font-size:28px">Steeds opnieuw: de <span class="k">slechtste scopevlakken</span> bekijken op de satellietbeelden.</p>
       <p style="margin:0;font-size:26px">Bijna altijd een <b>meetprobleem</b>, geen modelprobleem:</p>
       <ul style="margin:0;padding-left:28px;display:grid;gap:10px;font-size:26px">
         <li>lichte bewolking als water gezien</li>
@@ -359,14 +370,14 @@ svg text { font-family: var(--font); }
   <div class="title">Hoe goed het model voorspelt</div>
   <div class="body" style="top:350px;display:grid;grid-template-columns:760px 1fr;gap:60px">
     <div style="display:grid;align-content:start;gap:44px">
-      <div class="bignum vvr"><div class="v">0,87 m/jr</div><div class="l">fout in <b>VVR-regio's</b></div><div class="s">39 % beter dan het historisch gemiddelde (1,42)</div></div>
-      <div class="bignum"><div class="v">1,19 m/jr</div><div class="l">fout over <b>alle regio's</b></div><div class="s">34 % beter dan het historisch gemiddelde (1,82)</div></div>
-      <p class="small" style="margin:0">Fout = gemiddelde afwijking van de oeververplaatsing per jaar, per strookje van 5 m, gemeten op regio's die het model nooit zag (12.532 strookjes).</p>
+      <div class="bignum vvr"><div class="v">{{VVR_MAE}} m/jr</div><div class="l">fout in <b>VVR-scopevlakken</b></div><div class="s">{{VVR_SKILL}} % beter dan het historisch gemiddelde ({{VVR_NAIVE}})</div></div>
+      <div class="bignum"><div class="v">{{ALL_MAE}} m/jr</div><div class="l">fout over <b>alle scopevlakken</b></div><div class="s">{{ALL_SKILL}} % beter dan het historisch gemiddelde ({{ALL_NAIVE}})</div></div>
+      <p class="small" style="margin:0">Fout = gemiddelde afwijking van de oeververplaatsing per jaar, per strookje van 5 m, gemeten op scopevlakken die het model nooit zag ({{N_TEST_STRIPS}} strookjes).</p>
     </div>
     <div style="display:grid;align-content:start;gap:30px;min-width:0">
-      <svg width="100%" viewBox="0 0 900 400" role="img" aria-label="Fout van het model tegenover het historisch gemiddelde per groep regio's">{{RESULTS_CHART}}</svg>
+      <svg width="100%" viewBox="0 0 900 400" role="img" aria-label="Fout van het model tegenover het historisch gemiddelde per groep scopevlakken">{{RESULTS_CHART}}</svg>
       <div style="display:grid;gap:10px">
-        <h3 style="font-size:28px">Dankzij de lus</h3>
+        <h3 style="font-size:28px">Ontwikkeling sinds maart</h3>
         <svg width="100%" viewBox="0 0 900 150" role="img" aria-label="Verbetering ten opzichte van het historisch gemiddelde, maart tot oktober">{{PROGRESS_CHART}}</svg>
       </div>
     </div>
@@ -374,7 +385,7 @@ svg text { font-family: var(--font); }
 </section>
 
 <!-- 7 · SHAP -->
-<section class="slide" data-title="Wat drijft de voorspelling">
+<section class="slide" data-title="Wat drijft de voorspelling" data-skip-short>
   <div class="hdr"><img src="{{HEADER}}" alt=""></div><div class="hdr-word">Resultaten</div>
   <div class="title">Waar het model het meest op let</div>
   <div class="body" style="top:340px;display:grid;grid-template-columns:1000px 1fr;gap:56px">
@@ -389,14 +400,14 @@ svg text { font-family: var(--font); }
 </section>
 
 <!-- 8 · output, live -->
-<section class="slide" data-title="Wat u krijgt">
+<section class="slide" data-title="Wat u krijgt" data-skip-short>
   <div class="hdr"><img src="{{HEADER}}" alt=""></div><div class="hdr-word">Uitvoer</div>
-  <div class="title">Per regio de gemeten en voorspelde oever</div>
+  <div class="title">Per scopevlak de gemeten en voorspelde oever</div>
   <div class="body" style="top:340px">
     <div class="ex-wrap">
       <div class="ex-map" id="ex-map"></div>
       <div class="ex-side">
-        <label for="ex-region">Regio<select id="ex-region"></select></label>
+        <label for="ex-region">Scopevlak<select id="ex-region"></select></label>
         <div style="display:grid;gap:8px">
           <span style="font-size:26px">Voorspeld jaar</span>
           <span class="yr" id="ex-year-out">2031</span>
@@ -416,15 +427,50 @@ svg text { font-family: var(--font); }
   <div class="foot">Luchtfoto: PDOK</div>
 </section>
 
-<!-- 9 · questions -->
+<!-- 9 · how to read the map -->
+<section class="slide" data-title="De kaart lezen">
+  <div class="hdr"><img src="{{HEADER}}" alt=""></div><div class="hdr-word">Uitvoer</div>
+  <div class="title">Zo leest u de kaart</div>
+  <div class="body" style="top:340px">
+    <div class="map-wrap">
+      <img src="{{KAART}}" alt="QGIS-kaart van {{KAART_NAAM}} met vlakken, gemeten en voorspelde oeverlijnen">
+      <div class="key">
+        <div>
+          <h3>Kleur van het vlak: wanneer bereikt de oever de signaleringslijn?</h3>
+          <div class="classes">
+            <span style="background:#8b0000">al gekruist</span><span style="background:#d7301f">2027</span><span style="background:#ef6548">2028–29</span><span style="background:#fdbb47;color:#333332">2030–31</span>
+            <span style="background:#fee08b;color:#333332">2032–35</span><span style="background:#a6d96a;color:#333332">2036–40</span><span style="background:#4daf4a">2041–50</span><span style="background:#1a7837">niet vóór 2050</span>
+          </div>
+          <p class="small" style="margin-top:10px"><span class="sw" style="background:#aaaaaa;height:18px;width:28px;opacity:.6"></span>Grijs: VVR, maar <b>geen voorspelling</b> (te weinig metingen) · geen kleur: geen VVR in het vlak.<br><b>Al gekruist</b> is gemeten. Latere jaren: de gemeten beweging, voorzichtig doorgetrokken.</p>
+        </div>
+        <div>
+          <h3>Gemeten oeverlijnen <span style="font-weight:400">(doorgetrokken)</span></h3>
+          <div class="ramp" style="background:linear-gradient(90deg,#993404,#cc5f0e,#f09824,#fed84a,#ffff3c)"></div>
+          <div class="ramp-l"><span>2015 hoogtemodel</span><span>2026 satelliet (SAM)</span></div>
+        </div>
+        <div>
+          <h3>Voorspelde oeverlijnen <span style="font-weight:400">(gestreept)</span></h3>
+          <div class="ramp" style="background:linear-gradient(90deg,#a0f0ff,#2887dc,#0f37aa)"></div>
+          <div class="ramp-l"><span>2026</span><span>2031</span></div>
+        </div>
+        <p><span class="sw" style="background:repeating-linear-gradient(90deg,#8c0fd5 0 18px,transparent 18px 24px,#8c0fd5 24px 28px,transparent 28px 34px);height:6px;width:60px"></span><b>Signaleringslijn</b> = rand van de VVR (paars, streep-punt)</p>
+        <p class="small">Meerdere gele lijnen in één vlak: soms meerdere opnames in een jaar, soms losse stukken uit één opname (bewolking, schepen, mogelijk hoogwater). Hoe tonen we dat het best?</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot">{{KAART_NAAM}}</div>
+</section>
+
+<!-- 10 · questions -->
 <section class="slide" data-title="Uw input">
   <div class="hdr"><img src="{{HEADER}}" alt=""></div><div class="hdr-word">Uw input</div>
   <div class="title">Waar we uw input op willen</div>
   <div class="body" style="top:380px">
     <div class="qs">
-      <div class="q"><b>1</b><span>Welke tijdsresolutie wilt u zien: per jaar, of ook per maand?</span></div>
-      <div class="q"><b>2</b><span>Een tijdschuif door de jaren, of alleen de eerstvolgende voorspelde oever?</span></div>
-      <div class="q"><b>3</b><span>Waar wilt u dit bekijken: in een GIS-viewer, een Power BI-dashboard of een webpagina?</span></div>
+      <div class="q"><b>1</b><span>Per jaar zien waar de oever ligt, of vooral <strong>wanneer</strong> de signaleringslijn wordt bereikt?</span></div>
+      <div class="q"><b>2</b><span>Herkent u de rode en oranje locaties? Zijn er ingrepen gedaan of gepland?</span></div>
+      <div class="q"><b>3</b><span>Wat heeft u nodig om op een waarschuwing te handelen: betrouwbaarheid, luchtfoto, andere lagen, een pdf?</span></div>
+      <div class="q"><b>4</b><span>Waar wilt u dit gebruiken: GIS-viewer, Power BI of een webpagina?</span></div>
     </div>
   </div>
 </section>
@@ -433,7 +479,7 @@ svg text { font-family: var(--font); }
 
 <nav class="nav" aria-label="Dia's">
   <button type="button" id="prev" aria-label="Vorige dia">‹ Vorige</button>
-  <span class="count" id="count">1 / 10</span>
+  <span class="count" id="count"></span>
   <button type="button" id="next" aria-label="Volgende dia">Volgende ›</button>
   <button type="button" id="full">Volledig scherm</button>
   <span class="hint">pijltjestoetsen · F volledig scherm</span>
@@ -530,7 +576,7 @@ function drawEx() {
     `<span class="small">${dates.length} metingen ${dates[0].slice(0, 4)}–${dates[dates.length - 1].slice(0, 4)} · ${reg.id}</span>`;
 }
 function initEx() {
-  if (!DATA) return;
+  if (!DATA || !document.getElementById("ex-map")) return;
   regs = SHOW.map(id => DATA.regions.find(r => r.id === id)).filter(Boolean);
   const sel = document.getElementById("ex-region");
   sel.innerHTML = regs.map((r, i) => `<option value="${i}">${LABEL[r.id] || r.title}</option>`).join("");

@@ -537,6 +537,11 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="admit side-channel regions (with --quality-gate height_preferred)",
     )
+    ap.add_argument(
+        "--high-water-pct",
+        type=float,
+        help="drop SAM surveys on days with discharge at or above this percentile",
+    )
     args = ap.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO, format="%(message)s")
@@ -557,6 +562,7 @@ def main(argv: list[str] | None = None) -> int:
         quality_gate=args.quality_gate,
         side_channels=args.side_channels,
         exclude_regions=args.exclude_regions,
+        high_water_pct=args.high_water_pct,
     )
     result = run(cfg, notes=args.notes)
     return 0 if result.all_checks_passed else 1
